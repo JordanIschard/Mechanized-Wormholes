@@ -1,27 +1,8 @@
 # Wormholes formalization
 
-<details>
+## Task list
 
-<summary>To-do list</summary>
-
-- [ ] Prove the progress of the functional transition
-  - [ ] <span style="color:red">Define the property of all possible application for a certain function can be normalized</span>
-  - [ ] <span style="color:orange">Prove that if all expression in `V` and `sv` can be normalized then output elements keep the property</span> (:white_check_mark: modulo the above property)
-  - [x] Prove that halting can go through pairs
-- [ ] Define and prove the Theorem 1 of the paper
-- [ ] Remove hypothesis about well typed stream value in functional typing theorem and try to solve it
-- [ ] <span style="color:blue">Prove the preservation of the temporal transition</span>
-- [ ] Prove the progress of the temporal transition
-- [x] ~~Add the fact that all virtual resources are initialized as unused for the functional transition~~
-- [x] Prove that `Vin` in the definition of the temporal transition initialized all cell as unused
-- [x] Change the representation of the stock environments
-  - [x] Adapt all dependent proofs
-  - [x] Prove that `ReadStock` and `WriteStock` do not share keys
-  - [x] Prove that all value in the stock environments is well-typed
-
-</details>
-
----
+- [ ] Finish the formalization
 
 ## The capture avoiding issue
 
