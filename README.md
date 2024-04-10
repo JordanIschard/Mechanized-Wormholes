@@ -3,7 +3,7 @@
 ## Task list
 
 - [ ] Finish the formalization
-- [ ] Update the project with `dune`
+- [x] Update the project with `dune`
 
 ## Dependencies
 
