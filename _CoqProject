@@ -1,0 +1,21 @@
+-R theories Wormholes
+-arg "-w all"
+
+
+# ----------------------------------------------
+
+theories/Syntax
+
+# ----------------------------------------------
+
+theories/Environments_Contexts
+
+# ----------------------------------------------
+
+theories/Typing.v
+theories/Substitution.v
+theories/Evaluation.v
+theories/Functional.v
+theories/Temporal.v
+
+# ----------------------------------------------
