@@ -3,8 +3,9 @@
 ## Task list
 
 - [ ] Finish the formalization
+- [ ] Update the project with `dune`
 
-## Dependence
+## Dependencies
 
 The formalization depends on the library `MMaps` findable in the coq community [git](https://github.com/coq-community/coq-mmaps) and the library `DeBrLevel` findable on [git](https://github.com/JordanIschard/DeBrLevel).
 
