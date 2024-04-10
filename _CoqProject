@@ -9,10 +9,12 @@
 -Q _build/default/theories MechaWormholes
 
 
+theories/Environments_Contexts/Context.v
+theories/Evaluation.v
+theories/Functional.v
+theories/Substitution.v
 theories/Syntax/Term.v
 theories/Syntax/Typ.v
 theories/Syntax/Var.v
-
-theories/Environments_Contexts/Context.v
-
+theories/Temporal.v
 theories/Typing.v
