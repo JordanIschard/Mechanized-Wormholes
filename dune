@@ -1,0 +1,13 @@
+; from https://github.com/HoTT/Coq-HoTT
+
+(rule
+ (target _CoqProject)
+ (deps
+  ./etc/generate_coqproject.sh
+  (source_tree theories))
+ (mode promote)
+ (action
+  (setenv
+   GENERATE_COQPROJECT_FOR_DUNE
+   true
+   (bash ./etc/generate_coqproject.sh))))

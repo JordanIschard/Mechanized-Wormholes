@@ -1,0 +1,7 @@
+(coq.theory
+ (name mecha)
+ (synopsis "Formalization of Wormholes, an arrow-based FRP language, using De Bruijn levels to represent resources.")
+ (theories MMaps DeBrLevel)
+)
+
+(include_subdirs qualified)
