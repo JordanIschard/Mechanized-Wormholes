@@ -9,20 +9,10 @@
 -Q _build/default/theories MechaWormholes
 
 
-theories/Environments_Contexts/RContext.v
-theories/Environments_Contexts/ReadStock.v
-theories/Environments_Contexts/REnvironment.v
-theories/Environments_Contexts/Stock.v
-theories/Environments_Contexts/VContext.v
-theories/Environments_Contexts/WriteStock.v
-theories/Evaluation.v
-theories/Functional.v
-theories/Substitution.v
-theories/Syntax/Cell.v
-theories/Syntax/Resources.v
-theories/Syntax/Resource.v
 theories/Syntax/Term.v
 theories/Syntax/Typ.v
 theories/Syntax/Var.v
-theories/Temporal.v
+
+theories/Environments_Contexts/Context.v
+
 theories/Typing.v
