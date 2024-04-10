@@ -66,18 +66,18 @@ Definition Γ := Context.t.
 Declare Scope context_scope.
 Delimit Scope context_scope with γ.
 
-Infix "⊆ᵥᵪ" := Context.Submap (at level 20, no associativity). 
-Infix "∈ᵥᵪ" := Context.Raw.In (at level 20, no associativity). 
-Notation "r '∉ᵥᵪ' Re" := (~ (Context.Raw.In r Re)) (at level 20, no associativity). 
-Notation "∅ᵥᵪ" := Context.Raw.empty (at level 20, no associativity). 
-Notation "'isEmptyᵥᵪ(' Re ')'" := (Context.OP.P.Empty Re) (at level 20, no associativity). 
-Notation "'Addᵥᵪ'" := (Context.OP.P.Add) (at level 20, no associativity). 
-Notation "R '⌊' x '⌋ᵥᵪ'"  := (Context.Raw.find x R) (at level 15, x constr).
-Notation "⌈ x ⤆ v '⌉ᵥᵪ' R"  := (Context.Raw.add x v R) (at level 15, x constr, 
+Infix "⊆ᵧ" := Context.Submap (at level 20, no associativity). 
+Infix "∈ᵧ" := Context.Raw.In (at level 20, no associativity). 
+Notation "r '∉ᵧ' Re" := (~ (Context.Raw.In r Re)) (at level 20, no associativity). 
+Notation "∅ᵧ" := Context.Raw.empty (at level 20, no associativity). 
+Notation "'isEmptyᵧ(' Re ')'" := (Context.OP.P.Empty Re) (at level 20, no associativity). 
+Notation "'Addᵧ'" := (Context.OP.P.Add) (at level 20, no associativity). 
+Notation "R '⌊' x '⌋ᵧ'"  := (Context.Raw.find x R) (at level 15, x constr).
+Notation "⌈ x ⤆ v '⌉ᵧ' R"  := (Context.Raw.add x v R) (at level 15, x constr, 
                                                                                 v constr).
-Notation "R ⌈ x ⩦ v '⌉ᵥᵪ'"  := (Context.Raw.find x R = Some v) (at level 15, 
+Notation "R ⌈ x ⩦ v '⌉ᵧ'"  := (Context.Raw.find x R = Some v) (at level 15, 
                                                                           x constr, v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ᵥᵪ'"  := (Context.Raw.find x R = None) (at level 15, 
+Notation "R ⌈ x ⩦ ⊥ '⌉ᵧ'"  := (Context.Raw.find x R = None) (at level 15, 
                                                                                 x constr).
 
 Infix "=" := Context.eq : context_scope.

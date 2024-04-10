@@ -104,6 +104,12 @@ End Typ.
 
 (** *** Scope and Notations *)
 Declare Custom Entry arrow.
+
+Notation "<[ e ]>" := e (e custom arrow at level 99).
+Notation "( x )" := x (in custom arrow, x at level 99).
+Notation "x" := x (in custom arrow at level 0, x constr at level 0).
+Notation "{ x }" := x (in custom arrow at level 1, x constr).
+
 Declare Scope typ_scope.
 Delimit Scope typ_scope with typ.
 Definition Τ := Typ.t.
