@@ -1,38 +1,42 @@
-From DeBrLevel Require Import Level LevelInterface PairLevel.
+From Coq Require Import Structures.Orders Structures.OrdersEx.
+From DeBrLevel Require Import LevelInterface.
 
-(** * Syntax - Resource
+Module Resource <: OrderedTypeWithLeibniz.
+  
+  Include Nat_as_OT.
 
-  A resource is a kind of reference defined in the Wormholes language. Like a variable,
-  we need identifiers for resources. Thus, we choose De Bruijn level as representation in
-  order to avoid capture variables. It is a direct use of the [Level] module.
-*)
-Module Resource <: StrongShiftValidFullOTWithLeibniz := Level.
+  Lemma eq_leibniz : forall t t', eq t t' -> t = t'.
+  Proof. intros; now unfold eq in *. Qed.
+
+End Resource.
 
 (** * Syntax - Pair of resources *)
-Module PairResource <: StrongShiftValidFullETWithLeibniz
-:= StrongShiftValidFullPairOTWL Resource Resource. 
+Module PairResource <: OrderedTypeWithLeibniz.
+
+  Include PairOrderedType Resource Resource. 
+
+
+  Lemma eq_leibniz : forall t t', eq t t' -> t = t'.
+  Proof. 
+    intros; destruct t0,t'. repeat red in H. destruct H. unfold RelationPairs.RelCompFun in *.
+    simpl in *; now subst.
+  Qed.
+
+End PairResource.
 
 (** *** Scope and Notations *)
-Declare Custom Entry wormholes.
+Declare Custom Entry rsf.
 Declare Scope resource_scope.
 Delimit Scope resource_scope with r.
 Definition resource := Resource.t.
 Definition πresource := PairResource.t.
 
-Notation "<[ e ]>" := e (e custom wormholes at level 99).
-Notation "( x )"   := x (in custom wormholes, x at level 99).
-Notation "x"       := x (in custom wormholes at level 0, x constr at level 0).
-Notation "{ x }"   := x (in custom wormholes at level 1, x constr).
+Notation "<[ e ]>" := e (e custom rsf at level 99).
+Notation "( x )"   := x (in custom rsf, x at level 99).
+Notation "x"       := x (in custom rsf at level 0, x constr at level 0).
+Notation "{ x }"   := x (in custom rsf at level 1, x constr).
 
 Infix "<"  := Resource.lt : resource_scope.
 Infix "=" := Resource.eq : resource_scope.
 Infix "<?"  := Resource.ltb (at level 70) : resource_scope.
 Infix "=?" := Resource.eqb  (at level 70) : resource_scope.
-Infix "⊩ᵣ" := Resource.valid (at level 20, no associativity). 
-Infix "⊩?ᵣ" := Resource.validb (at level 20, no associativity). 
-Notation "'[⧐ᵣ' lb '≤' k ']' t" := (Resource.shift lb k t) (at level 65, right associativity).
-
-Notation "'[⧐ₚᵣ' lb '≤' k ']' t" := (PairResource.shift lb k t) (in custom wormholes at level 45, 
-                                                                            right associativity).
-Infix "⊩ₚᵣ" := PairResource.valid (at level 20, no associativity). 
-Infix "⊩?ₚᵣ" := PairResource.valid (at level 20, no associativity). 

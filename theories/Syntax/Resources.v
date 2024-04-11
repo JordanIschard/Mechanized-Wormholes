@@ -1,27 +1,8 @@
-From Coq Require Import Lia.
-From DeBrLevel Require Import Level Levels SetLevelInterface.
+From Coq Require Import MSets Lia.
+Require Import Resource.
 
-(** * Syntax - Resources
+Module Resources <: OrderedTypeWithLeibniz :=  MSetList.MakeWithLeibniz Resource.
 
-  Types in Womholes language is composed with basic types of a lambda-calculus with
-  a new arrow which carries a set of used resources. In order to define this type
-  we define a set of resources identifiers.
-*)
-Module Resources <: StrongShiftValidFullSetOTWLInterface Level.
-
-Include Levels.
-
-Lemma valid_wh_spec : forall s lb,
-  valid (S (S lb)) s -> valid lb (diff s (add lb (add (S lb) empty))).
-Proof.
-  intros; rewrite valid_unfold in *; unfold For_all in *; 
-  intros. rewrite diff_spec in H0; destruct H0.
-  rewrite add_notin_spec in H1; destruct H1; 
-  rewrite add_notin_spec in H2; destruct H2; clear H3.
-  unfold Level.valid in *; apply H in H0; lia.
-Qed.
-
-End Resources.
 
 (** *** Scope and Notations *)
 Definition resources := Resources.t.
@@ -41,10 +22,5 @@ Infix "⊆" := Resources.Subset (at level 60, no associativity) : resources_scop
 Infix "⊈" := (fun s s' => ~ (Resources.Subset s s')) (at level 60, no associativity) : resources_scope.
 
 Infix "<"  := Resources.lt : resources_scope.
-Infix "<?" := Resources.ltb (at level 70) : resources_scope.
 Infix "=" := Resources.eq : resources_scope.
 Infix "=?" := Resources.equal (at level 70) : resources_scope.
-
-Infix "⊩ᵣₛ" := Resources.valid (at level 20, no associativity). 
-Infix "⊩?ᵣₛ" := Resources.validb (at level 20, no associativity). 
-Notation "'[⧐ᵣₛ' lb '≤' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity).
