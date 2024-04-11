@@ -1,12 +1,11 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses 
                         Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
-Require Import Resource Resources Term Typ Var ReadStock WriteStock
-               Substitution Typing VContext RContext Evaluation
-               Cell REnvironment Stock.
+Require Import Resource Resources Term Typ Var Substitution Typing VContext RContext Evaluation
+               Cell REnvironment.
 
 (** * Transition - Functional
 
-Wormholes's semantics are divided in three sub semantics:
+rsf's semantics are divided in three sub semantics:
 - evaluation transition
 - functional transition <--
 - temporal transition
@@ -18,74 +17,51 @@ Module RE := REnvironment.
 
 (** *** Definition *)
 
-Reserved Notation "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ; W ⪢" (at level 57, V constr, 
-                                                                V1 constr, st custom wormholes,
-                                                                st1 custom wormholes,
-                                                                t custom wormholes, 
-                                                                t1 custom wormholes, 
+Reserved Notation "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ⪢" (at level 57, V constr, 
+                                                                V1 constr, st custom rsf,
+                                                                st1 custom rsf,
+                                                                t custom rsf, 
+                                                                t1 custom rsf, 
                                                                 no associativity).
 Reserved Notation "'Instᵣₜ(' Re , V )" (at level 50).
 
-Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> 𝐖 -> Prop :=
+Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> Prop :=
 
-  | fT_eT    :  forall (V V' : 𝓥) (st st' t t' t'' : Λ) (W : 𝐖),
+  | fT_eT    :  forall (V V' : 𝓥) (st st' t t' t'' : Λ),
 
-      (newᵣᵦ(V)) ⊨ t ⟼ t' -> ⪡ V ; st ; t' ⪢ ⭆ ⪡ V' ; st' ; t'' ; W ⪢ -> 
-    (*-----------------------------------------------------------------------*)
-              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st' ; t'' ; W ⪢
+        ⊨ t ⟼ t' -> ⪡ V ; st ; t' ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢ -> 
+    (*-------------------------------------------------------------*)
+              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢
 
   | fT_arr   :  forall (st t : Λ) (V : 𝓥), 
 
                       value(<[arr(t)]>) ->
-    (*---------------------------------------------------------*)
-        ⪡ V ; st ; arr(t) ⪢ ⭆ ⪡ V ; (t st) ; arr(t) ; ∅ₛₖ ⪢ 
+    (*------------------------------------------------------*)
+        ⪡ V ; st ; arr(t) ⪢ ⭆ ⪡ V ; (t st) ; arr(t) ⪢ 
 
-  | fT_first :  forall (st v1 v1' v2 t t' : Λ) (τ : Τ) (V V' : 𝓥) (W : 𝐖),
+  | fT_first :  forall (st v1 v1' v2 t t' : Λ) (τ : Τ) (V V' : 𝓥),
 
                             value(<[first(τ:t)]>) ->
-        (newᵣᵦ(V)) ⊨ st ⟼⋆ ⟨v1,v2⟩ -> ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V' ; v1' ; t' ; W ⪢ ->
-    (*----------------------------------------------------------------------------------------*)
-        ⪡ V ; st ; first(τ:t) ⪢ 
-          ⭆ ⪡ V' ; ⟨v1',[⧐ₜₘ {newᵣᵦ(V)} ≤ {(newᵣᵦ(V')) - (newᵣᵦ(V))}] v2⟩ ; first(τ:t') ; W ⪢
+        ⊨ st ⟼⋆ ⟨v1,v2⟩ -> ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V' ; v1' ; t' ⪢ ->
+    (*----------------------------------------------------------------*)
+        ⪡ V ; st ; first(τ:t) ⪢ ⭆ ⪡ V' ; ⟨v1',v2⟩ ; first(τ:t') ⪢
 
-  | fT_comp  :  forall (st st' st'' t1 t1' t2 t2' : Λ) (V V' V'' : 𝓥) (W W': 𝐖),
+  | fT_comp  :  forall (st st' st'' t1 t1' t2 t2' : Λ) (V V' V'' : 𝓥),
 
-        value(<[t1 >>> t2]>) -> ⪡ V ; st ; t1 ⪢ ⭆ ⪡ V' ; st' ; t1' ; W ⪢ ->
-        ⪡ V' ; st' ; ([⧐ₜₘ {newᵣᵦ(V)} ≤ {(newᵣᵦ(V')) - (newᵣᵦ(V))}] t2) ⪢
-          ⭆ ⪡ V'' ; st'' ; t2' ; W' ⪢ ->
-    (*---------------------------------------------------------------------------------------*)
-        ⪡ V ; st ; (t1 >>> t2) ⪢ 
-          ⭆ ⪡ V'' ; st'' ; (([⧐ₜₘ {newᵣᵦ(V')} ≤ {(newᵣᵦ(V'')) - (newᵣᵦ(V'))}] t1') >>> t2')
-                          ; (([⧐ₛₖ (newᵣᵦ(V')) ≤ ((newᵣᵦ(V'')) - (newᵣᵦ(V')))] W) ∪ W')%sk ⪢
+        value(<[t1 >>> t2]>) -> ⪡ V ; st ; t1 ⪢ ⭆ ⪡ V' ; st' ; t1' ⪢ ->
+                 ⪡ V' ; st' ; t2 ⪢ ⭆ ⪡ V'' ; st'' ; t2' ⪢ ->
+    (*----------------------------------------------------------------------*)
+          ⪡ V ; st ; (t1 >>> t2) ⪢ ⭆ ⪡ V'' ; st'' ; (t1' >>> t2') ⪢
 
   | fT_rsf   :  forall (V : 𝓥) (st v : Λ) (r : resource),
 
-                                V ⌈r ⩦ ⩽ v … ⩾⌉ᵣᵦ -> 
-    (*-----------------------------------------------------------------------*)
-        ⪡ V ; st ; rsf[r] ⪢ ⭆ ⪡ ⌈ r ⤆ ⩽ … st ⩾ ⌉ᵣᵦ V ; v ; rsf[r] ; ∅ₛₖ ⪢
+                              V ⌈r ⩦ ⩽ v … ⩾⌉ᵣᵦ -> 
+    (*------------------------------------------------------------------*)
+        ⪡ V ; st ; rsf[r] ⪢ ⭆ ⪡ ⌈ r ⤆ ⩽ … st ⩾ ⌉ᵣᵦ V ; v ; rsf[r] ⪢
 
-  | fT_wh    :  forall (V V' : 𝓥) (st st' i t t' : Λ) (W : 𝐖),
-                
-        let k := newᵣᵦ(V) in value(<[wormhole(i;t)]>) ->
-        ⪡ (⌈(S k) ⤆ ⩽ <[unit]> … ⩾ ⌉ᵣᵦ 
-            (⌈k ⤆ [⧐ᵣₓ k ≤ 2] ⩽ i … ⩾⌉ᵣᵦ  ([⧐ᵣᵦ k ≤ 2] V))) ; ([⧐ₜₘ k ≤ 2] st) ; t ⪢ 
-          ⭆ ⪡ V' ; st' ; t' ; W ⪢ ->
-    (*-----------------------------------------------------------------------------------------*)
-        ⪡ V ; st ; wormhole(i;t) ⪢ 
-          ⭆ ⪡ V' ; st' ; t' ; ⌈k ~ (S k) ⤆ <[[⧐ₜₘ {newᵣᵦ(V)} ≤ {(newᵣᵦ(V')) - (newᵣᵦ(V))}] i]>⌉ₛₖ W ⪢
+where "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ⪢" := (functional V st t V1 st1 t1).
 
-where "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ; W ⪢" := (functional V st t V1 st1 t1 W)
-.
 
-(** **** Property of environment elements 
-
-  The environment and context of resources evolve at the same time according to certain restrictions.
-  - The initial state that satisfies restrictions is the case when both maps are empty;
-  - When a term is added in the environment, there is pair of types added in the context such as
-    the element is well typed according to the second type;
-  - When we update an cell, the new term has to be well typed according to the first type of the pair
-    bind by the same resource name in the context.
-*)
 Inductive instantiation_func : ℜ -> 𝓥 -> Prop := 
   | itfT_empty  : forall (Re : ℜ) (V : 𝓥), 
                     isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Instᵣₜ(Re,V)
@@ -94,7 +70,7 @@ Inductive instantiation_func : ℜ -> 𝓥 -> Prop :=
     forall (Re Re' : ℜ) (V V' : 𝓥) (τ τ' : Τ) (v : Λ),
       Instᵣₜ(Re,V) -> newᵣᵪ(Re) ⊩ₜ τ ->
       Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' -> 
-      Addᵣᵦ (newᵣᵦ(V)) ([⧐ᵣₓ (newᵣᵦ(V)) ≤ 1] ⩽ v … ⩾) ([⧐ᵣᵦ (newᵣᵦ(V)) ≤ 1] V) V' -> 
+      Addᵣᵦ (newᵣᵦ(V)) ⩽ v … ⩾ V V' -> 
       ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
       Instᵣₜ(Re',V')
   
@@ -103,50 +79,9 @@ Inductive instantiation_func : ℜ -> 𝓥 -> Prop :=
                     r ∈ᵣᵦ V -> Addᵣᵦ r ((⩽ … v ⩾)) V V' -> 
                     ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Instᵣₜ(Re,V')
 
-where "'Instᵣₜ(' Re , V )" := (instantiation_func Re V)
-.
+where "'Instᵣₜ(' Re , V )" := (instantiation_func Re V).
 
-(* begin hide *)
-Inductive halts_apply : ℜ -> Λ -> Prop :=
-  | ha_eT : forall Re t t',
-               halts_apply Re t -> newᵣᵪ(Re) ⊨ t ⟼ t' ->
-            (*---------------------------------------------*)
-                          halts_apply Re t'
-      
-  | ha_arr : forall Re t α β,
-              (forall v, value(v) /\ 
-                         ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> 
-                         halts (newᵣᵪ(Re)) <[t v]>) -> 
-              ∅ᵥᵪ ⋅ Re ⊫ t ∈ α → β ->
-            (*---------------------------------------------*)
-                      halts_apply Re <[arr(t)]>
-            
-  | ha_first : forall Re τ t,
-                        halts_apply Re t ->
-              (*---------------------------------------------*)
-                        halts_apply Re <[first(τ:t)]>
-
-  | ha_comp : forall Re t1 t2,
-                  halts_apply Re t1 -> halts_apply Re t2 ->
-              (*---------------------------------------------*)
-                        halts_apply Re <[t1 >>> t2]>
-
-  | ha_wh : forall Re i t,
-               halts_apply Re i -> halts_apply Re t ->
-            (*---------------------------------------------*)
-                      halts_apply Re <[wormhole(i;t)]>
-.
-
-Inductive Forall_arr : (Λ -> Prop) -> Λ -> Prop :=
-  | Fl_arr   : forall P t, P t -> Forall_arr P <[arr(t)]> 
-  | Fl_first : forall P τ t, Forall_arr P t -> Forall_arr P <[first(τ:t)]>
-  | Fl_rsf   : forall P r, Forall_arr P <[rsf[r]]>
-  | Fl_comp  : forall P t1 t2, 
-                Forall_arr P t1 -> Forall_arr P t2 -> Forall_arr P <[t1 >>> t2]>
-  | Fl_wh    : forall P t1 t2, 
-                Forall_arr P t1 -> Forall_arr P t2 -> Forall_arr P <[wormhole(t1;t2)]>
-.
-(* end hide *)                                                      
+(*
 
 (** *** Instantiation *)
 
@@ -2249,3 +2184,4 @@ Proof.
   destruct HfT as [_ [_ [Re' [R' [HSubRe  [HSubR' [Hinst' [_ [_ [_ [Hwsv' Hwsf']]]]]]]]]]];
   exists Re'; now exists R'.
 Qed.
+*)
