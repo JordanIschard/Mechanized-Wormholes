@@ -94,79 +94,14 @@ Theorem subst_preserves_typing : forall Γ t v τ τ' x,
 
   Γ ⊫ ([x := v] t) ∈ τ.
 Proof.
-  intros Γ t v τ τ' x wt. revert v. dependent induction wt; intros v; auto;
-  try (econstructor; now eauto).
-  - simpl; destruct (Var.eqb_spec x x0); subst.
-    -- rewrite Context.OP.P.add_eq_o in H; inversion H; subst; clear H; auto.
-       apply weakening_Γ_empty.
-    -- constructor; rewrite Context.OP.P.add_neq_o in H; assumption.
-  - simpl; destruct (Var.eqb_spec x x0); subst.
-    -- constructor; auto. now rewrite Context.add_shadow in wt.
-    -- constructor; auto. apply Context.OP.P.add_add_2 in n.
-Qed.
-(** *** General proof of preservation of typing through the substitution
-
-  **** Hypothesis
-
-  Knowing the context is valid regards of its own new key (1),
-  the term t is well typed according to a certain context Re (2), 
-  the substitute is well typed according to a certain context Re' (3) and
-  Re is a submap of Re' (4);
-
-  **** Result
-
-  We can state that the term t where x is replaced with v is well typed
-  according to Re (modulo a shift). 
-*)
-Theorem subst_preserves_typing_gen : forall Γ Re Re' t v τ τ' x,
-  (* (1) *) newᵣᵪ( Re') ⊩ᵣᵪ Re' -> 
-  (* (2) *) ⌈x ⤆ τ'⌉ᵥᵪ Γ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) ∅ᵥᵪ ⋅ Re' ⊫ v ∈ τ' ->
-  (* (4) *) Re' ⊆ᵣᵪ Re ->
-
-  Γ ⋅ Re ⊫ ([x := v ~  {newᵣᵪ(Re')} ≤ {newᵣᵪ(Re) - newᵣᵪ(Re')}] t) ∈ τ.
-Proof.
-  intros Γ Re Re' t; revert Γ Re Re'; induction t;
-  intros Γ Re Re' v' α β x HvRₑ wt Hwv Hsub; inversion wt; subst;
-  try (econstructor; now eauto).
+  intros Γ t. revert Γ. induction t; intros Γ v1 τ1 τ1' x Hwt Hwv; inversion Hwt; subst;
+  auto; try (econstructor; now eauto).
   - simpl; destruct (Var.eqb_spec x v); subst.
-    -- rewrite VContext.add_eq_o in H2; inversion H2; subst; clear H2; auto.
-       apply weakening_Γ_empty. apply weakening_ℜ_1; auto.
-       apply VContext.valid_empty_spec. 
-    -- constructor; rewrite VContext.add_neq_o in H2; assumption.
+    -- rewrite Context.OP.P.add_eq_o in H1; inversion H1; subst; clear H1; auto.
+       apply weakening_Γ_empty; auto.
+    -- constructor; rewrite Context.OP.P.add_neq_o in H1; assumption.
   - simpl; destruct (Var.eqb_spec x v); subst.
-    -- constructor; auto. now rewrite VContext.add_shadow in H5.
-    -- constructor; auto. rewrite VContext.add_add_2 in H5; auto.
+    -- constructor; auto. now rewrite Context.add_shadow in H4.
+    -- constructor; auto. rewrite Context.OP.P.add_add_2 in H4; auto.
        eapply IHt; eauto.
-  - econstructor; eauto; fold subst.
-    eapply IHt2 in Hwv; eauto.
-    -- replace (S (S (newᵣᵪ( Re) - newᵣᵪ( Re')))) with ((S (S (newᵣᵪ( Re)))) - newᵣᵪ( Re')).
-      + erewrite <- RContext.new_key_wh_spec; eauto.
-      + apply RContext.Ext.new_key_Submap_spec in Hsub; lia.
-    -- now apply RContext.Ext.new_key_Submap_spec_1.
-Qed.
-
-(** *** Proof of preservation of typing through the substitution
-
-  **** Hypothesis
-
-  Knowing the context is valid regards of its own new key (1),
-  the term t is well typed according to a certain context Re (2) and
-  the substitute is well typed according to a certain context Re (3);
-
-  **** Result
-
-  We can state that the term t where x is replaced with v is well typed
-  according to Re (modulo a shift). 
-*)
-Corollary subst_preserves_typing : forall Γ Re t v τ τ' x,
-  (* (1) *) newᵣᵪ( Re) ⊩ᵣᵪ Re -> 
-  (* (2) *) ⌈x ⤆ τ'⌉ᵥᵪ Γ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
-
-  Γ ⋅ Re ⊫ ([x := v ~  {newᵣᵪ(Re)} ≤ 0] t) ∈ τ.
-Proof.
-  intros; replace 0 with (newᵣᵪ(Re) - newᵣᵪ(Re)) by lia. 
-  apply subst_preserves_typing_gen with (τ' := τ'); try assumption.
-  apply RContext.Submap_refl.
 Qed.
