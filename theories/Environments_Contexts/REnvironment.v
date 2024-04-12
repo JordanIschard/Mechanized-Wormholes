@@ -8,7 +8,7 @@ From MMaps Require Import MMaps.
 Module REnvironment <: EqualityType.
 
 Module Raw := MMaps.OrdList.Make Resource.
-Module Ext := MapET Resource Cell Raw.
+Module Ext := MapETLVL Cell Raw.
 
 Include Ext.
 Import Raw OP.P.
@@ -224,6 +224,8 @@ Notation "r '∉ᵣᵦ' Re" := (~ (REnvironment.Raw.In r Re)) (at level 20,
 Notation "∅ᵣᵦ" := REnvironment.Raw.empty (at level 20, no associativity). 
 Notation "'isEmptyᵣᵦ(' Re ')'" := (REnvironment.OP.P.Empty Re) (at level 20, no associativity). 
 Notation "'Addᵣᵦ'" := (REnvironment.OP.P.Add) (at level 20, no associativity). 
+Notation "'maxᵣᵦ(' R ')'"  := (REnvironment.Ext.max_key R) (at level 15).
+Notation "'newᵣᵦ(' R ')'"  := (REnvironment.Ext.new_key R) (at level 15).
 Notation "R '⌊' x '⌋ᵣᵦ'"  := (REnvironment.Raw.find x R) (at level 15, x constr).
 Notation "⌈ x ⤆ v '⌉ᵣᵦ' R"  := (REnvironment.Raw.add x v R) (at level 15, 
                                                                           x constr, v constr).
@@ -239,6 +241,12 @@ Infix "=" := REnvironment.eq : renvironment_scope.
 Instance eq_equiv_re : Equivalence REnvironment.eq.
 Proof. apply REnvironment.OP.P.Equal_equiv. Qed.
 
+#[global] Instance max_re : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.max_key).
+          Proof. apply REnvironment.Ext.max_key_eq. Qed.
+
+#[global] Instance new_re : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.new_key).
+          Proof. apply REnvironment.Ext.new_key_eq. Qed.
+          
 #[global] 
 Instance in_renv : 
   Proper (Logic.eq ==> REnvironment.eq ==> iff) (REnvironment.Raw.In).

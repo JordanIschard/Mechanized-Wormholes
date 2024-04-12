@@ -7,7 +7,7 @@ From MMaps Require Import MMaps.
 Module RContext <: EqualityType.
 
 Module Raw := MMaps.OrdList.Make Resource.
-Module Ext := MapET Resource PairTyp Raw.
+Module Ext := MapETLVL PairTyp Raw.
 
 Include Ext.
 Import Raw OP.P.
@@ -70,6 +70,8 @@ Notation "r '∉ᵣᵪ' Re" := (~ (RContext.Raw.In r Re)) (at level 20, no assoc
 Notation "∅ᵣᵪ" := RContext.Raw.empty (at level 20, no associativity). 
 Notation "'isEmptyᵣᵪ(' Re ')'" := (RContext.OP.P.Empty Re) (at level 20, no associativity). 
 Notation "'Addᵣᵪ'" := (RContext.OP.P.Add) (at level 20, no associativity). 
+Notation "'maxᵣᵪ(' R ')'"  := (RContext.Ext.max_key R) (at level 15).
+Notation "'newᵣᵪ(' R ')'"  := (RContext.Ext.new_key R) (at level 15).
 Notation "R '⌊' x '⌋ᵣᵪ'"  := (RContext.Raw.find x R) (at level 15, x constr).
 Notation "⌈ x ⤆ v '⌉ᵣᵪ' R"  := (RContext.Raw.add x v R) (at level 15, x constr, 
                                                                                 v constr).
@@ -84,6 +86,12 @@ Infix "=" := RContext.eq : rcontext_scope.
 
 #[global] Instance eq_equiv : Equivalence RContext.eq.
           Proof. apply RContext.OP.P.Equal_equiv. Qed.
+          
+#[global] Instance max_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.max_key).
+          Proof. apply RContext.Ext.max_key_eq. Qed.
+
+#[global] Instance new_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.new_key).
+          Proof. apply RContext.Ext.new_key_eq. Qed.
 
 #[global] 
 Instance in_rctx : 

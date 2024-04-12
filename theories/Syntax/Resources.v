@@ -1,7 +1,8 @@
-From Coq Require Import MSets Lia.
+From Coq Require Import Lia.
 Require Import Resource.
+From DeBrLevel Require Import SetOTwL SetOTwLInterface.
 
-Module Resources <: OrderedTypeWithLeibniz :=  MSetList.MakeWithLeibniz Resource.
+Module Resources <: (SetOTWithLeibnizInterface Resource) :=  SetOTWithLeibniz Resource.
 
 
 (** *** Scope and Notations *)
