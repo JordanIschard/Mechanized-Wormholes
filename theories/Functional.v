@@ -258,6 +258,7 @@ Proof.
   - destruct (Resource.eq_dec r r'); subst; apply RE.OP.P.add_in_iff; auto.
 Qed.
 
+
 (**
   *** General proof of preservation of typing through functional transition
 
