@@ -131,7 +131,7 @@ Proof.
 Qed.
 
 Lemma instantiation_new : forall (Re : ℜ) (V : 𝓥),
-Instᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
+  Instᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
 Proof.
   intros Re V Hinst; unfold RC.Ext.new_key,RE.Ext.new_key.
   apply instantiation_is_empty_spec in Hinst as HisEmp.
@@ -245,7 +245,7 @@ Qed.
 (** *** Proof of preservation of keys in the environment 
 
   Keeping consistent the typing through the functional transition is 
-  needed for the resources environment. Thus, knowing that we cannot loose 
+  required for the resources environment. Thus, knowing that we cannot loose 
   keys is required.
 *)
 Lemma functional_preserves_keys (V V' : 𝓥) (tv tv' sf sf' : Λ) :
@@ -283,19 +283,17 @@ Qed.
 Theorem functional_preserves_typing : 
   forall (Re : ℜ) (V V' : 𝓥) (tv tv' t t' : Λ) (τ τ' : Τ) (R : resources),
 
-    (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) ->
-    (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
+    (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
     (* (3) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ -> 
+
     (* (4) *) Instᵣₜ(Re,V) ->
 
-
+  (*---------------------------------------------------------------------------------------------*)
     (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
     (* (6) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
+    (* (7) *) Instᵣₜ(Re,V') /\ (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
 
-    (*  (7) *) Instᵣₜ(Re,V') /\
-    (*  (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
-    (*  (9) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\
-    (* (10) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R).
+    (* (9) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\ (* (10) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R).
 Proof.
   intros Re V V' tv tv' t t' τ τ' R Hwt Hwtv fT. revert Re R τ τ' Hwt Hwtv;
   induction fT; intros Re R α β Hwt Hwtv Hinst.
@@ -421,26 +419,26 @@ Qed.
 
 
 Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
-    halts tv ->
-    RE.halts V ->
-    all_arrow_halting ->
-    value(t) -> 
-    
-    ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
-    ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
-    Instᵣₜ(Re,V) ->
 
-    (exists (V' : 𝓥) (tv' : Λ), 
-      ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t ⪢ /\
-      halts tv' /\
-      RE.halts V').
+    (* (1) *) halts tv -> (* (2) *) RE.halts V -> (* (3) *) all_arrow_halting ->
+    
+    (* (4) *) value(t) -> 
+
+    (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
+    (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+
+    (* (7) *) Instᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+
+  (*-------------------------------------------------------------------------------------------------*)
+    (exists (V' : 𝓥) (tv' : Λ), (* (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t ⪢ /\ 
+                                (* (9) *) halts tv' /\ (* (10) *) RE.halts V').
 Proof.
   intros Hltv HltV HlAll Hvt wt; revert V tv Hltv HltV HlAll Hvt.
-  dependent induction wt; intros V tv Hltv HltV HlAll Hvt Hwtv Hinst; inversion Hvt; subst.
+  dependent induction wt; intros V tv Hltv HltV HlAll Hvt Hwtv Hinst Hunsd; inversion Hvt; subst.
   (* wt-arr *)
   -
     (* clean *)
-    clear Hvt; rename H0 into Hvt; move V before Re; move tv before t; clear IHwt.
+    clear Hvt; rename H0 into Hvt; move V before Re; move tv before t; clear IHwt; move wt before Hwtv.
     (* clean *)
 
     exists V; exists <[t tv]>; repeat split; auto.
@@ -450,7 +448,7 @@ Proof.
   (* wt-first *)
   -
     (* clean *)
-    clear Hvt; rename H0 into Hvt; move V before Re; move tv before t.
+    clear Hvt; rename H0 into Hvt; move V before Re; move tv before t; move wt before Hwtv.
     (* clean *)
 
     destruct Hltv as [tv' [HmeT Hvtv']].
@@ -459,8 +457,8 @@ Proof.
 
     (* clean *)
     clear Hwtv Hwtv' Hvtv'; rename H4 into Hwtv'1; rename H6 into Hwtv'2.
-    rename H1 into Hvtv'1; rename H2 into Hvtv'2. move wt before Hwtv'1. move Hvt before Hvtv'1.
-    move tv'1 before tv; move tv'2 before tv'1.
+    rename H1 into Hvtv'1; rename H2 into Hvtv'2. move wt before Hwtv'1.
+    move tv'1 before tv; move tv'2 before tv'1; move Hvt before Hvtv'1.
     (* clean *)
 
     eapply IHwt in Hwtv'1 as IH; eauto; clear IHwt.
@@ -470,10 +468,69 @@ Proof.
        + apply halts_pair; split; auto. exists tv'2; auto.
     -- exists tv'1; split; auto.
   (* wt-comp *)
-  - admit.
+  -
+    (* clean *)
+    clear Hvt; rename H3 into Hvt1; rename H4 into Hvt2; move V before Re; move tv before t2.
+    move wt1 before Hwtv; move wt2 before Hwtv. rename H into Hunion; rename H0 into Hempty.
+    (* clean *)
+
+    eapply IHwt1 in Hwtv as IH; eauto.
+    -- clear IHwt1; destruct IH as [V' [tv' [HfT [Hltv' HltV']]]].
+
+      (* clean *)
+      move HfT before Hwtv; move V' before V; move tv' before tv;
+      move Hltv' before Hltv; move HltV' before HltV.
+      (* clean *)
+    
+      eapply functional_preserves_typing in HfT as H; eauto.
+      destruct H as [_ [HwfV [Hinst' [Husd [Hwtv' _]]]]].
+
+      (* clean *)
+      move Husd before Hunsd; move HwfV before Husd; move Hinst' before Hinst; 
+      move Hwtv' before Hwtv.
+      (* clean *)
+
+      eapply IHwt2 in Hwtv' as IH; eauto.
+
+      + clear IHwt2; destruct IH as [V'' [tv'' [HfT' [Hltv'' HltV'']]]]. 
+
+        (* clean *)
+        move HfT' before HfT; move V'' before V'; move tv'' before tv';
+        move Hltv'' before Hltv'; move HltV'' before HltV'.
+        (* clean *)
+
+        exists V''; exists tv''; repeat split; auto.
+        eapply fT_comp; eauto.
+
+      + intros r HIn. destruct (Hunsd r).
+        ++ rewrite Hunion; rewrite Resources.union_spec; now right.
+        ++ exists x; rewrite <- HwfV; auto; split.
+           * intro HIn'; assert (r ∈ R1 ∩ R2)%rs.
+             { rewrite Resources.inter_spec; split; auto. }
+             rewrite <- Hempty in H0; inversion H0.
+           * exists (⩽ x … ⩾); now apply RE.OP.P.find_2.
+
+    -- intros r HI. apply Hunsd; rewrite Hunion. rewrite Resources.union_spec; now left.
   (* wt-rsf *)
-  - (* Il faut des garanti sur l'état des valeurs associé à tout r dans R dans V. *)
- Admitted.
+  - 
+    (* clean *)
+    clear HlAll Hvt. rename H into HfRe; move HfRe before Hwtv.
+    (* clean *)
+
+    destruct (Hunsd r); try (now apply Resources.singleton_spec). 
+    
+    (* clean *)
+    move x before tv; rename H into HfV; move HfV before HfRe.
+    (* clean *)
+
+    exists (⌈r ⤆ ⩽ … tv ⩾⌉ᵣᵦ V); exists x. repeat split.
+    -- now apply fT_rsf.
+    -- unfold RE.halts in *. apply HltV in HfV; now simpl in *.
+    -- unfold RE.halts in *; intros. rewrite RE.OP.P.add_o in H.
+       destruct (Resource.eq_dec r r0); subst.
+       + now inversion H; subst; simpl.
+       + apply (HltV r0 _ H).
+Qed.
 
 Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) : 
   halts t -> halts tv -> RE.halts V ->
@@ -482,6 +539,7 @@ Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R
   ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
   ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
   Instᵣₜ(Re,V) ->
+  (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
   (exists (V' : 𝓥) (tv' t' : Λ), 
     ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
@@ -490,7 +548,7 @@ Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R
 Proof. 
   intros Hlt; destruct Hlt as [t' [HmeT Hvt']]. apply multi_indexed in HmeT as [k HieT].
   revert Re V tv t τ τ' R t' HieT Hvt'. induction k; 
-  intros Re V tv t τ τ' R t' HieT Hvt' Hltv HltV HltAll Hwt Hwtv Hinst.
+  intros Re V tv t τ τ' R t' HieT Hvt' Hltv HltV HltAll Hwt Hwtv Hinst Hunsd.
   (* sf is a value *)
   - inversion HieT; subst. 
     apply (progress_of_functional_value _ _ tv t' τ τ' R) in Hinst; try assumption.
