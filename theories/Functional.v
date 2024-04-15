@@ -24,7 +24,7 @@ Reserved Notation "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ; W ⪢" (at level 5
                                                                 t custom wormholes, 
                                                                 t1 custom wormholes, 
                                                                 no associativity).
-Reserved Notation "'Instᵣₜ(' Re , V )" (at level 50).
+Reserved Notation "'WFₑₙᵥ(' Re , V )" (at level 50).
 
 Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> 𝐖 -> Prop :=
 
@@ -86,24 +86,24 @@ where "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ; W ⪢" := (functional V st t V
   - When we update an cell, the new term has to be well typed according to the first type of the pair
     bind by the same resource name in the context.
 *)
-Inductive instantiation_func : ℜ -> 𝓥 -> Prop := 
-  | itfT_empty  : forall (Re : ℜ) (V : 𝓥), 
-                    isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Instᵣₜ(Re,V)
+Inductive well_formed_context_env : ℜ -> 𝓥 -> Prop := 
+  | WFenv_empty  : forall (Re : ℜ) (V : 𝓥), 
+                    isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> WFₑₙᵥ(Re,V)
 
-  | itfT_init   : 
+  | WFenv_init   : 
     forall (Re Re' : ℜ) (V V' : 𝓥) (τ τ' : Τ) (v : Λ),
-      Instᵣₜ(Re,V) -> newᵣᵪ(Re) ⊩ₜ τ ->
+      WFₑₙᵥ(Re,V) -> newᵣᵪ(Re) ⊩ₜ τ ->
       Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' -> 
       Addᵣᵦ (newᵣᵦ(V)) ([⧐ᵣₓ (newᵣᵦ(V)) ≤ 1] ⩽ v … ⩾) ([⧐ᵣᵦ (newᵣᵦ(V)) ≤ 1] V) V' -> 
       ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
-      Instᵣₜ(Re',V')
+      WFₑₙᵥ(Re',V')
   
-  | itfT_update : forall (Re : ℜ) (V V' : 𝓥) r (τ τ' : Τ) (v : Λ),
-                    Instᵣₜ(Re,V) -> Re ⌈r ⩦ (τ,τ')⌉ᵣᵪ -> 
+  | WFenv_update : forall (Re : ℜ) (V V' : 𝓥) r (τ τ' : Τ) (v : Λ),
+                    WFₑₙᵥ(Re,V) -> Re ⌈r ⩦ (τ,τ')⌉ᵣᵪ -> 
                     r ∈ᵣᵦ V -> Addᵣᵦ r ((⩽ … v ⩾)) V V' -> 
-                    ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Instᵣₜ(Re,V')
+                    ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> WFₑₙᵥ(Re,V')
 
-where "'Instᵣₜ(' Re , V )" := (instantiation_func Re V)
+where "'WFₑₙᵥ(' Re , V )" := (well_formed_context_env Re V)
 .
 
 (* begin hide *)
@@ -148,10 +148,10 @@ Inductive Forall_arr : (Λ -> Prop) -> Λ -> Prop :=
 .
 (* end hide *)                                                      
 
-(** *** Instantiation *)
+(** *** wf_conenv *)
 
-Lemma instantiation_is_empty_spec : forall (Re : ℜ) (V : 𝓥),
-  Instᵣₜ(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
+Lemma wf_conenv_is_empty_spec : forall (Re : ℜ) (V : 𝓥),
+  WFₑₙᵥ(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
 Proof.
   intros Re V Hinst; induction Hinst.
   - rewrite RC.is_empty_1; auto; 
@@ -170,8 +170,8 @@ Proof.
         apply RE.is_empty_2 in HEmp'; contradiction.
 Qed.
 
-Lemma instantiation_max : forall (Re : ℜ) (V : 𝓥),
-  Instᵣₜ(Re,V) -> maxᵣᵪ(Re) = maxᵣᵦ(V).
+Lemma wf_conenv_max : forall (Re : ℜ) (V : 𝓥),
+  WFₑₙᵥ(Re,V) -> maxᵣᵪ(Re) = maxᵣᵦ(V).
 Proof.
   intros Re V inst; induction inst.
   - rewrite RC.Ext.max_key_Empty_spec; auto.
@@ -179,7 +179,7 @@ Proof.
   - apply RC.Ext.max_key_Add_spec in H0 as [[H0 H0'] | [H0 H0']]; auto.
     -- rewrite H0. 
         apply RE.Ext.max_key_Add_spec in H1 as [[H1 H1'] | [H1 H1']].
-        + rewrite H1; apply instantiation_is_empty_spec in inst as HEmp.
+        + rewrite H1; apply wf_conenv_is_empty_spec in inst as HEmp.
           unfold RC.Ext.new_key,RE.Ext.new_key; rewrite HEmp.
           destruct (RE.Raw.is_empty V); auto.
         + rewrite RE.shift_max_spec in H1'; auto.
@@ -195,24 +195,24 @@ Proof.
     rewrite RE.Ext.max_key_add_spec_3; auto.
 Qed.
 
-Lemma instantiation_new : forall (Re : ℜ) (V : 𝓥),
-Instᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
+Lemma wf_conenv_new : forall (Re : ℜ) (V : 𝓥),
+WFₑₙᵥ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
 Proof.
   intros Re V Hinst; unfold RC.Ext.new_key,RE.Ext.new_key.
-  apply instantiation_is_empty_spec in Hinst as HisEmp.
+  apply wf_conenv_is_empty_spec in Hinst as HisEmp.
   destruct (RC.Raw.is_empty Re) eqn:HEmp.
   - now rewrite <- HisEmp.
-  - rewrite <- HisEmp; f_equal; now apply instantiation_max.
+  - rewrite <- HisEmp; f_equal; now apply wf_conenv_max.
 Qed.
 
-Lemma instantiation_domains_match: forall (Re : ℜ) V (k : resource) (πτ : πΤ),
-  Instᵣₜ(Re,V) -> Re ⌈k ⩦ πτ⌉ᵣᵪ -> exists (v : 𝑣), V ⌈k ⩦ v⌉ᵣᵦ.
+Lemma wf_conenv_domains_match: forall (Re : ℜ) V (k : resource) (πτ : πΤ),
+  WFₑₙᵥ(Re,V) -> Re ⌈k ⩦ πτ⌉ᵣᵪ -> exists (v : 𝑣), V ⌈k ⩦ v⌉ᵣᵦ.
 Proof.
   intros Re V k πτ inst; revert k πτ; induction inst; intros k' πτ' Hfin.
   - apply RC.notEmpty_find_spec in Hfin; auto; contradiction.
   - rewrite H0 in *; destruct (Resource.eq_dec (newᵣᵪ(Re)) k'); subst.
     -- exists ([⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ v … ⩾); rewrite H1. 
-        apply instantiation_new in inst as Hnew; rewrite Hnew.
+        apply wf_conenv_new in inst as Hnew; rewrite Hnew.
         now apply RE.add_eq_o.
     -- rewrite RC.add_neq_o in Hfin; try assumption.
         apply IHinst in Hfin as [v' Hfin]; exists ([⧐ᵣₓ (newᵣᵦ(V)) ≤ 1] v'). rewrite H1.
@@ -221,7 +221,7 @@ Proof.
           ++ now apply RE.shift_find_spec.
           ++ unfold Resource.valid; apply RE.Ext.new_key_in_spec.
             exists v'; now apply RE.find_2.
-        + apply instantiation_new in inst; now rewrite <- inst.
+        + apply wf_conenv_new in inst; now rewrite <- inst.
   - destruct (Resource.eq_dec r k'); subst.
     -- exists (⩽ … v ⩾); rewrite H1; now apply RE.add_eq_o.
     -- apply IHinst in Hfin; destruct Hfin.
@@ -229,29 +229,29 @@ Proof.
 Qed.
 
 #[export] 
-Instance itfT_eq : Proper (RC.eq ==> RE.eq ==> iff) (instantiation_func).
+Instance WFenv_eq : Proper (RC.eq ==> RE.eq ==> iff) (well_formed_context_env).
 Proof.
   repeat red; split; intros.
   - revert y y0 H0 H; induction H1; subst; intros y y0 Heq Heq'.
-    -- apply itfT_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply itfT_init; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply itfT_update; eauto.
-        + eapply IHinstantiation_func; auto. reflexivity.
+    -- apply WFenv_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
+    -- eapply WFenv_init; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
+    -- eapply WFenv_update; eauto.
+        + eapply IHwell_formed_context_env; auto. reflexivity.
         + rewrite <- Heq'; eauto.
         + rewrite <- Heq; eauto.
         + now rewrite <- Heq'. 
   - revert x x0 H0 H; induction H1; subst; intros x x0 Heq Heq'.
-    -- apply itfT_empty; try (now rewrite Heq'); now rewrite Heq.
-    -- eapply itfT_init; eauto; try (now rewrite Heq); now rewrite Heq'.
-    -- eapply itfT_update; eauto.
-        + eapply IHinstantiation_func; auto; reflexivity.
+    -- apply WFenv_empty; try (now rewrite Heq'); now rewrite Heq.
+    -- eapply WFenv_init; eauto; try (now rewrite Heq); now rewrite Heq'.
+    -- eapply WFenv_update; eauto.
+        + eapply IHwell_formed_context_env; auto; reflexivity.
         + rewrite Heq'; eauto.
         + now rewrite Heq.
         + now rewrite Heq'.
 Qed.
 
-Lemma instantiation_valid : forall (Re : ℜ) V,
-  Instᵣₜ(Re,V) -> newᵣᵪ(Re) ⊩ᵣᵪ Re /\ newᵣᵦ(V) ⊩ᵣᵦ V.
+Lemma wf_conenv_valid : forall (Re : ℜ) V,
+  WFₑₙᵥ(Re,V) -> newᵣᵪ(Re) ⊩ᵣᵪ Re /\ newᵣᵦ(V) ⊩ᵣᵦ V.
 Proof.
   intros Re V inst; induction inst.
   - split; try now apply RC.valid_Empty_spec.
@@ -281,7 +281,7 @@ Proof.
         + unfold Resource.valid; lia.
         + replace (S (newᵣᵦ( V))) with ((newᵣᵦ( V)) + 1) by lia.
           apply Cell.shift_preserves_valid_1.
-          unfold Cell.valid; simpl. apply instantiation_new in inst.
+          unfold Cell.valid; simpl. apply wf_conenv_new in inst.
           rewrite <- inst; auto.
         + replace (S (newᵣᵦ( V))) with ((newᵣᵦ( V)) + 1) by lia.
           now apply RE.shift_preserves_valid_1.
@@ -290,12 +290,12 @@ Proof.
     unfold RE.Add in H1.
     rewrite H1; rewrite H0'. apply RE.valid_update_spec; auto.
     unfold Cell.valid; simpl. apply well_typed_implies_valid in H2 as [H2 H2']; auto.
-    -- apply instantiation_new in inst as Hnew; now rewrite Hnew in H2.
+    -- apply wf_conenv_new in inst as Hnew; now rewrite Hnew in H2.
     -- apply VContext.valid_empty_spec.
 Qed.
 
-Lemma instantiation_well_typed : forall (Re : ℜ) V (r : resource) (v : 𝑣) (πτ : πΤ),
-  Instᵣₜ(Re,V) -> newᵣᵪ( Re) ⊩ᵣᵪ Re -> Re ⌈ r ⩦ πτ ⌉ᵣᵪ -> V ⌈ r ⩦ v ⌉ᵣᵦ -> 
+Lemma wf_conenv_well_typed : forall (Re : ℜ) V (r : resource) (v : 𝑣) (πτ : πΤ),
+  WFₑₙᵥ(Re,V) -> newᵣᵪ( Re) ⊩ᵣᵪ Re -> Re ⌈ r ⩦ πτ ⌉ᵣᵪ -> V ⌈ r ⩦ v ⌉ᵣᵦ -> 
   match (πτ,v) with
     | ((_,τ),⩽ v' … ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
     | ((τ,_),⩽ … v' ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
@@ -305,7 +305,7 @@ Proof.
   intros r' v' πτ' HvRe HfRe HfV; destruct πτ'.
   - apply RC.notEmpty_find_spec in HfRe; auto; contradiction.
   - rewrite H0 in HfRe; rewrite H1 in HfV.
-    apply instantiation_new in inst as Hnew. 
+    apply wf_conenv_new in inst as Hnew. 
     destruct (Resource.eq_dec (newᵣᵪ(Re)) r'); subst.
     -- rewrite Hnew in HfV. rewrite RC.add_eq_o in HfRe; auto; 
         inversion HfRe; clear HfRe; subst.
@@ -313,7 +313,7 @@ Proof.
         rewrite <- Hnew. replace 1 with (newᵣᵪ(Re') - newᵣᵪ(Re)).
         + apply weakening_ℜ_1; auto.
           ++ apply VContext.valid_empty_spec.
-          ++ apply instantiation_valid in inst as [HvRe' _]; auto.
+          ++ apply wf_conenv_valid in inst as [HvRe' _]; auto.
           ++ unfold RC.Add in H0. 
             rewrite H0. apply RC.Submap_add_spec_1.
             * apply RC.Ext.new_key_notin_spec; lia.
@@ -322,7 +322,7 @@ Proof.
           rewrite H0; rewrite RC.Ext.new_key_add_new_key_spec; lia.
     -- rewrite <- Hnew in HfV. rewrite RC.add_neq_o in HfRe; auto.
         rewrite RE.add_neq_o in HfV; auto.
-        apply instantiation_valid in inst as [HvRe' _].
+        apply wf_conenv_valid in inst as [HvRe' _].
         replace r' with ([⧐ᵣ newᵣᵪ(Re) ≤ 1] r') in HfV.
         + apply RE.shift_find_e_spec in HfV as HfV';
           destruct HfV' as [v'' Heq]; subst.
@@ -343,12 +343,12 @@ Proof.
         now simpl in HfV.
 Qed.
 
-Lemma instantiation_in : forall (Re : ℜ) V (r : resource),
-  Instᵣₜ(Re,V) -> r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V.
+Lemma wf_conenv_in : forall (Re : ℜ) V (r : resource),
+  WFₑₙᵥ(Re,V) -> r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V.
 Proof.
   split.
   - intros; destruct H0; apply RC.find_1 in H0. 
-    eapply instantiation_domains_match in H0; eauto;
+    eapply wf_conenv_domains_match in H0; eauto;
     destruct H0. exists x0; now apply RE.find_2.
   - revert r; induction H.
     -- intros. unfold RE.Empty in *; exfalso.
@@ -356,13 +356,13 @@ Proof.
     -- intros. unfold RE.Add in *. rewrite H2 in *.
        unfold RC.Add in *. rewrite H1.
        apply RE.add_in_iff in H4; destruct H4; subst.
-       + apply instantiation_new in H; rewrite H.
+       + apply wf_conenv_new in H; rewrite H.
          rewrite RC.add_in_iff; now left.
-       + rewrite RC.add_in_iff; right; apply IHinstantiation_func.
-         rewrite <- RE.valid_in_spec_1; eauto. apply instantiation_valid in H.
+       + rewrite RC.add_in_iff; right; apply IHwell_formed_context_env.
+         rewrite <- RE.valid_in_spec_1; eauto. apply wf_conenv_valid in H.
          now destruct H.
     -- intros. unfold RE.Add in *. rewrite H2 in *. 
-       apply IHinstantiation_func. rewrite RE.add_in_iff in H4.
+       apply IHwell_formed_context_env. rewrite RE.add_in_iff in H4.
        destruct H4; subst; auto.
 Qed.
 
@@ -872,7 +872,7 @@ Theorem functional_preserves_typing :
     (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
     (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     (* (3) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
-    (* (4) *) Instᵣₜ(Re,V) ->
+    (* (4) *) WFₑₙᵥ(Re,V) ->
 
 
     (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
@@ -882,7 +882,7 @@ Theorem functional_preserves_typing :
     exists (Re' : ℜ) (R' : resources), 
       (*  (7) *) Re ⊆ᵣᵪ Re'     /\ 
       (*  (8) *) (R ⊆ R')%rs    /\
-      (*  (9) *) Instᵣₜ(Re',V') /\
+      (*  (9) *) WFₑₙᵥ(Re',V') /\
       (* (10) *) (forall (r : resource) (v : Λ) (τ τ' : Τ), 
                     W ⌈ r ⩦ v ⌉ₛₖ -> Re' ⌈r ⩦ (τ',τ)⌉ᵣᵪ -> ∅ᵥᵪ ⋅ Re' ⊫ v ∈ τ) /\
       (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%rs -> (r ∈ (Stock.to_RS W))%rs /\ (r ∉ᵣᵦ V)) /\
@@ -893,8 +893,8 @@ Proof.
   intros Re V V' W sv sv' sf sf' τ τ' R Hwsf Hwsv fT; revert Re R τ τ' Hwsf Hwsv;
   induction fT; intros Re R α β Hwsf Hwsv Hinst;
 
-  apply instantiation_valid in Hinst as HvRe; destruct HvRe as [HvRe HvV];
-  apply instantiation_new in Hinst as Hnew;
+  apply wf_conenv_valid in Hinst as HvRe; destruct HvRe as [HvRe HvV];
+  apply wf_conenv_new in Hinst as Hnew;
   
   move HvRe before Hinst; move HvV before HvRe; move Hnew before Hinst.
   (* fT_eT *)
@@ -954,7 +954,7 @@ Proof.
     move Hwt' before Hwt; clear Hwt; move Hinst' before Hinst; move Hunsd before Husd.
     (* clean *)
 
-    apply instantiation_new in Hinst' as Hnew'; move Hnew' before Hnew.
+    apply wf_conenv_new in Hinst' as Hnew'; move Hnew' before Hnew.
 
     repeat split; auto.
     exists Re'; exists R'; repeat split; try assumption; try (destruct HSubRe; assumption);
@@ -984,7 +984,7 @@ Proof.
     move Hwt1' before Hwt1; move Hunsd1 after HInW; move Hinst' before Hinst.
     (* clean *)
 
-    apply instantiation_new in Hinst' as Hnew'; move Hnew' before Hnew.
+    apply wf_conenv_new in Hinst' as Hnew'; move Hnew' before Hnew.
     apply weakening_ℜ_1 with (Re' := Re') in Hwt2 as Hwt2'; auto; 
     try now apply VContext.valid_empty_spec.
     apply IHfT2 with (R := R2) (τ' := β) in Hwsv' as IH2; try assumption;
@@ -1026,7 +1026,7 @@ Proof.
       -- assert (HInV1 : r' ∈ᵣᵦ V).
           {
           eapply typing_Re_R in i as HInRe; eauto.
-          eapply instantiation_in in HInRe; eauto. 
+          eapply wf_conenv_in in HInRe; eauto. 
           }
 
           revert HInV1; apply HInW; rewrite Resources.diff_spec; split; assumption.
@@ -1050,7 +1050,7 @@ Proof.
       move HEmp' before HEmp. repeat split.
       -- intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn; auto.
           assert (HInV : r ∈ᵣᵦ V).
-          { eapply typing_Re_R in H0 as HInRe; eauto. eapply instantiation_in in HInRe; eauto. }
+          { eapply typing_Re_R in H0 as HInRe; eauto. eapply wf_conenv_in in HInRe; eauto. }
 
           assert (HnInR1 : (r ∉ R1)%rs).
           { 
@@ -1082,7 +1082,7 @@ Proof.
           assert ([⧐ᵣᵦ newᵣᵦ( V) ≤ newᵣᵦ( V'') - newᵣᵦ( V)] V = [⧐ᵣᵦ newᵣᵦ(V') ≤ newᵣᵦ( V'') - newᵣᵦ(V')]([⧐ᵣᵦ newᵣᵦ(V) ≤ newᵣᵦ(V') - newᵣᵦ(V)] V))%re.
           { 
             apply RC.Ext.new_key_Submap_spec in HSubRe,HSubRe'.
-            apply instantiation_new in Hinst,Hinst',Hinst''.
+            apply wf_conenv_new in Hinst,Hinst',Hinst''.
             rewrite Hinst,Hinst' in HSubRe; rewrite Hinst',Hinst'' in HSubRe'.
             rewrite RE.shift_unfold_1; auto; reflexivity. 
           }
@@ -1096,7 +1096,7 @@ Proof.
       
           apply RE.shift_find_spec with (lb := newᵣᵦ(V')) (k := newᵣᵦ(V'') - newᵣᵦ(V')) in HfV' as HfV''.
 
-          apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+          apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
           apply RE.valid_in_spec with (lb := newᵣᵦ(V')) in HIn' as Hv; auto.
           rewrite Resource.shift_valid_refl in HfV''; auto. rewrite HfV''. symmetry.
 
@@ -1128,12 +1128,12 @@ Proof.
                destruct H1'; subst. apply ReadStock.shift_find_spec in H1.
                eapply HwtW in H1.
                * rewrite <- Hnew'. 
-                 apply instantiation_new in Hinst''. rewrite <- Hinst''.
+                 apply wf_conenv_new in Hinst''. rewrite <- Hinst''.
                  apply weakening_ℜ_1; eauto.
-                 apply instantiation_valid in Hinst'. destruct Hinst'; auto.
+                 apply wf_conenv_valid in Hinst'. destruct Hinst'; auto.
                * assert (r ∈ₛₖ W). { unfold Stock.In; left. exists x; now apply ReadStock.find_2. }
                  eapply consistency_V_W with (r := r) in HfT1 as H3; auto.
-                 ** destruct H3. rewrite <- instantiation_in with (Re := Re') in H4; auto.
+                 ** destruct H3. rewrite <- wf_conenv_in with (Re := Re') in H4; auto.
                     destruct H4. apply RC.find_1 in H4. 
                     apply RC.Submap_find_spec with (m' := Re'') in H4 as H4'; auto.
                     rewrite HfiRe in H4'; inversion H4'; subst; eauto.
@@ -1150,7 +1150,7 @@ Proof.
                
               
               rewrite Stock.to_RS_union_spec; left.
-              apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+              apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
 
               assert (r ∈ᵣᵦ V'). 
               {
@@ -1188,7 +1188,7 @@ Proof.
               apply Husd1 in HIn as HuV'; destruct HuV' as [v HfV'].
               apply RE.shift_find_spec with (lb := newᵣᵦ(V')) (k := newᵣᵦ(V'') - newᵣᵦ(V')) in HfV' as HfV''.
 
-              apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+              apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
               rewrite Resource.shift_valid_refl in HfV''; simpl in *.
           
               * exists <[[⧐ₜₘ {newᵣᵦ( V')} ≤ {newᵣᵦ( V'') - newᵣᵦ( V')}] v]>. rewrite <- HfV'';
@@ -1197,8 +1197,8 @@ Proof.
               * eapply RE.valid_find_spec in HfV'; eauto; now destruct HfV'.
             ++ apply Husd2 in HIn as HfV'; destruct HfV' as [v HfV']; now exists v.
           + apply wt_comp with (R1 := R1') (R2 := R2') (τ := τ); try reflexivity; auto.
-            apply instantiation_new in Hinst'' as Hnew''; rewrite <- Hnew'; rewrite <- Hnew''.
-            apply instantiation_valid in Hinst' as HvRe'; destruct HvRe' as [HvRe' _].
+            apply wf_conenv_new in Hinst'' as Hnew''; rewrite <- Hnew'; rewrite <- Hnew''.
+            apply wf_conenv_valid in Hinst' as HvRe'; destruct HvRe' as [HvRe' _].
             apply weakening_ℜ_1; auto.
   (* fT_rsf *)
   -
@@ -1214,7 +1214,7 @@ Proof.
         + replace (newᵣᵦ(V) - newᵣᵦ(V)) with 0 by lia; now rewrite RE.shift_refl.
         + apply RE.in_find; intro c; rewrite HfV in c; inversion c.
     -- exists Re; exists \{{r}}; split; try reflexivity. repeat split; try reflexivity.
-        + eapply itfT_update; eauto.
+        + eapply WFenv_update; eauto.
           ++ apply RE.in_find; intro c; rewrite HfV in c; inversion c.
           ++ unfold RE.Add; reflexivity.
         + intros; inversion H.
@@ -1222,8 +1222,8 @@ Proof.
         + rename H into HIn; apply Resources.diff_spec in HIn as [HIn HnIn]; contradiction.
         + intros r' HIn; apply Resources.singleton_spec in HIn; subst; unfold RE.used.
           exists st; now apply RE.add_eq_o.
-        + apply instantiation_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
-        + apply instantiation_valid in Hinst; destruct Hinst; auto; now constructor.
+        + apply wf_conenv_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
+        + apply wf_conenv_valid in Hinst; destruct Hinst; auto; now constructor.
   (* fT_wh *)
   -
     (* clean *)
@@ -1246,7 +1246,7 @@ Proof.
 
           repeat split.
           ++ intros r HIn. assert (HInV : r ∈ᵣᵦ V).
-            { eapply typing_Re_R in Hwsf; eauto. eapply instantiation_in; eauto. }
+            { eapply typing_Re_R in Hwsf; eauto. eapply wf_conenv_in; eauto. }
 
             rewrite Heq in HIn; rewrite Resources.diff_spec in HIn; destruct HIn.
             apply Hunsd in H. repeat rewrite Resources.add_notin_spec in H0; destruct H0 as [Hneq [Hneq' _]].
@@ -1282,7 +1282,7 @@ Proof.
                         + rewrite RE.add_neq_o.
                           ++ rewrite <- RE.shift_unfold. f_equal; f_equal.
                             apply RC.Ext.new_key_Submap_spec in HSubRe. rewrite RC.new_key_wh_spec in HSubRe.
-                              rewrite Hnew in HSubRe. apply instantiation_new in Hinst'; rewrite Hinst' in HSubRe; lia.
+                              rewrite Hnew in HSubRe. apply wf_conenv_new in Hinst'; rewrite Hinst' in HSubRe; lia.
                           ++ intro; subst. rewrite Resource.shift_valid_refl in HIn by (unfold Resource.valid; lia).
                             revert HIn; apply RE.Ext.new_key_notin_spec; lia.
                         + apply RE.shift_new_notin_spec; lia.
@@ -1317,7 +1317,7 @@ Proof.
             * intros r v τ0 τ' Hfi Hfi'. unfold Stock.find,Stock.add in Hfi; simpl in *.
               destruct (Resource.eq_dec r (newᵣᵦ(V))); subst.
               ** rewrite ReadStock.add_eq_o in Hfi; auto; inversion Hfi.
-                 apply instantiation_new in Hinst'; rewrite <- Hinst'. rewrite <- Hnew.
+                 apply wf_conenv_new in Hinst'; rewrite <- Hinst'. rewrite <- Hnew.
                  apply weakening_ℜ_1; eauto.
                  { 
                   eapply RC.Submap_Add_spec with (x := (newᵣᵪ(Re))) 
@@ -1344,7 +1344,7 @@ Proof.
                   rewrite Stock.add_spec; simpl; auto.
               ** apply Stock.to_RS_in_spec. apply Stock.add_spec; auto; repeat rewrite Resources.add_spec in HIn'; 
                   destruct HIn' as [Heq' | [Heq' | HIn']]; try (now inversion HIn'); subst; 
-                  apply instantiation_new in Hinst; rewrite <- Hinst; simpl; auto.
+                  apply wf_conenv_new in Hinst; rewrite <- Hinst; simpl; auto.
             * rename H into HIn. rewrite Resources.diff_spec in HIn.
               destruct HIn as [HIn HnIn]. rewrite Heq in HnIn; rewrite Resources.diff_notin_spec in HnIn.
               destruct HnIn as [HnIn | HIn'].
@@ -1372,13 +1372,13 @@ Proof.
             - apply RE.shift_new_notin_spec; lia.
           }
           rewrite H0. clear H H0.
-          eapply (itfT_init 
+          eapply (WFenv_init 
                     (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
                     (⌈ S (newᵣᵪ( Re)) ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re))
                     (⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V))
                     (⌈ S (newᵣᵦ( V)) ⤆ ⩽ unit … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ S (newᵣᵦ( V)) ≤ 1] ⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V)))
                     τ <[𝟙]> <[unit]>); eauto; try now constructor.
-          ++ eapply (itfT_init Re (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
+          ++ eapply (WFenv_init Re (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
                                   V (⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V))
                                   <[𝟙]> τ); eauto; try constructor.
           ++ rewrite RC.Ext.new_key_add_spec_1; auto.
@@ -1419,7 +1419,7 @@ Theorem functional_preserves_typing_value :
     value(sf) ->
     ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
-    Instᵣₜ(Re,V) ->
+    WFₑₙᵥ(Re,V) ->
     RE.halts (newᵣᵦ(V)) V ->
     halts (newᵣᵪ(Re)) sv ->
 
@@ -1431,7 +1431,7 @@ Theorem functional_preserves_typing_value :
     exists (Re' : ℜ) (R' : resources), 
       Re ⊆ᵣᵪ Re'     /\ 
       (R ⊆ R')%rs    /\
-      Instᵣₜ(Re',V') /\
+      WFₑₙᵥ(Re',V') /\
 
       RE.halts (newᵣᵦ(V')) V' /\
       halts (newᵣᵪ(Re')) sv' /\
@@ -1446,8 +1446,8 @@ Proof.
   intros Re V V' W sv sv' sf sf' τ τ' R Hwsf Hvsf Hwsv fT; revert Re R τ τ' Hwsf Hvsf Hwsv;
   induction fT; intros Re R α β Hwsf Hvsf Hwsv Hinst HltV Hltst;
 
-  apply instantiation_valid in Hinst as HvRe; destruct HvRe as [HvRe HvV];
-  apply instantiation_new in Hinst as Hnew;
+  apply wf_conenv_valid in Hinst as HvRe; destruct HvRe as [HvRe HvV];
+  apply wf_conenv_new in Hinst as Hnew;
 
   move HvRe before Hinst; move HvV before HvRe; move Hnew before Hinst.
   (* fT_eT *)
@@ -1504,7 +1504,7 @@ Proof.
     move Hwt' before Hwt; clear Hwt; move Hinst' before Hinst; move Hunsd before Husd.
     (* clean *)
 
-    apply instantiation_new in Hinst' as Hnew'; move Hnew' before Hnew.
+    apply wf_conenv_new in Hinst' as Hnew'; move Hnew' before Hnew.
 
     repeat split; auto.
     exists Re'; exists R'; repeat split; try assumption; try (destruct HSubRe; assumption);
@@ -1538,7 +1538,7 @@ Proof.
     move Hwt1' before Hwt1; move Hunsd1 after HInW; move Hinst' before Hinst.
     (* clean *)
 
-    apply instantiation_new in Hinst' as Hnew'; move Hnew' before Hnew.
+    apply wf_conenv_new in Hinst' as Hnew'; move Hnew' before Hnew.
     apply weakening_ℜ_1 with (Re' := Re') in Hwt2 as Hwt2'; auto.
     apply IHfT2 with (R := R2) (τ' := β) in Hwsv' as IH2; try assumption;
     try (rewrite <- Hnew; now rewrite <- Hnew');
@@ -1579,7 +1579,7 @@ Proof.
       -- assert (HInV1 : r' ∈ᵣᵦ V).
           {
           eapply typing_Re_R in i as HInRe; eauto.
-          eapply instantiation_in in HInRe; eauto. 
+          eapply wf_conenv_in in HInRe; eauto. 
           }
 
           revert HInV1; apply HInW; rewrite Resources.diff_spec; split; assumption.
@@ -1601,7 +1601,7 @@ Proof.
       move HEmp' before HEmp. repeat split.
       -- intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn; auto.
           assert (HInV : r ∈ᵣᵦ V).
-          { eapply typing_Re_R in H0 as HInRe; eauto. eapply instantiation_in in HInRe; eauto. }
+          { eapply typing_Re_R in H0 as HInRe; eauto. eapply wf_conenv_in in HInRe; eauto. }
 
           assert (HnInR1 : (r ∉ R1)%rs).
           { 
@@ -1631,7 +1631,7 @@ Proof.
           assert ([⧐ᵣᵦ newᵣᵦ( V) ≤ newᵣᵦ( V'') - newᵣᵦ( V)] V = [⧐ᵣᵦ newᵣᵦ(V') ≤ newᵣᵦ( V'') - newᵣᵦ(V')]([⧐ᵣᵦ newᵣᵦ(V) ≤ newᵣᵦ(V') - newᵣᵦ(V)] V))%re.
           { 
             apply RC.Ext.new_key_Submap_spec in HSubRe,HSubRe'.
-            apply instantiation_new in Hinst,Hinst',Hinst''.
+            apply wf_conenv_new in Hinst,Hinst',Hinst''.
             rewrite Hinst,Hinst' in HSubRe; rewrite Hinst',Hinst'' in HSubRe'.
             rewrite RE.shift_unfold_1; auto; reflexivity. 
           }
@@ -1645,7 +1645,7 @@ Proof.
       
           apply RE.shift_find_spec with (lb := newᵣᵦ(V')) (k := newᵣᵦ(V'') - newᵣᵦ(V')) in HfV' as HfV''.
 
-          apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+          apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
           apply RE.valid_in_spec with (lb := newᵣᵦ(V')) in HIn' as Hv; auto.
           rewrite Resource.shift_valid_refl in HfV''; auto. rewrite HfV''. symmetry.
 
@@ -1677,12 +1677,12 @@ Proof.
               destruct H1'; subst. apply ReadStock.shift_find_spec in H1.
               eapply HwtW in H1.
               * rewrite <- Hnew'. 
-                apply instantiation_new in Hinst''. rewrite <- Hinst''.
+                apply wf_conenv_new in Hinst''. rewrite <- Hinst''.
                 apply weakening_ℜ_1; eauto.
-                apply instantiation_valid in Hinst'. destruct Hinst'; auto.
+                apply wf_conenv_valid in Hinst'. destruct Hinst'; auto.
               * assert (r ∈ₛₖ W). { unfold Stock.In; left. exists x; now apply ReadStock.find_2. }
                 eapply consistency_V_W with (r := r) in HfT1 as H3; auto.
-                ** destruct H3. rewrite <- instantiation_in with (Re := Re') in H4; auto.
+                ** destruct H3. rewrite <- wf_conenv_in with (Re := Re') in H4; auto.
                     destruct H4. apply RC.find_1 in H4. 
                     apply RC.Submap_find_spec with (m' := Re'') in H4 as H4'; auto.
                     rewrite HfiRe in H4'; inversion H4'; subst; eauto.
@@ -1699,7 +1699,7 @@ Proof.
               
               
               rewrite Stock.to_RS_union_spec; left.
-              apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+              apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
 
               assert (r ∈ᵣᵦ V'). 
               {
@@ -1737,7 +1737,7 @@ Proof.
               apply Husd1 in HIn as HuV'; destruct HuV' as [v HfV'].
               apply RE.shift_find_spec with (lb := newᵣᵦ(V')) (k := newᵣᵦ(V'') - newᵣᵦ(V')) in HfV' as HfV''.
 
-              apply instantiation_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
+              apply wf_conenv_valid in Hinst' as Hv; destruct Hv as [_ HvV'].
               rewrite Resource.shift_valid_refl in HfV''; simpl in *.
           
               * exists <[[⧐ₜₘ {newᵣᵦ( V')} ≤ {newᵣᵦ( V'') - newᵣᵦ( V')}] v]>. rewrite <- HfV'';
@@ -1746,8 +1746,8 @@ Proof.
               * eapply RE.valid_find_spec in HfV'; eauto; now destruct HfV'.
             ++ apply Husd2 in HIn as HfV'; destruct HfV' as [v HfV']; now exists v.
           + apply wt_comp with (R1 := R1') (R2 := R2') (τ := τ); try reflexivity; auto.
-            apply instantiation_new in Hinst'' as Hnew''; rewrite <- Hnew'; rewrite <- Hnew''.
-            apply instantiation_valid in Hinst' as HvRe'; destruct HvRe' as [HvRe' _].
+            apply wf_conenv_new in Hinst'' as Hnew''; rewrite <- Hnew'; rewrite <- Hnew''.
+            apply wf_conenv_valid in Hinst' as HvRe'; destruct HvRe' as [HvRe' _].
             apply weakening_ℜ_1; auto.
   (* fT_rsf *)
   -
@@ -1763,7 +1763,7 @@ Proof.
         + replace (newᵣᵦ(V) - newᵣᵦ(V)) with 0 by lia; now rewrite RE.shift_refl.
         + apply RE.in_find; intro c; rewrite HfV in c; inversion c.
     -- exists Re; exists \{{r}}; split; try reflexivity. repeat split; try reflexivity.
-        + eapply itfT_update; eauto.
+        + eapply WFenv_update; eauto.
           ++ apply RE.in_find; intro c; rewrite HfV in c; inversion c.
           ++ unfold RE.Add; reflexivity.
         + apply RE.halts_add_spec; split.
@@ -1778,8 +1778,8 @@ Proof.
         + rename H into HIn; apply Resources.diff_spec in HIn as [HIn HnIn]; contradiction.
         + intros r' HIn; apply Resources.singleton_spec in HIn; subst; unfold RE.used.
           exists st; now apply RE.add_eq_o.
-        + apply instantiation_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
-        + apply instantiation_valid in Hinst; destruct Hinst; auto; now constructor.
+        + apply wf_conenv_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
+        + apply wf_conenv_valid in Hinst; destruct Hinst; auto; now constructor.
   (* fT_wh *)
   -
     (* clean *)
@@ -1824,7 +1824,7 @@ Proof.
 
           rewrite Heqnk' in *; repeat split.
           ++ intros r HIn. assert (HInV : r ∈ᵣᵦ V).
-            { eapply typing_Re_R in Hwsf; eauto. eapply instantiation_in; eauto. }
+            { eapply typing_Re_R in Hwsf; eauto. eapply wf_conenv_in; eauto. }
 
             rewrite Heq in HIn; rewrite Resources.diff_spec in HIn; destruct HIn.
             apply Hunsd in H. repeat rewrite Resources.add_notin_spec in H0; destruct H0 as [Hneq [Hneq' _]].
@@ -1847,7 +1847,7 @@ Proof.
                         + rewrite RE.add_neq_o.
                           ++ rewrite <- RE.shift_unfold. f_equal; f_equal.
                             apply RC.Ext.new_key_Submap_spec in HSubRe. rewrite RC.new_key_wh_spec in HSubRe.
-                              rewrite Hnew in HSubRe. apply instantiation_new in Hinst'; rewrite Hinst' in HSubRe; lia.
+                              rewrite Hnew in HSubRe. apply wf_conenv_new in Hinst'; rewrite Hinst' in HSubRe; lia.
                           ++ intro; subst. rewrite Resource.shift_valid_refl in HIn by (unfold Resource.valid; lia).
                             revert HIn; apply RE.Ext.new_key_notin_spec; lia.
                         + apply RE.shift_new_notin_spec; lia.
@@ -1880,7 +1880,7 @@ Proof.
             * intros r v τ0 τ' Hfi Hfi'. unfold Stock.find,Stock.add in Hfi; simpl in *.
               destruct (Resource.eq_dec r (newᵣᵦ(V))); subst.
               ** rewrite ReadStock.add_eq_o in Hfi; auto; inversion Hfi.
-                apply instantiation_new in Hinst'; rewrite <- Hinst'. rewrite <- Hnew.
+                apply wf_conenv_new in Hinst'; rewrite <- Hinst'. rewrite <- Hnew.
                 apply weakening_ℜ_1; eauto.
                 { 
                   eapply RC.Submap_Add_spec with (x := (newᵣᵪ(Re))) 
@@ -1907,7 +1907,7 @@ Proof.
                   rewrite Stock.add_spec; simpl; auto.
               ** apply Stock.to_RS_in_spec. apply Stock.add_spec; auto; repeat rewrite Resources.add_spec in HIn'; 
                   destruct HIn' as [Heq' | [Heq' | HIn']]; try (now inversion HIn'); subst; 
-                  apply instantiation_new in Hinst; rewrite <- Hinst; simpl; auto.
+                  apply wf_conenv_new in Hinst; rewrite <- Hinst; simpl; auto.
             * rename H into HIn. rewrite Resources.diff_spec in HIn.
               destruct HIn as [HIn HnIn]. rewrite Heq in HnIn; rewrite Resources.diff_notin_spec in HnIn.
               destruct HnIn as [HnIn | HIn'].
@@ -1936,13 +1936,13 @@ Proof.
           }
 
           rewrite H0; clear H H0.
-          eapply (itfT_init 
+          eapply (WFenv_init 
                     (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
                     (⌈ S (newᵣᵪ( Re)) ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re))
                     (⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V))
                     (⌈ S (newᵣᵦ( V)) ⤆ ⩽ unit … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ S (newᵣᵦ( V)) ≤ 1] ⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V)))
                     τ <[𝟙]> <[unit]>); eauto; try now constructor.
-          ++ eapply (itfT_init Re (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
+          ++ eapply (WFenv_init Re (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)
                                   V (⌈ newᵣᵦ( V) ⤆ [⧐ᵣₓ newᵣᵦ( V) ≤ 1] ⩽ i … ⩾ ⌉ᵣᵦ ([⧐ᵣᵦ newᵣᵦ( V) ≤ 1] V))
                                   <[𝟙]> τ); eauto; try constructor.
           ++ rewrite RC.Ext.new_key_add_spec_1; auto.
@@ -2010,7 +2010,7 @@ Theorem safety_resources_interaction :
     (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
     (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     (* (3) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
-    (* (4) *) Instᵣₜ(Re,V) ->
+    (* (4) *) WFₑₙᵥ(Re,V) ->
 
 
     (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
@@ -2045,7 +2045,7 @@ Section progress.
       halts_V V ->
       (forall r, (r ∈ R)%rs -> RE.unused r V) ->
       
-      Instᵣₜ(Re,V) ->
+      WFₑₙᵥ(Re,V) ->
       
       ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) -> 
       ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ ->
@@ -2068,7 +2068,7 @@ Section progress.
       -- (* Définir une props pour t sv *) admit.
     - inversion H0; subst; clear H0.
       destruct H1 as [sv' [HmeT Hvsv']].
-      apply instantiation_valid in H5 as HvRe; destruct HvRe as [HvRe _].
+      apply wf_conenv_valid in H5 as HvRe; destruct HvRe as [HvRe _].
       apply multi_preserves_typing with (t' := sv') in H6; auto.
       destruct sv'; inversion H6; inversion Hvsv'; subst.
 
@@ -2081,7 +2081,7 @@ Section progress.
           exists <[first(τ0 :sf')]>.
           repeat split; auto.
           + eapply fT_first; eauto.
-            apply instantiation_new in H5; now rewrite <- H5.
+            apply wf_conenv_new in H5; now rewrite <- H5.
           + destruct Hltsv' as [sv'' [HmeT' Hvsv'']].
             exists <[⟨sv'', [⧐ₜₘ{newᵣᵦ(V)} ≤ {newᵣᵦ(V') - newᵣᵦ(V)}] sv'2⟩]>; split.
             ++ now apply multi_pair1.
@@ -2097,7 +2097,7 @@ Section progress.
       
       assert (Hvr : newᵣᵪ(Re) ⊩ᵣ r). 
       { 
-        apply instantiation_valid in H4; destruct H4.
+        apply wf_conenv_valid in H4; destruct H4.
         eapply RC.valid_find_spec in H0 as [Hvr _]; eauto. 
       }
     
@@ -2113,7 +2113,7 @@ Section progress.
          destruct (Resource.eq_dec r r'); subst; rewrite RE.Ext.new_key_add_spec_3;
          try (apply RE.in_find; intro c; rewrite HfV in c; inversion c).
          + inversion HfV'; subst; clear HfV'.
-           apply instantiation_new in H4 as Hnew; now rewrite <- Hnew.
+           apply wf_conenv_new in H4 as Hnew; now rewrite <- Hnew.
          + apply H2 in HfV'; auto.
     (* wt_wh *)
     - clear IHwell_typed1. fold VContext.empty in *. inversion H2; subst; clear H2.
@@ -2130,7 +2130,7 @@ Section progress.
       halts_V V ->
       (Forall_arr (fun t => forall s, halts (newᵣᵪ(Re)) <[t s]>) sf) ->
 
-      value(sf) -> Instᵣₜ(Re,V) ->
+      value(sf) -> WFₑₙᵥ(Re,V) ->
       ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) -> 
       ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ ->
 
@@ -2146,7 +2146,7 @@ Section progress.
       -- exists V'; exists W; exists sv'; exists sf'; auto.
       -- symmetry; apply Term.eq_leibniz; replace (newᵣᵪ(Re) - newᵣᵪ(Re)) with 0 by lia.
          now rewrite Term.shift_refl.
-    - apply instantiation_valid in Hinst; destruct Hinst; assumption.
+    - apply wf_conenv_valid in Hinst; destruct Hinst; assumption.
     - apply RC.Submap_refl.
   Qed.
 
@@ -2157,7 +2157,7 @@ Section progress.
       halts_V V ->
       (Forall_arr (fun t => forall s, halts (newᵣᵪ(Re)) <[t s]>) sf) ->
 
-      Instᵣₜ(Re,V) ->
+      WFₑₙᵥ(Re,V) ->
       ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) -> 
       ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ ->
 
@@ -2182,10 +2182,10 @@ Section progress.
       move R before τ'.
       (* clean *)
 
-      apply instantiation_valid in Hinst as Hv; destruct Hv as [HvRe _].
+      apply wf_conenv_valid in Hinst as Hv; destruct Hv as [HvRe _].
       apply evaluate_preserves_typing with (t' := sf1) in Hwsf as Hwsf1; auto.
       eapply IHk in HieT as IH; eauto.
-      -- apply instantiation_new in Hinst as Hnew; rewrite Hnew in HeT; clear Hnew.
+      -- apply wf_conenv_new in Hinst as Hnew; rewrite Hnew in HeT; clear Hnew.
          destruct IH as [V' [W [sv' [sf1' [HfT [Hltsv' HltV']]]]]].
          exists V'; exists W; exists sv'; exists sf1'; split; auto.
          eapply fT_eT; eauto.
@@ -2199,14 +2199,14 @@ End progress.
 
 (** *** Some corollaries *)
 
-Corollary functional_preserves_instantiation : 
+Corollary functional_preserves_wf_conenv : 
   forall (Re : ℜ) (V V' : 𝓥) (W : 𝐖) (sv sv' sf sf' : Λ) (τ τ' : Τ) (R : resources),  
-    Instᵣₜ(Re,V) ->
+    WFₑₙᵥ(Re,V) ->
     ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) -> 
     ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
 
-    exists Re', Instᵣₜ(Re',V').
+    exists Re', WFₑₙᵥ(Re',V').
 Proof.
   intros Re V V' W sv sv' sf sf' τ2 τ2' R Hinst Hwt Hwst HfT.
   eapply functional_preserves_typing in HfT; eauto.
@@ -2217,7 +2217,7 @@ Qed.
 
 Corollary functional_preserves_stream_typing : 
   forall (Re : ℜ) (V V' : 𝓥) (W : 𝐖) (sv sv' sf sf' : Λ) (τ τ' : Τ) (R : resources),  
-    Instᵣₜ(Re,V) ->
+    WFₑₙᵥ(Re,V) ->
     ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) -> 
     ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
@@ -2234,13 +2234,13 @@ Qed.
 Corollary functional_preserves_typing_1 : 
   forall (Re : ℜ) (V V' : 𝓥) (W : 𝐖) (sv sv' sf sf' : Λ) (τ τ' : Τ) (R : resources),
 
-    Instᵣₜ(Re,V) ->
+    WFₑₙᵥ(Re,V) ->
     ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
     ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
     ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V' ; sv' ; sf' ; W ⪢ -> 
 
     exists (Re' : ℜ) (R' : resources), 
-      Re ⊆ᵣᵪ Re' /\  (R ⊆ R')%rs /\ Instᵣₜ(Re',V') /\ 
+      Re ⊆ᵣᵪ Re' /\  (R ⊆ R')%rs /\ WFₑₙᵥ(Re',V') /\ 
       ∅ᵥᵪ ⋅ Re' ⊫ sv' ∈ τ' /\
       ∅ᵥᵪ ⋅ Re' ⊫ sf' ∈ (τ ⟿ τ' ∣ R').
 Proof.

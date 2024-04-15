@@ -84,13 +84,13 @@ Qed.
 Lemma resource_used_init_unused : forall Re t α β R l W V,
   ∅ᵥᵪ ⋅ Re ⊫ t ∈ (α ⟿ β ∣ R) ->
   value(t) ->
-  Instᵣₜ(Re,V) ->
+  WFₑₙᵥ(Re,V) ->
   (V = (Sk.init_virtual W (Re.embeds l)))%re ->
   
   (forall r, (r ∈ R)%rs -> Re.unused r V).
 Proof.
   intros. apply typing_Re_R with (r := r) in H; auto.
-  apply instantiation_in with (V := V) in H; auto.
+  apply wf_conenv_in with (V := V) in H; auto.
   rewrite H2 in *. destruct H; apply RE.OP.P.find_1 in H.
   apply initialization_unused in H as H'; destruct x; inversion H'.
   exists λ. now rewrite H2.
