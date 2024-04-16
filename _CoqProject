@@ -16,6 +16,7 @@ theories/Evaluation.v
 theories/Functional.v
 theories/Substitution.v
 theories/Syntax/Cell.v
+theories/Syntax/RealResource.v
 theories/Syntax/Resources.v
 theories/Syntax/Resource.v
 theories/Syntax/Term.v

@@ -1,51 +1,45 @@
-(*
-From Coq Require Import Lists.Streams micromega.Lia Relations.Relation_Definitions 
-                        Classes.RelationClasses Relations.Relation_Operators.
-Require Import Resource Resources Term Typ Var Substitution 
-               Typing VContext RContext Evaluation REnvironment 
-               Functional Stock Cell ReadStock WriteStock.
 
-Module Reference.
-
-Definition t : Type := (Stream Λ * Stream Λ).
-
-Definition next (rf : t) : Λ * t := (Streams.hd (fst rf), (Streams.tl (fst rf),snd rf)).
-
-Definition put (v : Λ) (rf : t) : t := (fst rf,Streams.Cons v (snd rf)).
-
-End Reference.
+Require Import RealResource REnvironment Term Functional Resource.
 
 (** * Transition - Temporal
 
-Wormholes's semantics are divided in three sub semantics:
+rsf's semantics are divided in three sub semantics:
 - evaluation transition
 - functional transition
 - temporal transition <--
 
 *)
 
-Module Re := REnvironment.
-Module Sk := Stock.
+Module RE := REnvironment.
 
 
 (** *** Definition *)
 
-Definition ℝ := list Reference.t.
+Definition temporal (R R' : RealResources.t) (P P' : Λ) : Prop :=
+  True.
 
-Definition nexts (fl : ℝ) : list Λ * ℝ := List.split (List.map Reference.next fl).
+Notation "'⟦' R ';' P '⟧' '⟾' '⟦' R1 ';' P1 '⟧'" := (temporal R R1 P P1) 
+                                                     (at level 30, R constr, R1 constr,
+                                                         P custom rsf, P1 custom rsf, 
+                                                        no associativity).
 
-Definition puts (vl : list (option Λ)) (fl : ℝ) : ℝ := 
-  List.map (fun vf => match (fst vf) with Some v => Reference.put v (snd vf) | _ => snd vf end) (List.combine vl fl).
+Inductive multi_temporal : RealResources.t -> RealResources.t -> Λ -> Λ -> Prop :=
+  TT_step : forall R R' R'' (P P' P'' : Λ), 
+                  ⟦ R ; P ⟧ ⟾ ⟦ R' ; P' ⟧ -> 
+                  multi_temporal R' R'' P' P'' -> 
+                  multi_temporal R R'' P P''.
 
-Reserved Notation "⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧" (at level 57, R constr, R' constr, W constr, W' constr,
-       P custom wormholes, P' custom wormholes, no associativity).
-
+Notation "'⟦' R ';' P '⟧' '⟾⋆' '⟦' R1 ';' P1 '⟧'" := (multi_temporal R R1 P P1) 
+                                                     (at level 30, R constr, R1 constr,
+                                                         P custom rsf, P1 custom rsf, 
+                                                        no associativity).
+(*
 Inductive temporal : ℝ -> ℝ -> 𝐖 -> 𝐖 -> Λ -> Λ -> Prop :=
   | TT_init : forall Fl Fl' W' P P' Vin Vout Wnew,
                 
                       (Vin = Re.embeds (fst (nexts Fl)))%re ->
 
-                ⪡ Vin ; unit ; P ⪢ ⭆ ⪡ Vout ; unit ; P' ; Wnew ⪢ ->
+                ⪡ Vin ; unit ; P ⪢ ⭆ ⪡ Vout ; unit ; P' ⪢ ->
 
                       Fl' = puts (Re.extracts Vout) (snd (nexts Fl)) ->
                        (W' = Sk.update Wnew Vout)%sk ->
@@ -70,7 +64,7 @@ where  "⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧" := (temporal R R' W W' P P')
 
 Notation "⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧" := (temporal R R' W W' P P') 
                                                       (at level 57, R constr, R' constr, W constr, W' constr,
-                                                           P custom wormholes, P' custom wormholes, no associativity).
+                                                           P custom rsf, P' custom rsf, no associativity).
                                                               
 (** *** Initialization *)
 

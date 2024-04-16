@@ -532,19 +532,18 @@ Proof.
        + apply (HltV r0 _ H).
 Qed.
 
-Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) : 
-  halts t -> halts tv -> RE.halts V ->
-  all_arrow_halting ->
+Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
 
-  ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
-  ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
-  Instᵣₜ(Re,V) ->
-  (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V -> (* (4) *) all_arrow_halting ->
 
-  (exists (V' : 𝓥) (tv' t' : Λ), 
-    ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
-    halts t' /\ halts tv'/\ RE.halts V'
-  ).
+  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+
+  (* (7) *) Instᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+
+  (*-------------------------------------------------------------------------------------------------*)
+    (exists (V' : 𝓥) (tv' t' : Λ), (*  (9) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
+                                   (* (10) *) halts t' /\ (* (11) *) halts tv'/\ 
+                                   (* (12) *) RE.halts V').
 Proof. 
   intros Hlt; destruct Hlt as [t' [HmeT Hvt']]. apply multi_indexed in HmeT as [k HieT].
   revert Re V tv t τ τ' R t' HieT Hvt'. induction k; 
@@ -569,42 +568,40 @@ Proof.
     exists V'; exists tv'; exists t1'; split; auto; eapply fT_eT; eauto.
 Qed.
 
-(** *** Proof of Resource safety
+(** *** Proof of Resource safety *)
+Theorem safety_resources_interaction (Re : ℜ) (V : 𝓥) (t : Λ) (τ τ' : Τ) (R : resources) :
 
-  **** Hypothesis
+    (* (1) *) halts t -> (* (2) *) RE.halts V -> (* (3) *) all_arrow_halting ->
 
-  Knowing the term sf is well typed (1), the stream term is also well typed (2),
-   using the two previous terms (3) and each term in the
-  environment is well typed to a type findable in the context if they are
-  the same resource name that mapped them (3);
+    (* (4) *) Instᵣₜ(Re,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
-  **** Results
+    (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
 
-  There is a transition such that :
-  - each interaction with resources is done with values never used before (5);
-  - we can found a context and a resource set such as :
-    - all resources that are not in the set R have the same state before and after the functional transition (6);
-    - after the interaction, the state of the cell where the value was stored changed.
-      Consequently, the cell cannot be reused (7).
+  (*-----------------------------------------------------------------------------------------------*)
+    forall (tv : Λ), (* (7) *) halts tv -> (* (8) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
 
-*)
-Theorem safety_resources_interaction :
-  forall (Re : ℜ) (V V' : 𝓥) (tv tv' t t' : Λ) (τ τ' : Τ) (R : resources),
+    exists (V' : 𝓥) (tv' t' : Λ), 
+      (*  (9) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
 
-    (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) ->
-    (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
-    (* (3) *) Instᵣₜ(Re,V) ->
-
-
-    (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
-
-    exists (Re' : ℜ) (R' : resources),
-
-      (* (6) *) (forall (r : resource), (r ∉ R')%rs /\ (r ∈ᵣᵦ V) -> 
-                    V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
-      (* (7) *) (forall (r : resource), (r ∈ R')%rs -> RE.used r V')
-.
+      (* (10) *) (forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
+      (* (11) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V').
 Proof.
-  intros. 
+  intros Hlt HltV HlAll Hinst Hunsd Hwt tv Hltv Hwtv.
+  apply (progress_of_functional _ V _ t _ τ' R) in Hwtv as prog; auto.
+  destruct prog as [V' [tv' [t' [HfT [Hlt' [Hltv' HltV']]]]]].
 
- Admitted.
+  (* clean *)
+  move tv before t; move tv' before tv; move t' before t; move V' before V;
+  move HltV' before HltV; move Hlt' before Hlt; move Hltv' before Hltv; move Hwt before Hwtv;
+  move Hunsd after HfT; move Hinst before Hunsd.
+  (* clean *)
+
+  apply (functional_preserves_typing _ V V' _ tv' t t' _ τ' R) in Hwtv as preserve; auto.
+  destruct preserve as [_ [Htr [Hinst' [Husd [Hwtv' Hwt']]]]].
+
+  (* clean *)
+  move Hinst' before Hinst; move Hwtv' before Hwtv; move Hwt' before Hwt.
+  (* clean *)
+
+  exists V'; exists tv'; exists t'; repeat split; assumption.
+Qed.
