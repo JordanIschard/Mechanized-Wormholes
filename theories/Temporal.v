@@ -1,5 +1,6 @@
 
-Require Import RealResource REnvironment Term Functional Resource.
+Require Import RealResource REnvironment Term Functional Resource Cell Typing VContext Typ
+               Resources Evaluation.
 
 (** * Transition - Temporal
 
@@ -16,7 +17,14 @@ Module RE := REnvironment.
 (** *** Definition *)
 
 Definition temporal (R R' : RealResources.t) (P P' : Λ) : Prop :=
-  True.
+  let (sample,tl) := RealResources.nexts R in
+  forall Vin Vout,
+
+    (Vin = RE.embeds sample)%re /\
+
+    ⪡ Vin ; unit ; P ⪢ ⭆ ⪡ Vout ; unit ; P' ⪢ /\
+
+    R' = RealResources.puts (RE.extracts Vout) tl.
 
 Notation "'⟦' R ';' P '⟧' '⟾' '⟦' R1 ';' P1 '⟧'" := (temporal R R1 P P1) 
                                                      (at level 30, R constr, R1 constr,
@@ -33,61 +41,29 @@ Notation "'⟦' R ';' P '⟧' '⟾⋆' '⟦' R1 ';' P1 '⟧'" := (multi_temporal
                                                      (at level 30, R constr, R1 constr,
                                                          P custom rsf, P1 custom rsf, 
                                                         no associativity).
-(*
-Inductive temporal : ℝ -> ℝ -> 𝐖 -> 𝐖 -> Λ -> Λ -> Prop :=
-  | TT_init : forall Fl Fl' W' P P' Vin Vout Wnew,
-                
-                      (Vin = Re.embeds (fst (nexts Fl)))%re ->
 
-                ⪡ Vin ; unit ; P ⪢ ⭆ ⪡ Vout ; unit ; P' ⪢ ->
-
-                      Fl' = puts (Re.extracts Vout) (snd (nexts Fl)) ->
-                       (W' = Sk.update Wnew Vout)%sk ->
-              (*------------------------------------------------------*)
-                      ⟦ Fl ; ∅ₛₖ ; P ⟧ ⟾ ⟦ Fl' ; W' ; P' ⟧
-
-  | TT_step : forall Fl Fl' Fl'' W W' W'' P P' P'' Vin Vout Wnew,
-
-                          ⟦ Fl ; W ; P ⟧ ⟾ ⟦ Fl' ; W' ; P' ⟧ ->
-                  (Vin =  Sk.init_virtual W' (Re.embeds (fst (nexts Fl'))))%re ->
-
-                      ⪡ Vin ; unit ; P' ⪢ ⭆ ⪡ Vout ; unit ; P'' ; Wnew ⪢ ->
-
-                            Fl'' = puts (Re.extracts Vout) (snd (nexts Fl')) ->
-                          (W'' = Sk.update (W' ∪ Wnew) Vout)%sk ->
-              (*----------------------------------------------------------------*)
-                      ⟦ Fl' ; W' ; P' ⟧ ⟾ ⟦ Fl'' ; W'' ; P'' ⟧
-
-where  "⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧" := (temporal R R' W W' P P').
-
-(** *** Notations *)
-
-Notation "⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧" := (temporal R R' W W' P P') 
-                                                      (at level 57, R constr, R' constr, W constr, W' constr,
-                                                           P custom rsf, P' custom rsf, no associativity).
-                                                              
 (** *** Initialization *)
 
-Theorem initialization_unused : forall W l,
-  REnvironment.For_all (fun _ v => Cell.unused v) (Sk.init_virtual W (Re.embeds l)).
+Theorem initialization_unused : forall l,
+  RE.For_all (fun _ v => Cell.unused v) (RE.embeds l).
 Proof.
-  intros.
-  apply Sk.init_virtual_unused; apply Re.embedding_Forall_unused.
-  unfold Re.For_all; intros. inversion H.
+  intros. apply RE.embedding_Forall_unused.
+  unfold RE.For_all; intros. inversion H.
 Qed.
 
-Lemma resource_used_init_unused : forall Re t α β R l W V,
+Lemma resource_used_init_unused : forall Re t α β R l V,
   ∅ᵥᵪ ⋅ Re ⊫ t ∈ (α ⟿ β ∣ R) ->
-  value(t) ->
+  halts t ->
   Instᵣₜ(Re,V) ->
-  (V = (Sk.init_virtual W (Re.embeds l)))%re ->
+  (V = (RE.embeds l))%re ->
   
-  (forall r, (r ∈ R)%rs -> Re.unused r V).
+  (forall r, (r ∈ R)%rs -> RE.unused r V).
 Proof.
-  intros. apply typing_Re_R with (r := r) in H; auto.
+  intros. destruct H0 as [t' [HmeT Hvt']].
+  apply multi_preserves_typing with (t' := t') in H; auto.
+  apply typing_Re_R with (r := r) in H; auto.
   apply instantiation_in with (V := V) in H; auto.
   rewrite H2 in *. destruct H; apply RE.OP.P.find_1 in H.
   apply initialization_unused in H as H'; destruct x; inversion H'.
   exists λ. now rewrite H2.
 Qed. 
-*)
