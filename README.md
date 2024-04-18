@@ -6,7 +6,7 @@
 - [x] Prove the progress of the functional transition
 - [ ] Prove the preservation of the temporal transition
 - [ ] Prove the progress of the temporal transition
-- [ ] Prove the safety property for the functional transition
+- [x] Prove the safety property for the functional transition
 - [ ] Prove the safety property for the temporal transition
 
 ## Dependencies
