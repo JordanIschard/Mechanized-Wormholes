@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Lists.List Program.
-Require Import Resource Resources Term Var Typing VContext RContext Typ.
+From Mecha Require Import Resource Resources Term Var Typing VContext RContext Typ.
 
 (** * Substitution *)
 

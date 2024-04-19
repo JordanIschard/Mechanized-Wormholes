@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Program Bool.Bool Classes.Morphisms.
-Require Import Typ Resource Resources Term Var VContext RContext.
+From Mecha Require Import Typ Resource Resources Term Var VContext RContext.
 
 
 (** * Typing 

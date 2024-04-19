@@ -1,5 +1,5 @@
 From Coq Require Import Lia.
-Require Import Typ Resource.
+From Mecha Require Import Typ Resource.
 From DeBrLevel Require Import MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 

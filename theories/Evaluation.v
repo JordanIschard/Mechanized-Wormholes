@@ -1,6 +1,6 @@
 From Coq Require Import Classical_Prop Bool.Bool Lia Relations.Relation_Definitions
                         Classes.RelationClasses Program.
-Require Import Typ Resource Resources Term Var VContext RContext Substitution Typing.
+From Mecha Require Import Typ Resource Resources Term Var VContext RContext Substitution Typing.
 
 (** * Transition - Evaluation
 

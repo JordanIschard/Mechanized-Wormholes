@@ -1,5 +1,5 @@
 From Coq Require Import Lia.
-Require Import Resource.
+From Mecha Require Import Resource.
 From DeBrLevel Require Import SetOTwL SetOTwLInterface.
 
 Module Resources <: (SetOTWithLeibnizInterface Resource) :=  SetOTWithLeibniz Resource.

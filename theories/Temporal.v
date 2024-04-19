@@ -1,5 +1,5 @@
 From Coq Require Import Lists.List.
-Require Import RealResource REnvironment Term Functional Resource Cell Typing VContext Typ
+From Mecha Require Import RealResource REnvironment Term Functional Resource Cell Typing VContext Typ
                Resources Evaluation RContext.
 
 (** * Transition - Temporal
@@ -90,18 +90,22 @@ Theorem temporal_preserves_typing (Re : ℜ) Rf Rf' (P P' : Λ) (R : resources) 
 
     (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ P ∈ (𝟙 ⟿ 𝟙 ∣ R) ->
     (* (3) *) ⟦ Rf ; P ⟧ ⟾ ⟦ Rf' ; P' ⟧ ->
-              Instᵣₜ(Re,RE.embeds (fst (RealResources.nexts Rf))) ->
+              Instₜₜ(Re,Rf) ->
 
   (*---------------------------------------------------------------------------------------------*)
-      ∅ᵥᵪ ⋅ Re ⊫ P' ∈ (𝟙 ⟿ 𝟙 ∣ R).
+      ∅ᵥᵪ ⋅ Re ⊫ P' ∈ (𝟙 ⟿ 𝟙 ∣ R) /\ Instₜₜ(Re,Rf').
 Proof.
   intros HwP HTT Hinst; inversion HTT; subst. 
+  (*
   destruct (RealResources.nexts Rf) as [sample tail]; simpl in *.
   eapply functional_preserves_typing in H0; eauto.
-  - now destruct H0 as [_ [_ [_ [_ [_ HwP']]]]].
+  - split; destruct H0 as [_ [_ [HinstV [_ [_ HwP']]]]].
+    -- assumption.
+    -- 
   - now constructor.
   - now rewrite H.
-Qed.
+Qed.*)
+Admitted.
 
 (*
 (** *** Proof of typing preservation through multi temporal transitions *)

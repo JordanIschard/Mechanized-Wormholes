@@ -1,5 +1,5 @@
 From Coq Require Import Lists.Streams.
-Require Import Term Evaluation.
+From Mecha Require Import Term Evaluation.
 
 
 Module RealResource.

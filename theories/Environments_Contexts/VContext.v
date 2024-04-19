@@ -1,5 +1,5 @@
 From Coq Require Import Structures.Equalities Lists.List Classes.Morphisms Logic.FunctionalExtensionality.
-Require Import Resource Typ Var.
+From Mecha Require Import Resource Typ Var.
 From DeBrLevel Require Import MapExt MapExtInterface.
 
 (** * Context between variables and types *)

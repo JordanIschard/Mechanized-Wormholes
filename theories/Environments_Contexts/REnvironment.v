@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-Require Import Resource Term Cell Evaluation.
+From Mecha Require Import Resource Term Cell Evaluation.
 From DeBrLevel Require Import MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 

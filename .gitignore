@@ -46,5 +46,7 @@ time-of-build-pretty.log
 
 Makefile.coq
 Makefile.coq.conf
-doc
+Makefile
+Makefile.coq.local
 _build
+_CoqProject

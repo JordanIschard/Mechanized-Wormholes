@@ -1,5 +1,5 @@
 From Coq Require Import Structures.OrdersEx Classes.RelationClasses Classes.Morphisms Bool.Bool Classical_Prop.
-Require Import Resource Resources.
+From Mecha Require Import Resource Resources.
 From DeBrLevel Require Import LevelInterface.
 
 Module Typ <: EqualityTypeWithLeibniz.
