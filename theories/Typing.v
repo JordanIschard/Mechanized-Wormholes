@@ -78,6 +78,8 @@ Notation "G '⋅' R '⊫' t '∈' T" := (well_typed G R t T) (at level 40,
                                                             t custom rsf, 
                                                             T custom rsf).
 
+Hint Constructors well_typed : core.
+
 (** *** Some facts *)
 
 #[global] 

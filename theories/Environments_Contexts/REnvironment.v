@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Term Cell Evaluation.
+From Mecha Require Import Resource Term Cell Evaluation RealResource.
 From DeBrLevel Require Import MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 
@@ -128,6 +128,32 @@ Proof.
   rewrite OP.P.add_o in Hfi; destruct (Resource.eq_dec x r); subst; inversion Hfi; subst; auto.
   apply Hltm in Hfi; auto.
 Qed.
+
+Lemma halts_next_gen l V :
+  halts V -> RealResources.halts l -> 
+  halts (embeds_gen V (RealResources.nexts l)).
+Proof.
+  intros; unfold embeds_gen; rewrite <- fold_left_rev_right; fold embeds_func_revert.
+  revert V H H0; induction l using rev_ind; intros; simpl in *; auto.
+  unfold RealResources.nexts; rewrite map_app; simpl. rewrite rev_unit in *; simpl.
+  unfold embeds_func_revert,embeds_func; simpl.
+  apply halts_add_spec; split.
+  - simpl. unfold RealResources.halts in *; rewrite Forall_app in H0; destruct H0.
+    apply Forall_cons_iff in H1; destruct H1. now apply RealResource.halts_next.
+  - unfold RealResources.nexts in *; apply IHl; auto. unfold RealResources.halts in *.
+    rewrite Forall_app in H0; now destruct H0.
+Qed.
+
+Lemma halts_nexts l :
+  RealResources.halts l ->  halts (embeds (RealResources.nexts l)).
+Proof.
+  intros; unfold embeds; apply halts_next_gen; auto; unfold halts; intros; inversion H0.
+Qed.
+
+Lemma halts_extract V : 
+  halts V -> 
+  List.Forall (fun v => match v with Some v => Evaluation.halts v | _ => True end) (extracts V).
+Proof. Admitted.
 
 (** *** Morphism *)
 

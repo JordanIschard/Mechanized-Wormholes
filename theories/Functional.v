@@ -23,33 +23,37 @@ Reserved Notation "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ⪢" (at level 57, V
                                                                 t custom rsf, 
                                                                 t1 custom rsf, 
                                                                 no associativity).
-Reserved Notation "'Instᵣₜ(' Re , V )" (at level 50).
+Reserved Notation "'Wfᵣₜ(' Re , V )" (at level 50).
 
 Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> Prop :=
 
-  | fT_eT    :  forall (V V' : 𝓥) (st st' t t' t'' : Λ),
+  | fT_eT_sf  :  forall (V V' : 𝓥) (st st' t t' t'' : Λ),
 
         ⊨ t ⟼ t' -> ⪡ V ; st ; t' ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢ -> 
     (*-------------------------------------------------------------*)
               ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢
 
+  | fT_eT_sv :  forall (V V' : 𝓥) (st st' st'' t t' : Λ),
+
+        ⊨ st ⟼ st' -> ⪡ V ; st' ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢ -> 
+    (*-------------------------------------------------------------*)
+              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢
+
   | fT_arr   :  forall (st t : Λ) (V : 𝓥), 
 
-                      value(<[arr(t)]>) ->
     (*------------------------------------------------------*)
         ⪡ V ; st ; arr(t) ⪢ ⭆ ⪡ V ; (t st) ; arr(t) ⪢ 
 
-  | fT_first :  forall (st v1 v1' v2 t t' : Λ) (τ : Τ) (V V' : 𝓥),
+  | fT_first :  forall (v1 v1' v2 t t' : Λ) (τ : Τ) (V V' : 𝓥),
 
-                            value(<[first(τ:t)]>) ->
-        ⊨ st ⟼⋆ ⟨v1,v2⟩ -> ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V' ; v1' ; t' ⪢ ->
-    (*----------------------------------------------------------------*)
-        ⪡ V ; st ; first(τ:t) ⪢ ⭆ ⪡ V' ; ⟨v1',v2⟩ ; first(τ:t') ⪢
+                     ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V' ; v1' ; t' ⪢ ->
+    (*--------------------------------------(((--------------------------*)
+       ⪡ V ; ⟨v1,v2⟩ ; first(τ:t) ⪢ ⭆ ⪡ V' ; ⟨v1',v2⟩ ; first(τ:t') ⪢
 
   | fT_comp  :  forall (st st' st'' t1 t1' t2 t2' : Λ) (V V' V'' : 𝓥),
 
-        value(<[t1 >>> t2]>) -> ⪡ V ; st ; t1 ⪢ ⭆ ⪡ V' ; st' ; t1' ⪢ ->
-                 ⪡ V' ; st' ; t2 ⪢ ⭆ ⪡ V'' ; st'' ; t2' ⪢ ->
+        ⪡ V ; st ; t1 ⪢ ⭆ ⪡ V' ; st' ; t1' ⪢ ->
+                      ⪡ V' ; st' ; t2 ⪢ ⭆ ⪡ V'' ; st'' ; t2' ⪢ ->
     (*----------------------------------------------------------------------*)
           ⪡ V ; st ; (t1 >>> t2) ⪢ ⭆ ⪡ V'' ; st'' ; (t1' >>> t2') ⪢
 
@@ -62,32 +66,32 @@ Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> Prop :=
 where "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ⪢" := (functional V st t V1 st1 t1).
 
 
-Inductive instantiation_func : ℜ -> 𝓥 -> Prop := 
-  | itfT_empty  : forall (Re : ℜ) (V : 𝓥), 
-                    isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Instᵣₜ(Re,V)
+Inductive wf_env_fT : ℜ -> 𝓥 -> Prop := 
+  | wfFT_empty  : forall (Re : ℜ) (V : 𝓥), 
+                    isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Wfᵣₜ(Re,V)
 
-  | itfT_init   : 
+  | wfFT_init   : 
     forall (Re Re' : ℜ) (V V' : 𝓥) (τ τ' : Τ) (v : Λ),
-      Instᵣₜ(Re,V) ->
+      Wfᵣₜ(Re,V) ->
       Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' -> 
       Addᵣᵦ (newᵣᵦ(V)) (⩽ v … ⩾) V V' -> 
       ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
-      Instᵣₜ(Re',V')
+      Wfᵣₜ(Re',V')
   
-  | itfT_update : forall (Re : ℜ) (V V' : 𝓥) r (τ τ' : Τ) (v : Λ),
-                    Instᵣₜ(Re,V) -> Re ⌈r ⩦ (τ,τ')⌉ᵣᵪ -> 
+  | wfFT_update : forall (Re : ℜ) (V V' : 𝓥) r (τ τ' : Τ) (v : Λ),
+                    Wfᵣₜ(Re,V) -> Re ⌈r ⩦ (τ,τ')⌉ᵣᵪ -> 
                     r ∈ᵣᵦ V -> Addᵣᵦ r ((⩽ … v ⩾)) V V' -> 
-                    ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Instᵣₜ(Re,V')
+                    ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Wfᵣₜ(Re,V')
 
-where "'Instᵣₜ(' Re , V )" := (instantiation_func Re V).
+where "'Wfᵣₜ(' Re , V )" := (wf_env_fT Re V).
 
 Definition all_arrow_halting := forall Re t α β,
   ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts <[t v]>.
 
-(** *** Instantiation *)
+(** *** wf_env_fT *)
 
-Lemma instantiation_is_empty_spec : forall (Re : ℜ) (V : 𝓥),
-  Instᵣₜ(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
+Lemma wf_env_fT_is_empty_spec : forall (Re : ℜ) (V : 𝓥),
+  Wfᵣₜ(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
 Proof.
   intros Re V Hinst; induction Hinst.
   - rewrite RC.OP.P.is_empty_1; auto; 
@@ -106,8 +110,8 @@ Proof.
         apply RE.OP.P.is_empty_2 in HEmp'; contradiction.
 Qed.
 
-Lemma instantiation_max : forall (Re : ℜ) (V : 𝓥),
-  Instᵣₜ(Re,V) -> maxᵣᵪ(Re) = maxᵣᵦ(V).
+Lemma wf_env_fT_max : forall (Re : ℜ) (V : 𝓥),
+  Wfᵣₜ(Re,V) -> maxᵣᵪ(Re) = maxᵣᵦ(V).
 Proof.
   intros Re V inst; induction inst.
   - rewrite RC.Ext.max_key_Empty_spec; auto.
@@ -115,7 +119,7 @@ Proof.
   - apply RC.Ext.max_key_Add_spec in H as [[H H'] | [H H']]; auto.
     -- rewrite H. 
         apply RE.Ext.max_key_Add_spec in H0 as [[H0 H0'] | [H0 H0']].
-        + rewrite H0; apply instantiation_is_empty_spec in inst as HEmp.
+        + rewrite H0; apply wf_env_fT_is_empty_spec in inst as HEmp.
           unfold RC.Ext.new_key,RE.Ext.new_key; rewrite HEmp.
           destruct (RE.Raw.is_empty V); auto.
         + assert (newᵣᵦ(V) >= maxᵣᵦ(V)). { apply RE.Ext.new_key_geq_max_key. }
@@ -130,29 +134,29 @@ Proof.
     rewrite RE.Ext.max_key_add_spec_3; auto.
 Qed.
 
-Lemma instantiation_new : forall (Re : ℜ) (V : 𝓥),
-  Instᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
+Lemma wf_env_fT_new : forall (Re : ℜ) (V : 𝓥),
+  Wfᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
 Proof.
   intros Re V Hinst; unfold RC.Ext.new_key,RE.Ext.new_key.
-  apply instantiation_is_empty_spec in Hinst as HisEmp.
+  apply wf_env_fT_is_empty_spec in Hinst as HisEmp.
   destruct (RC.Raw.is_empty Re) eqn:HEmp.
   - now rewrite <- HisEmp.
-  - rewrite <- HisEmp; f_equal; now apply instantiation_max.
+  - rewrite <- HisEmp; f_equal; now apply wf_env_fT_max.
 Qed.
 
-Lemma instantiation_domains_match: forall (Re : ℜ) V (k : resource) (πτ : πΤ),
-  Instᵣₜ(Re,V) -> Re ⌈k ⩦ πτ⌉ᵣᵪ -> exists (v : 𝑣), V ⌈k ⩦ v⌉ᵣᵦ.
+Lemma wf_env_fT_domains_match: forall (Re : ℜ) V (k : resource) (πτ : πΤ),
+  Wfᵣₜ(Re,V) -> Re ⌈k ⩦ πτ⌉ᵣᵪ -> exists (v : 𝑣), V ⌈k ⩦ v⌉ᵣᵦ.
 Proof.
   intros Re V k πτ inst; revert k πτ; induction inst; intros k' πτ' Hfin.
   - apply RC.notEmpty_find_spec in Hfin; auto; contradiction.
   - rewrite H0 in *; destruct (Resource.eq_dec (newᵣᵪ(Re)) k'); subst.
     -- exists (⩽ v … ⩾). 
-        apply instantiation_new in inst as Hnew; rewrite Hnew.
+        apply wf_env_fT_new in inst as Hnew; rewrite Hnew.
         now apply RE.OP.P.add_eq_o.
     -- rewrite H in Hfin. rewrite RC.OP.P.add_neq_o in Hfin; try assumption.
         apply IHinst in Hfin as [v' Hfin]; exists v'. 
         rewrite RE.OP.P.add_neq_o; auto.
-        apply instantiation_new in inst; now rewrite <- inst.
+        apply wf_env_fT_new in inst; now rewrite <- inst.
   - destruct (Resource.eq_dec r k'); subst.
     -- exists (⩽ … v ⩾); rewrite H1; now apply RE.OP.P.add_eq_o.
     -- apply IHinst in Hfin; destruct Hfin.
@@ -160,29 +164,29 @@ Proof.
 Qed.
 
 #[export] 
-Instance itfT_eq : Proper (RC.eq ==> RE.eq ==> iff) (instantiation_func).
+Instance wfFT_eq : Proper (RC.eq ==> RE.eq ==> iff) (wf_env_fT).
 Proof.
   repeat red; split; intros.
   - revert y y0 H0 H; induction H1; subst; intros y y0 Heq Heq'.
-    -- apply itfT_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply itfT_init; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply itfT_update; eauto.
-        + eapply IHinstantiation_func; auto. reflexivity.
-        + rewrite <- Heq'; eauto.
-        + rewrite <- Heq; eauto.
+    -- apply wfFT_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
+    -- eapply wfFT_init; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
+    -- apply (wfFT_update y V y0 r τ τ' v); auto.
+        + eapply IHwf_env_fT; auto. reflexivity.
+        + rewrite <- Heq'; auto.
+        + rewrite <- Heq; auto.
         + now rewrite <- Heq'. 
   - revert x x0 H0 H; induction H1; subst; intros x x0 Heq Heq'.
-    -- apply itfT_empty; try (now rewrite Heq'); now rewrite Heq.
-    -- eapply itfT_init; eauto; try (now rewrite Heq); now rewrite Heq'.
-    -- eapply itfT_update; eauto.
-        + eapply IHinstantiation_func; auto; reflexivity.
-        + rewrite Heq'; eauto.
+    -- apply wfFT_empty; try (now rewrite Heq'); now rewrite Heq.
+    -- eapply wfFT_init; eauto; try (now rewrite Heq); now rewrite Heq'.
+    -- apply (wfFT_update x V x0 r τ τ' v); auto.
+        + apply IHwf_env_fT; auto; reflexivity.
+        + rewrite Heq'; auto.
         + now rewrite Heq.
         + now rewrite Heq'.
 Qed.
 
-Lemma instantiation_well_typed : forall (Re : ℜ) V (r : resource) (v : 𝑣) (πτ : πΤ),
-  Instᵣₜ(Re,V) -> Re ⌈ r ⩦ πτ ⌉ᵣᵪ -> V ⌈ r ⩦ v ⌉ᵣᵦ -> 
+Lemma wf_env_fT_well_typed : forall (Re : ℜ) V (r : resource) (v : 𝑣) (πτ : πΤ),
+  Wfᵣₜ(Re,V) -> Re ⌈ r ⩦ πτ ⌉ᵣᵪ -> V ⌈ r ⩦ v ⌉ᵣᵦ -> 
   match (πτ,v) with
     | ((_,τ),⩽ v' … ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
     | ((τ,_),⩽ … v' ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
@@ -192,7 +196,7 @@ Proof.
   intros r' v' πτ' HfRe HfV; destruct πτ'.
   - apply RC.notEmpty_find_spec in HfRe; auto; contradiction.
   - rewrite H in HfRe; rewrite H0 in HfV.
-    apply instantiation_new in inst as Hnew. 
+    apply wf_env_fT_new in inst as Hnew. 
     destruct (Resource.eq_dec (newᵣᵪ(Re)) r'); subst.
     -- rewrite Hnew in HfV. rewrite RC.OP.P.add_eq_o in HfRe; auto; 
         inversion HfRe; clear HfRe; subst.
@@ -219,12 +223,12 @@ Proof.
         now simpl in HfV.
 Qed.
 
-Lemma instantiation_in : forall (Re : ℜ) V (r : resource),
-  Instᵣₜ(Re,V) -> r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V.
+Lemma wf_env_fT_in : forall (Re : ℜ) V (r : resource),
+  Wfᵣₜ(Re,V) -> r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V.
 Proof.
   split.
   - intros; destruct H0; apply RC.OP.P.find_1 in H0. 
-    eapply instantiation_domains_match in H0; eauto;
+    eapply wf_env_fT_domains_match in H0; eauto;
     destruct H0. exists x0; now apply RE.OP.P.find_2.
   - revert r; induction H.
     -- intros. unfold RE.OP.P.Empty in *; exfalso.
@@ -232,11 +236,11 @@ Proof.
     -- intros. unfold RE.OP.P.Add in *. rewrite H1 in *.
        unfold RC.OP.P.Add in *. rewrite H0.
        apply RE.OP.P.add_in_iff in H3; destruct H3; subst.
-       + apply instantiation_new in H; rewrite H.
+       + apply wf_env_fT_new in H; rewrite H.
          rewrite RC.OP.P.add_in_iff; now left.
-       + rewrite RC.OP.P.add_in_iff; right; now apply IHinstantiation_func.
+       + rewrite RC.OP.P.add_in_iff; right; now apply IHwf_env_fT.
     -- intros. unfold RE.OP.P.Add in *. rewrite H2 in *. 
-       apply IHinstantiation_func. rewrite RE.OP.P.add_in_iff in H4.
+       apply IHwf_env_fT. rewrite RE.OP.P.add_in_iff in H4.
        destruct H4; subst; auto.
 Qed.
 
@@ -280,24 +284,27 @@ Qed.
   - the term sf' is well typed (10).
 
 *)
-Theorem functional_preserves_typing : 
-  forall (Re : ℜ) (V V' : 𝓥) (tv tv' t t' : Λ) (τ τ' : Τ) (R : resources),
+Theorem functional_preserves_typing (Re : ℜ) (V V' : 𝓥) (tv tv' t t' : Λ) (τ τ' : Τ) (R : resources) :
 
-    (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
-    (* (3) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ -> 
+  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V -> (* (4) *) all_arrow_halting ->
 
-    (* (4) *) Instᵣₜ(Re,V) ->
+  (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
+  (* (3) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ -> 
 
-  (*---------------------------------------------------------------------------------------------*)
-    (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
-    (* (6) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
-    (* (7) *) Instᵣₜ(Re,V') /\ (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
+  (* (4) *) Wfᵣₜ(Re,V) ->
 
-    (* (9) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\ (* (10) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R).
+(*---------------------------------------------------------------------------------------------*)
+  (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
+  (* (6) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
+  (* (7) *) Wfᵣₜ(Re,V') /\ (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
+
+  (* (9) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\ (* (10) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R) /\
+
+  (* (10) *) halts t' /\ (* (11) *) halts tv'/\ (* (12) *) RE.halts V'.
 Proof.
-  intros Re V V' tv tv' t t' τ τ' R Hwt Hwtv fT. revert Re R τ τ' Hwt Hwtv;
-  induction fT; intros Re R α β Hwt Hwtv Hinst.
-  (* fT_eT *)
+  intros Hlt Hltv HltV HlAll Hwt Hwtv fT; revert Re R τ τ' Hlt Hltv HltV HlAll Hwt Hwtv.
+  induction fT; intros Re R α β Hlt Hltv HltV HlAll Hwt Hwtv Hinst.
+  (* fT_eT_sf *)
   - 
     (* clean *)
     move R before Re; move α before R; move β before α; move fT after IHfT;
@@ -305,99 +312,119 @@ Proof.
     (* clean *)
 
     apply evaluate_preserves_typing with (t' := t') in Hwt as Hwt'; auto.
+    rewrite evaluate_preserves_halting in Hlt; eauto.
+  (* fT_eT_sv *)
+  -
+    (* clean *)
+    move R before Re; move α before R; move β before α; move fT after IHfT;
+    rename fT into HfT; rename H into HeT; move HeT after HfT.
+    (* clean *)
+
+    apply evaluate_preserves_typing with (t' := st') in Hwtv as Hwtv'; auto.
+    rewrite evaluate_preserves_halting in Hltv; eauto.
   (* fT_arr *)
   - 
     (* clean *)
-    inversion Hwt; subst; rename H4 into Hwt'; clear Hwt H; move Hwt' after Hwtv.
+    inversion Hwt; subst; rename H3 into Hwt'; clear Hwt; move Hwt' after Hwtv.
     (* clean *)
 
     repeat split; auto.
     -- intros r HIn; inversion HIn.
     -- intros r HIn; inversion HIn.
     -- apply wt_app with (τ2 := α); assumption.
-    -- now constructor.
+    -- unfold all_arrow_halting in HlAll; eapply HlAll; eauto; econstructor; eauto.
   (* fT_first *)
   -
     (* clean *)
-    clear H; inversion Hwt; subst; move Re before V'; move R before Re; move τ1 before τ;
-    move τ2 before τ1; clear Hwt; rename H3 into Hwt; move Hwt after Hwtv; rename H0 into HmeT; 
-    rename fT into HfT; move HfT after IHfT; move HmeT after HfT.
-    (* clean *)
-
-    apply multi_preserves_typing with (t' := <[⟨v1,v2⟩]>) in Hwtv; auto.
-
-    (* clean *)
-    inversion Hwtv; subst; rename H4 into Hwv1; rename H6 into Hwv2; move Hwv1 before Hwt;
+    inversion Hwt; subst; move Re before V'; move R before Re; move τ1 before τ;
+    move τ2 before τ1; clear Hwt; rename H2 into Hwt; move Hwt after Hwtv;
+    inversion Hwtv; subst; rename fT into HfT; move HfT after IHfT;
+    rename H4 into Hwv1; rename H6 into Hwv2; move Hwv1 before Hwt;
     move Hwv2 before Hwv1; clear Hwtv.
     (* clean *)
 
-    apply IHfT with (R := R) (τ' := τ2) in Hwv1 as IH; try assumption.
+    apply IHfT with (R := R) (τ' := τ2) in Hwv1 as IH; auto.
+    --  clear IHfT; destruct IH as [Hunsd [Hlcl [Hinst' [Husd [Hwt1' [Hwt' [Hlt' [Hlv1' HltV']]]]]]]].
 
-    clear IHfT; destruct IH as [Hunsd [Hlcl [Hinst' [Husd [Hwt1' Hwt']]]]].
+        (* clean *)
+        move Hwt1' before Hwv1; clear Hwv1; move Hlt' before Hlt; move Hlv1' before Hltv; 
+        move HltV' before HltV.
+        move Hwt' before Hwt; clear Hwt; move Hinst' before Hinst; move Hunsd before Husd.
+        (* clean *)
 
-    (* clean *)
-    move Hwt1' before Hwv1; clear Hwv1; 
-    move Hwt' before Hwt; clear Hwt; move Hinst' before Hinst; move Hunsd before Husd.
-    (* clean *)
+        repeat split; auto.
+        + now apply halts_first.
+        + rewrite halts_pair in *; destruct Hltv as [_ Hltv2]; split; assumption.
 
-    repeat split; auto; now constructor.
+    -- now apply halts_first in Hlt.
+    -- rewrite halts_pair in *; destruct Hltv as [Hltv1 _]; assumption.
   (* fT_comp *)
   -
     (* clean *)
-    inversion H; subst; inversion Hwt; subst; apply Resources.eq_leibniz in H10; subst;
+    inversion Hwt; subst; apply Resources.eq_leibniz in H7; subst;
     clear Hwt; move Re before V''; move R1 before Re; move R2 before R1; 
     move α before R2; move β before α; move τ before β; rename fT1 into HfT1;
-    move HfT1 after IHfT2; rename fT2 into HfT2; move HfT2 after HfT1.
-    rename H9 into Hwt1; rename H11 into Hwt2; rename H12 into HEmp.
-    rename H3 into Hvt2; clear H2. move Hwt1 after Hwtv; move Hwt2 before Hwt1; move Hvt2 before Hwtv.
+    move HfT1 after IHfT2; rename fT2 into HfT2; move HfT2 after HfT1;
+    rename H6 into Hwt1; rename H8 into Hwt2; rename H9 into HEmp;
+    move Hwt1 after Hwtv; move Hwt2 before Hwt1.
     (* clean *)
 
     apply IHfT1 with (R := R1) (τ' := τ) in Hwtv as IH1; auto.
-    clear IHfT1; destruct IH1 as [Hunsd1 [Hlcl1 [Hinst' [Husd1 [Hwtv' Hwt1']]]]].
+    --  clear IHfT1; destruct IH1 as [Hunsd1 [Hlcl1 [Hinst' 
+                                 [Husd1 [Hwtv' [Hwt1' [Hlt1' [Hltv' HltV']]]]]]]].
 
-    (* clean *)
-    move Hwtv' before Hwtv; move Hwt1' before Hwt1; move Hinst' before Hinst.
-    (* clean *)
+        (* clean *)
+        move Hwtv' before Hwtv; move Hwt1' before Hwt1; move Hinst' before Hinst;
+        move Hlt1' before Hlt; move Hltv' before Hltv; move HltV' before HltV.
+        (* clean *)
 
-    apply IHfT2 with (R := R2) (τ' := β) in Hwtv' as IH2; auto.
-    clear IHfT2; destruct IH2 as [Hunsd2 [Hlcl2 [Hinst'' [Husd2 [Hwtv'' Hwt2']]]]].
+        apply IHfT2 with (R := R2) (τ' := β) in Hwtv' as IH2; auto.
+        + clear IHfT2; destruct IH2 as [Hunsd2 [Hlcl2 [Hinst'' 
+                                  [Husd2 [Hwtv'' [Hwt2' [Hlt2' [Hltv'' HltV'']]]]]]]].
 
-    (* clean *)
-    move Hwtv'' before Hwtv'; move Hwt2' before Hwt2; move Hwt2' before Hwt2;
-    move Hunsd2 before Hunsd1; move Hinst'' before Hinst';
-    move Husd2 before Husd1; move Hlcl2 before Hlcl1.
-    (* clean *)
+          (* clean *)
+          move Hwtv'' before Hwtv'; move Hwt2' before Hwt2; move Hwt2' before Hwt2;
+          move Hunsd2 before Hunsd1; move Hinst'' before Hinst';
+          move Husd2 before Husd1; move Hlcl2 before Hlcl1;
+          move Hlt2' before Hlt1'; move Hltv'' before Hltv'; move HltV'' before HltV'.
+          (* clean *)
 
-    repeat split; auto.
-    -- intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn; auto.
-       apply Hunsd2 in H0 as Hunsd. destruct Hunsd as [v HfV'].
-       exists v; rewrite Hlcl1; auto; split.
+          repeat split; auto.
+          ++ intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn as [HIn1 | HIn2]; auto.
+             apply Hunsd2 in HIn2 as Hunsd. destruct Hunsd as [v HfV'].
+             exists v; rewrite Hlcl1; auto; split.
 
-       + intro; symmetry in HEmp. apply Resources.empty_is_empty_2 in HEmp.
-         apply (HEmp r); rewrite Resources.inter_spec; now split.
-       + eapply typing_Re_R in H0 as HInRe; eauto.
-         eapply instantiation_in in HInRe; eauto. 
+             * intro; symmetry in HEmp. apply Resources.empty_is_empty_2 in HEmp.
+               apply (HEmp r); rewrite Resources.inter_spec; now split.
+             * destruct Hlt2' as [t2'' [HmeT Hvt2'']].
+               eapply multi_preserves_typing in Hwt2' as Hwt2''; eauto.
+               eapply typing_Re_R with (Re := Re) in Hwt2'' as HInRe; eauto.
+               eapply wf_env_fT_in in HInRe; eauto.
 
-    -- intros r [HnIn HIn]; rewrite Resources.union_notin_spec in HnIn; 
-       destruct HnIn as [HnIn1 HnIn2]. rewrite Hlcl1; auto.
-       apply Hlcl2; split; auto. eapply functional_preserves_keys; eauto. 
+          ++ intros r [HnIn HIn]; rewrite Resources.union_notin_spec in HnIn; 
+             destruct HnIn as [HnIn1 HnIn2]. rewrite Hlcl1; auto.
+             apply Hlcl2; split; auto. eapply functional_preserves_keys; eauto. 
 
-    -- intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn as [HIn | HIn]; auto.
-       assert (HnIn' : (r ∉ R2)%rs). 
-        { 
-          intro. symmetry in HEmp; apply Resources.empty_is_empty_2 in HEmp; 
-          apply (HEmp r); rewrite Resources.inter_spec; split; auto. 
-        }
+          ++  intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn as [HIn | HIn]; auto.
+              assert (HnIn' : (r ∉ R2)%rs). 
+                { 
+                  intro. symmetry in HEmp; apply Resources.empty_is_empty_2 in HEmp; 
+                  apply (HEmp r); rewrite Resources.inter_spec; split; auto. 
+                }
 
-       apply Husd1 in HIn as HuV'; destruct HuV' as [v HfV'].
-       exists v. rewrite <- Hlcl2; auto; split; auto.
-       exists (⩽ … v ⩾); now apply RE.OP.P.find_2.
+              apply Husd1 in HIn as HuV'; destruct HuV' as [v HfV'].
+              exists v. rewrite <- Hlcl2; auto; split; auto.
+              exists (⩽ … v ⩾); now apply RE.OP.P.find_2.
 
-    -- econstructor; eauto. reflexivity.
+          ++ econstructor; eauto. reflexivity.
+
+          ++ rewrite halts_comp in *; split; assumption.
+        + now apply halts_comp in Hlt as [].
+    -- now apply halts_comp in Hlt as [].
   (* fT_rsf *)
   -
     (* clean *)
-    inversion Hwt; subst. clear Hwt; move Re before V; rename H into HfV; rename H4 into HfRe;
+    inversion Hwt; subst; clear Hwt; move Re before V; rename H into HfV; rename H4 into HfRe;
     move HfV after HfRe. 
     (* clean *)
 
@@ -405,17 +432,34 @@ Proof.
     -- intros r' HIn; rewrite Resources.singleton_spec in HIn; subst; now exists v.
     -- intros r' [HnIn HIn]; apply Resources.singleton_notin_spec in HnIn.
        rewrite RE.OP.P.add_neq_o; auto.
-    -- eapply itfT_update; eauto.
+    -- eapply wfFT_update; eauto.
        + apply RE.OP.P.in_find; intro c; rewrite HfV in c; inversion c.
        + unfold RE.OP.P.Add; reflexivity.
     -- intros r' HIn; apply Resources.singleton_spec in HIn; subst; unfold RE.used.
        exists st; now apply RE.OP.P.add_eq_o.
-    -- apply instantiation_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
+    -- apply wf_env_fT_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
     -- now constructor.
+    -- exists <[rsf[r]]>; split; auto.
+    -- unfold RE.halts in HltV; apply HltV in HfV; now simpl in *.
+    -- unfold RE.halts in *; intros. rewrite RE.OP.P.add_o in H.
+       destruct (Resource.eq_dec r r0); subst.
+       + now inversion H; subst; simpl.
+       + apply (HltV r0 _ H).
 Qed.
 
 
 (** ** Progress *)
+
+Theorem fT_MeT_sv :  forall (V V' : 𝓥) (st st' st'' t t' : Λ),
+
+        ⊨ st ⟼⋆ st' -> ⪡ V ; st' ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢ -> 
+    (*-------------------------------------------------------------*)
+              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢.
+Proof.
+  intros V V' st st' st'' t t' HmeT. apply multi_indexed in HmeT as [k HieT].
+  revert V V' st st' st'' t t' HieT; induction k; intros; inversion HieT; subst; auto.
+  apply fT_eT_sv with (st' := y); auto. apply IHk with (st' := st'); auto.
+Qed.
 
 
 Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
@@ -427,7 +471,7 @@ Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' :
     (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
     (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
 
-    (* (7) *) Instᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+    (* (7) *) Wfᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
   (*-------------------------------------------------------------------------------------------------*)
     (exists (V' : 𝓥) (tv' : Λ), (* (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t ⪢ /\ 
@@ -444,7 +488,6 @@ Proof.
     exists V; exists <[t tv]>; repeat split; auto.
     -- now repeat constructor.
     -- unfold all_arrow_halting in HlAll; apply (HlAll Re _ τ τ'); auto. 
-       now constructor.
   (* wt-first *)
   -
     (* clean *)
@@ -464,7 +507,8 @@ Proof.
     eapply IHwt in Hwtv'1 as IH; eauto; clear IHwt.
     -- destruct IH as [V' [tv''1 [HfT [Hltv''1 HltV']]]].
        exists V'; exists <[⟨tv''1,tv'2⟩]>; repeat split; auto.
-       + eapply fT_first; eauto.
+       + apply fT_MeT_sv with (st' := <[⟨tv'1,tv'2⟩]>); auto.
+         now constructor.
        + apply halts_pair; split; auto. exists tv'2; auto.
     -- exists tv'1; split; auto.
   (* wt-comp *)
@@ -509,6 +553,8 @@ Proof.
              { rewrite Resources.inter_spec; split; auto. }
              rewrite <- Hempty in H0; inversion H0.
            * exists (⩽ x … ⩾); now apply RE.OP.P.find_2.
+        
+      + exists t1; split; auto.
 
     -- intros r HI. apply Hunsd; rewrite Hunion. rewrite Resources.union_spec; now left.
   (* wt-rsf *)
@@ -538,7 +584,7 @@ Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R
 
   (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
 
-  (* (7) *) Instᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (7) *) Wfᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
   (*-------------------------------------------------------------------------------------------------*)
     (exists (V' : 𝓥) (tv' t' : Λ), (*  (9) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
@@ -565,7 +611,7 @@ Proof.
     apply evaluate_preserves_typing with (t' := t1) in Hwt as Hwt1; auto.
     eapply IHk in HieT as IH; eauto; clear IHk.
     destruct IH as [V' [tv' [t1' [HfT [Hlt1' [Hltv' HltV']]]]]].
-    exists V'; exists tv'; exists t1'; split; auto; eapply fT_eT; eauto.
+    exists V'; exists tv'; exists t1'; split; auto; eapply fT_eT_sf; eauto.
 Qed.
 
 (** *** Proof of Resource safety *)
@@ -573,7 +619,7 @@ Theorem safety_resources_interaction (Re : ℜ) (V : 𝓥) (t : Λ) (τ τ' : Τ
 
     (* (1) *) halts t -> (* (2) *) RE.halts V -> (* (3) *) all_arrow_halting ->
 
-    (* (4) *) Instᵣₜ(Re,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+    (* (4) *) Wfᵣₜ(Re,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
     (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
 

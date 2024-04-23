@@ -331,6 +331,48 @@ Proof.
     -- now constructor.
 Qed.
 
+Lemma halts_first : forall τ t,
+  halts <[first(τ:t)]> <-> halts t.
+Proof.
+  intros τ t; split; intros HA.
+  - destruct HA as [t' [HmeT Hvt]]; dependent induction HmeT.
+    -- inversion Hvt; subst; exists t; split; auto.
+    -- inversion H; subst. apply (IHHmeT τ t') in Hvt; eauto.
+       rewrite evaluate_preserves_halting; eauto.
+  - destruct HA as [t' [HmeT Hvt']]; exists <[first(τ:t')]>; split; auto.
+    now apply multi_first.
+Qed.
+
+Lemma halts_comp : forall t1 t2,
+  halts <[t1 >>> t2]> <-> halts t1 /\ halts t2.
+Proof.
+  assert (Hcomp : forall t1 t2 t, ⊨ t1 >>> t2 ⟼⋆ t -> exists t1' t2', t = <[t1' >>> t2']>).
+  {
+    intros t1 t2 t HeT; dependent induction HeT; subst.
+    - exists t1; now exists t2.
+    - inversion H; subst; eauto. 
+  }
+  intros t1 t2; split; intros HA.
+  - destruct HA as [t [HmeT Hvt]]. apply Hcomp in HmeT as Heq.
+    destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
+    -- inversion Hvt; subst; split.
+       + exists t1'; split; auto.
+       + exists t2'; split; auto.
+    -- inversion H; subst.
+       + apply IHHmeT with (t1 := t1'0) (t2 := t2) in Hvt; auto.
+         destruct Hvt; split; auto; clear H1.
+         rewrite evaluate_preserves_halting; eauto.
+       + apply IHHmeT with (t1 := t1) (t2 := t') in Hvt; auto.
+         destruct Hvt; split; auto; clear H0.
+         rewrite evaluate_preserves_halting; eauto.
+  - destruct HA. destruct H as [t1' [HmeT1 Hvt1']];
+    destruct H0 as [t2' [HmeT2 Hvt2']].
+    exists <[t1' >>> t2']>; split.
+    -- apply multi_trans with <[t1' >>> t2]>.
+       + now apply multi_comp1.
+       + now apply multi_comp2.
+    -- now constructor.
+Qed.
 
 (** *** Relation between eval,multi and indexed transition *)
 
