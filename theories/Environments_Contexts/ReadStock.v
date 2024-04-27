@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-Require Import Resource Resources Term REnvironment Cell.
+From Mecha Require Import Resource Resources Term REnvironment Cell.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 
@@ -309,6 +309,18 @@ Proof.
     rewrite add_in_iff in H1; destruct H1; subst.
     -- now exists x.
     -- auto.
+Qed.
+
+Lemma shift_find_e_spec_1 : forall lb k r v V,
+  find r (shift lb k V) = Some v -> 
+  (exists r', r = ([⧐ᵣ lb ≤ k] r')) /\ exists v', Term.eq v (Term.shift lb k v').
+Proof.
+  intros.
+  assert (In r (shift lb k V)). { now exists v; apply find_2. }
+  split.
+  - now apply shift_in_e_spec in H0.
+  - apply shift_in_e_spec in H0; destruct H0; subst. 
+    eapply shift_find_e_spec; eauto. 
 Qed.
 
 (** *** Morphism *)

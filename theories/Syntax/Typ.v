@@ -1,6 +1,6 @@
 From Coq Require Import Classes.RelationClasses Classes.Morphisms Bool.Bool Classical_Prop.
 From DeBrLevel Require Import LevelInterface PairLevel.
-Require Import Resource Resources.
+From Mecha Require Import Resource Resources.
 
 (** * Syntax -  Type
 

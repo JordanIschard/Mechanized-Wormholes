@@ -1,5 +1,4 @@
 ; from https://github.com/HoTT/Coq-HoTT
-
 (rule
  (target _CoqProject)
  (deps

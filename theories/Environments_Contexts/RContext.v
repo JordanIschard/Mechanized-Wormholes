@@ -1,5 +1,5 @@
 From Coq Require Import Lia.
-Require Import Typ Resource.
+From Mecha Require Import Typ Resource.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 
@@ -121,6 +121,7 @@ Notation "R ⌈ x ⩦ v '⌉ᵣᵪ'"  := (RContext.Raw.find x R = Some v) (at le
                                                                           x constr, v constr).
 Notation "R ⌈ x ⩦ ⊥ '⌉ᵣᵪ'"  := (RContext.Raw.find x R = None) (at level 15, 
                                                                                 x constr).
+Notation "R '⁺ᵣᵪ'" := (RContext.Ext.new_key R) (at level 16).
 
 Infix "=" := RContext.eq : rcontext_scope.
 

@@ -1,5 +1,5 @@
 From Coq Require Import Classes.Morphisms.
-Require Import Term REnvironment Resource Cell.
+From Mecha Require Import Term REnvironment Resource Cell.
 From DeBrLevel Require Import SetLevelInterface SetLevel Level Levels.
 
 (** * Set of virtual resources *)

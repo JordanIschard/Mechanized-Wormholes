@@ -1,9 +1,9 @@
 From Coq Require Import Lists.Streams micromega.Lia Relations.Relation_Definitions 
                         Classes.RelationClasses Relations.Relation_Operators.
-Require Import Resource Resources Term Typ Var Substitution 
+From Mecha Require Import Resource Resources Term Typ Var Substitution 
                Typing VContext RContext Evaluation REnvironment 
                Functional Stock Cell ReadStock WriteStock.
-
+(*
 Module Reference.
 
 Definition t : Type := (Stream Λ * Stream Λ).
@@ -95,3 +95,4 @@ Proof.
   apply initialization_unused in H as H'; destruct x; inversion H'.
   exists λ. now rewrite H2.
 Qed. 
+*)

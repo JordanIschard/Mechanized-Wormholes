@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Lists.List Program.
-Require Import Resource Resources Term Var Typing VContext RContext Typ.
+From Mecha Require Import Resource Resources Term Var Typing VContext RContext Typ.
 
 (** * Substitution *)
 
@@ -42,6 +42,8 @@ Fixpoint subst (lb : nat) (k : nat) (x : Var.t) (v t : Λ) : Λ :=
   where "'[' x ':=' v '~' lb '≤' k ']' t" := (subst lb k x v t) (in custom wormholes)
 .
 
+Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t) (in custom wormholes at level 66, 
+                                                                  right associativity).
 
 (** **** Example
 
@@ -197,7 +199,7 @@ Proof.
 Qed.
 
 Lemma subst_preserves_valid_4 : forall k x v t,
-  k ⊩ₜₘ t ->  k ⊩ₜₘ v -> k ⊩ₜₘ <[[x := v ~ k ≤ 0] t]>.
+  k ⊩ₜₘ t ->  k ⊩ₜₘ v -> k ⊩ₜₘ <[[x := v ~ k] t]>.
 Proof.
   intros k x v t Hvt; replace 0 with (k - k) by lia; apply subst_preserves_valid;
   try assumption; lia.
@@ -209,28 +211,28 @@ Qed.
 
   Knowing the context is valid regards of its own new key (1),
   the term t is well typed according to a certain context Re (2), 
-  the substitute is well typed according to a certain context Re' (3) and
-  Re is a submap of Re' (4);
+  the substitute is well typed according to a certain context Re1 (3) and
+  Re is a submap of Re1 (4);
 
   **** Result
 
   We can state that the term t where x is replaced with v is well typed
   according to Re (modulo a shift). 
 *)
-Theorem subst_preserves_typing_gen : forall Γ Re Re' t v τ τ' x,
-  (* (1) *) newᵣᵪ( Re') ⊩ᵣᵪ Re' -> 
+Theorem subst_preserves_typing_gen : forall Γ Re Re1 t v τ τ' x,
+  (* (1) *) Re1⁺ᵣᵪ ⊩ᵣᵪ Re1 -> 
   (* (2) *) ⌈x ⤆ τ'⌉ᵥᵪ Γ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) ∅ᵥᵪ ⋅ Re' ⊫ v ∈ τ' ->
-  (* (4) *) Re' ⊆ᵣᵪ Re ->
+  (* (3) *) ∅ᵥᵪ ⋅ Re1 ⊫ v ∈ τ' ->
+  (* (4) *) Re1 ⊆ᵣᵪ Re ->
 
-  Γ ⋅ Re ⊫ ([x := v ~  {newᵣᵪ(Re')} ≤ {newᵣᵪ(Re) - newᵣᵪ(Re')}] t) ∈ τ.
+  Γ ⋅ Re ⊫ ([x := v ~  {Re1⁺ᵣᵪ} ≤ {Re⁺ᵣᵪ - Re1⁺ᵣᵪ}] t) ∈ τ.
 Proof.
-  intros Γ Re Re' t; revert Γ Re Re'; induction t;
-  intros Γ Re Re' v' α β x HvRₑ wt Hwv Hsub; inversion wt; subst;
+  intros Γ Re Re1 t; revert Γ Re Re1; induction t;
+  intros Γ Re Re1 v' α β x HvRₑ wt Hwv Hsub; inversion wt; subst;
   try (econstructor; now eauto).
   - simpl; destruct (Var.eqb_spec x v); subst.
     -- rewrite VContext.add_eq_o in H2; inversion H2; subst; clear H2; auto.
-       apply weakening_Γ_empty. apply weakening_ℜ_1; auto.
+       apply weakening_Γ_empty. apply weakening_ℜ; auto.
        apply VContext.valid_empty_spec. 
     -- constructor; rewrite VContext.add_neq_o in H2; assumption.
   - simpl; destruct (Var.eqb_spec x v); subst.
@@ -239,7 +241,7 @@ Proof.
        eapply IHt; eauto.
   - econstructor; eauto; fold subst.
     eapply IHt2 in Hwv; eauto.
-    -- replace (S (S (newᵣᵪ( Re) - newᵣᵪ( Re')))) with ((S (S (newᵣᵪ( Re)))) - newᵣᵪ( Re')).
+    -- replace (S (S (newᵣᵪ( Re) - Re1⁺ᵣᵪ))) with ((S (S (newᵣᵪ( Re)))) - Re1⁺ᵣᵪ).
       + erewrite <- RContext.new_key_wh_spec; eauto.
       + apply RContext.Ext.new_key_Submap_spec in Hsub; lia.
     -- now apply RContext.Ext.new_key_Submap_spec_1.
@@ -263,9 +265,9 @@ Corollary subst_preserves_typing : forall Γ Re t v τ τ' x,
   (* (2) *) ⌈x ⤆ τ'⌉ᵥᵪ Γ ⋅ Re ⊫ t ∈ τ -> 
   (* (3) *) ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
 
-  Γ ⋅ Re ⊫ ([x := v ~  {newᵣᵪ(Re)} ≤ 0] t) ∈ τ.
+  Γ ⋅ Re ⊫ ([x := v ~  {Re⁺ᵣᵪ}] t) ∈ τ.
 Proof.
-  intros; replace 0 with (newᵣᵪ(Re) - newᵣᵪ(Re)) by lia. 
+  intros; replace 0 with (Re⁺ᵣᵪ - Re⁺ᵣᵪ) by lia. 
   apply subst_preserves_typing_gen with (τ' := τ'); try assumption.
   apply RContext.Submap_refl.
 Qed.
