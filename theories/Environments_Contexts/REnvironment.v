@@ -301,11 +301,12 @@ Qed.
 
 Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
 Proof.
-  intros k k' t; induction t using map_induction; intros Hle Hlt.
-  - (* rewrite shift_Empty_spec. *) admit.
-  -
-
- Admitted.
+  intros k k' t Hle Hlt. unfold halts in *; intros r v HfV.
+  apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
+  rewrite Heqv' in *; clear Heqv'; rewrite <- shift_find_spec in HfV.
+  apply Hlt in HfV.
+  destruct v,v'; simpl in *; apply Evaluation.halts_weakening; auto.
+Qed.
 
 Lemma halts_weakening_1 : 
   forall k k' t, halts k t -> halts (k + k') (shift k k' t).

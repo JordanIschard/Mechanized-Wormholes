@@ -327,7 +327,7 @@ Proof.
        destruct H4; subst; auto.
 Qed.
 
-(** ** Lift of multiple evaluation transition *)
+(** ** Lift of multiple evaluation transitions *)
 
 Lemma fT_MeT_sf (V V1 : 𝓥) (W : 𝐖) (st st' t t' t'' : Λ) :
 
@@ -672,53 +672,56 @@ Qed.
 
   **** Hypothesis
 
-  Knowing the term sf is well typed (1), the stream term is also well typed (2),
-  there is a transition using the two previous terms (3) and each term in the
-  environment is well typed to a type findable in the context if they are
-  the same resource name that mapped them (4);
+  Suppose terms [sf],[sv] are well typed (4,5) and halts (1,2), a functional transition (6) using 
+  [sf] and [sv] respectively as a signal function and a stream value, and [V] the input resource 
+  environment such as each value in its halts (3) and it is well formed (7) regarding the resource
+  context [Re] that is used for typing [sf] and [sv].
 
   **** Results
 
   We can state that:
-  - each value mapped with a resource name present in R has to be unused (5);
-  - each value mapped with a resource name not present in R' but present in V has to be the same in V1 (6);
-  - we can found a context and a resource set such as :
-    - the old context is a subset of the new one (7);
-    - the old resources set is a subset of the new one (8);
-    - there is the same property between Re' and V1 that between Re and V (9); 
-    - all initial value stocked in W are well typed regards of the new context Re' (10);
-    - all new resources founded in R' are stored in W and is not in R (11); 
-    - Each value mapped with a resource name present in R' has to be used in V1 (12);
-    - the output stream term is well typed (13);
-    - the term sf' is well typed (14).
+  - each value mapped with a resource name present in [R] has to be unused in [V] (8);
+  - each value mapped with a resource name not present in [R'] but present in [V] 
+    has to be unchanged in [V1] (9);
+  - we can found a context [Re1] and a resource set [R'] such as :
+    - the old context is a subset of the new one (10);
+    - the old resources set is a subset of the new one (11);
+    - [V1] is well formed regarding [Re1] (12); 
+    - all initial value stocked in [W] are well typed regards of the new context [Re1] (13);
+    - all new resources founded in [R'] are stored in [W] and is not in [R] (14); 
+    - each value mapped with a resource name present in [R'] has to be used in [V1] (15);
+    - the output stream term [sv'] is well typed (16);
+    - the term [sf'] is well typed (17);
+    - terms [sf'] and [sv'] halts (18,19);
+    - each value in [V1] halts (20)
 
 *)
 Theorem functional_preserves_typing (Re : ℜ) (V V1 : 𝓥) (W : 𝐖) (sv sv' sf sf' : Λ) (τ τ' : Τ) (R : resources) :
 
   (* (1) *) halts (Re⁺ᵣᵪ) sf -> (* (2) *) halts (Re⁺ᵣᵪ) sv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
 
-  (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
-  (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
-  (* (3) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V1 ; sv' ; sf' ; W ⪢ -> 
-  (* (4) *) Wfᵣₜ(Re,V) ->
+  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
+  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ sv ∈ τ -> 
+  (* (6) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V1 ; sv' ; sf' ; W ⪢ -> 
+  (* (7) *) Wfᵣₜ(Re,V) ->
 
 
-  (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
-  (* (6) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> 
+  (* (8) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
+  (* (9) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> 
               ([⧐ᵣᵦ (V⁺ᵣᵦ) ≤ ((V1⁺ᵣᵦ) - (V⁺ᵣᵦ))] V) ⌊r⌋ᵣᵦ = V1 ⌊r⌋ᵣᵦ) /\
 
   exists (Re1 : ℜ) (R' : resources), 
-    (*  (7) *) Re ⊆ᵣᵪ Re1     /\ 
-    (*  (8) *) (R ⊆ R')%rs    /\
-    (*  (9) *) Wfᵣₜ(Re1,V1) /\
-    (* (10) *) (forall (r : resource) (v : Λ) (τ τ' : Τ), 
+    (* (10) *) Re ⊆ᵣᵪ Re1     /\ 
+    (* (11) *) (R ⊆ R')%rs    /\
+    (* (12) *) Wfᵣₜ(Re1,V1) /\
+    (* (13) *) (forall (r : resource) (v : Λ) (τ τ' : Τ), 
                   W ⌈ r ⩦ v ⌉ₛₖ -> Re1 ⌈r ⩦ (τ',τ)⌉ᵣᵪ -> ∅ᵥᵪ ⋅ Re1 ⊫ v ∈ τ) /\
-    (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%rs -> (r ∈ (Stock.to_RS W))%rs /\ (r ∉ᵣᵦ V)) /\
-    (* (12) *) (forall (r : resource), (r ∈ R')%rs -> RE.used r V1) /\
-    (* (13) *) ∅ᵥᵪ ⋅ Re1 ⊫ sv' ∈ τ' /\
-    (* (14) *) ∅ᵥᵪ ⋅ Re1 ⊫ sf' ∈ (τ ⟿ τ' ∣ R') /\
+    (* (14) *) (forall (r : resource), (r ∈ (R' \ R))%rs -> (r ∈ (Stock.to_RS W))%rs /\ (r ∉ᵣᵦ V)) /\
+    (* (15) *) (forall (r : resource), (r ∈ R')%rs -> RE.used r V1) /\
+    (* (16) *) ∅ᵥᵪ ⋅ Re1 ⊫ sv' ∈ τ' /\
+    (* (17) *) ∅ᵥᵪ ⋅ Re1 ⊫ sf' ∈ (τ ⟿ τ' ∣ R') /\
     
-    (* (10) *) halts (Re1⁺ᵣᵪ) sf' /\ (* (11) *) halts (Re1⁺ᵣᵪ) sv' /\ (* (12) *) RE.halts (Re1⁺ᵣᵪ) V1.
+    (* (18) *) halts (Re1⁺ᵣᵪ) sf' /\ (* (19) *) halts (Re1⁺ᵣᵪ) sv' /\ (* (20) *) RE.halts (Re1⁺ᵣᵪ) V1.
 Proof.
   intros Hlsf Hlsv HltV Hwsf Hwsv fT. revert Re R τ τ' Hlsf Hlsv HltV Hwsf Hwsv.
   induction fT; intros Re R α β Hlsf Hlsv HlV Hwsf Hwsv Hinst;
@@ -731,7 +734,7 @@ Proof.
   - 
     (* clean *)
     move Re before W; move R before Re; move α before R; move β before α; move fT after IHfT;
-    rename fT into HfT; rename H into HeT; move HeT after HfT.
+    rename fT into HfT; rename H into HeT; move HeT after HfT; clear all_arrow_halting.
     (* clean *)
 
     rewrite <- Hnew in HeT; apply evaluate_preserves_typing with (t' := t') in Hwsf as Hwsf'; 
