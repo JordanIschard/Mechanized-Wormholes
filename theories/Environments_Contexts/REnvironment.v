@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Term Cell Evaluation RealResource.
+From Mecha Require Import Resource Term Cell Evaluation (* RealResource *).
 From DeBrLevel Require Import MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 
@@ -15,109 +15,15 @@ Import Raw OP.P.
 
 (** *** Definition *)
 
-Definition embeds_func V v := add (new_key V) (⩽ v … ⩾) V.
-
-Definition embeds_func_revert v V := embeds_func V v. 
-
-Definition embeds_gen (V : REnvironment.t) (l : list Λ) := 
-  List.fold_left embeds_func l V.
 
 Definition For_all (P : resource -> Cell.t -> Prop) (V : REnvironment.t) := 
   forall r v, find r V = Some v -> P r v. 
-
-Definition embeds := embeds_gen empty. 
-
-Definition extracts (V : REnvironment.t) : list (option Λ) :=
-  List.map (fun x =>  match (find x V) with
-                        | Some (⩽ … v ⩾) => Some v
-                        | Some _ => None
-                        | None   => None
-                      end) (seq 0 (max_key V)).
 
 Definition halts (V : REnvironment.t) := forall (r : resource) (v : 𝑣), 
  find r V = Some v -> halts (Cell.extract v).
 
 Definition used r (V : REnvironment.t) := exists v, find r V = Some (⩽ … v ⩾).
 Definition unused r (V : REnvironment.t) := exists v, find r V = Some (⩽ v … ⩾).
-
-(** *** Embedding *)
-
-Lemma embedding_func_new_spec : forall V v,
- new_key (embeds_func_revert v V) = S (new_key V).
-Proof.
-  unfold embeds_func_revert, embeds_func; intros.
-  rewrite new_key_add_spec_1; auto; apply new_key_notin_spec; lia.
-Qed.
-
-Lemma embedding_func_in_spec : forall V v r,
-  In r (embeds_func_revert v V) <-> r = (new_key V) \/ In r V.
-Proof. 
-  split; intros; unfold embeds_func_revert,embeds_func in *.
-  - rewrite add_in_iff in H; destruct H; auto.
-  - destruct H; rewrite add_in_iff; subst; auto.
-Qed.
-
-Lemma embedding_func_unused_spec : forall r x V,
-  unused r V -> unused r (embeds_func_revert x V).
-Proof.
-  intros; unfold embeds_func_revert,embeds_func.
-  destruct (Resource.eq_dec r (new_key V)); subst.
-  - simpl. exists x; rewrite add_eq_o; auto.
-  - destruct H; exists x0. rewrite add_neq_o; auto.
-Qed.
-
-Lemma embedding_gen_new_spec : forall l V,
-  (length l) + new_key V = new_key (embeds_gen V l).
-Proof.
-  intros; unfold embeds_gen; rewrite <- fold_left_rev_right. 
-  fold embeds_func_revert. revert V.
-  induction l using rev_ind; intro; simpl; auto.
-  rewrite rev_unit; simpl. rewrite app_length; simpl.
-  rewrite embedding_func_new_spec; rewrite <- IHl; lia.
-Qed.
-
-Lemma embedding_gen_find_eq_spec : forall V x,
-  find (new_key V) (embeds_func_revert x V) = Some (⩽ x … ⩾).
-Proof.
-  unfold embeds_func_revert, embeds_func; intros.
-  rewrite add_eq_o; auto.
-Qed.
-
-Lemma embedding_gen_unused : forall l V,
-  (forall r, In r V -> unused r V) ->
-  forall r, In r (embeds_gen V l) -> unused r (embeds_gen V l).
-Proof.
-  intros; unfold embeds_gen in *; rewrite <- fold_left_rev_right in *.
-  fold embeds_func_revert in *. revert V r H H0.
-  induction l using rev_ind; intros V r H HIn; simpl in *; auto.
-  rewrite rev_unit in *; simpl in *.
-  rewrite embedding_func_in_spec in HIn. destruct HIn; subst.
-  - exists x. apply embedding_gen_find_eq_spec.
-  - apply IHl in H0 as H0'; auto. now apply embedding_func_unused_spec.
-Qed.
-
-Lemma embedding_unused : forall l,
-  forall r, In r (embeds l) -> unused r (embeds l).
-Proof. 
-  intros; unfold embeds in *; apply embedding_gen_unused; auto.
-  intros; inversion H0; inversion H1.
-Qed.
-
-
-Lemma embedding_Forall_unused : forall l V,
-  For_all (fun _ v => Cell.unused v) V ->
-  For_all (fun _ v => Cell.unused v) (embeds_gen V l).
-Proof.
-  unfold For_all; intros. assert (In r (embeds_gen V l)).
-  { exists v; now apply find_2. }
-  apply embedding_gen_unused in H1.
-  - destruct H1. rewrite H0 in H1; now inversion H1.
-  - intros. destruct H2. apply find_1 in H2. apply H in H2 as H2'.
-    destruct x eqn:Heq.
-    -- now exists λ.
-    -- contradiction.
-Qed. 
-
 
 (** *** Halts *)
 
@@ -129,31 +35,13 @@ Proof.
   apply Hltm in Hfi; auto.
 Qed.
 
-Lemma halts_next_gen l V :
-  halts V -> RealResources.halts l -> 
-  halts (embeds_gen V (RealResources.nexts l)).
+#[export]
+Instance halts_eq : Proper (eq ==> iff) halts.
 Proof.
-  intros; unfold embeds_gen; rewrite <- fold_left_rev_right; fold embeds_func_revert.
-  revert V H H0; induction l using rev_ind; intros; simpl in *; auto.
-  unfold RealResources.nexts; rewrite map_app; simpl. rewrite rev_unit in *; simpl.
-  unfold embeds_func_revert,embeds_func; simpl.
-  apply halts_add_spec; split.
-  - simpl. unfold RealResources.halts in *; rewrite Forall_app in H0; destruct H0.
-    apply Forall_cons_iff in H1; destruct H1. now apply RealResource.halts_next.
-  - unfold RealResources.nexts in *; apply IHl; auto. unfold RealResources.halts in *.
-    rewrite Forall_app in H0; now destruct H0.
+  repeat red; intros; unfold halts; split; intros; apply (H0 r).
+  - now rewrite H.
+  - now rewrite <- H.
 Qed.
-
-Lemma halts_nexts l :
-  RealResources.halts l ->  halts (embeds (RealResources.nexts l)).
-Proof.
-  intros; unfold embeds; apply halts_next_gen; auto; unfold halts; intros; inversion H0.
-Qed.
-
-Lemma halts_extract V : 
-  halts V -> 
-  List.Forall (fun v => match v with Some v => Evaluation.halts v | _ => True end) (extracts V).
-Proof. Admitted.
 
 (** *** Morphism *)
 

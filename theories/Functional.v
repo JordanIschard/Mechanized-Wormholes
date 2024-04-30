@@ -70,7 +70,7 @@ Inductive wf_env_fT : ℜ -> 𝓥 -> Prop :=
   | wfFT_empty  : forall (Re : ℜ) (V : 𝓥), 
                     isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Wfᵣₜ(Re,V)
 
-  | wfFT_init   : 
+  | wfFT_add   : 
     forall (Re Re' : ℜ) (V V' : 𝓥) (τ τ' : Τ) (v : Λ),
       Wfᵣₜ(Re,V) ->
       Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' -> 
@@ -84,9 +84,6 @@ Inductive wf_env_fT : ℜ -> 𝓥 -> Prop :=
                     ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Wfᵣₜ(Re,V')
 
 where "'Wfᵣₜ(' Re , V )" := (wf_env_fT Re V).
-
-Definition all_arrow_halting := forall Re t α β,
-  ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts <[t v]>.
 
 (** *** wf_env_fT *)
 
@@ -169,7 +166,7 @@ Proof.
   repeat red; split; intros.
   - revert y y0 H0 H; induction H1; subst; intros y y0 Heq Heq'.
     -- apply wfFT_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply wfFT_init; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
+    -- eapply wfFT_add; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
     -- apply (wfFT_update y V y0 r τ τ' v); auto.
         + eapply IHwf_env_fT; auto. reflexivity.
         + rewrite <- Heq'; auto.
@@ -177,7 +174,7 @@ Proof.
         + now rewrite <- Heq'. 
   - revert x x0 H0 H; induction H1; subst; intros x x0 Heq Heq'.
     -- apply wfFT_empty; try (now rewrite Heq'); now rewrite Heq.
-    -- eapply wfFT_init; eauto; try (now rewrite Heq); now rewrite Heq'.
+    -- eapply wfFT_add; eauto; try (now rewrite Heq); now rewrite Heq'.
     -- apply (wfFT_update x V x0 r τ τ' v); auto.
         + apply IHwf_env_fT; auto; reflexivity.
         + rewrite Heq'; auto.
@@ -244,6 +241,32 @@ Proof.
        destruct H4; subst; auto.
 Qed.
 
+(** ** Lift of multiple evaluation transitions *)
+
+Lemma fT_MeT_sv :  forall (V V' : 𝓥) (st st' st'' t t' : Λ),
+
+        ⊨ st ⟼⋆ st' -> ⪡ V ; st' ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢ -> 
+    (*-------------------------------------------------------------*)
+              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢.
+Proof.
+  intros V V' st st' st'' t t' HmeT. apply multi_indexed in HmeT as [k HieT].
+  revert V V' st st' st'' t t' HieT; induction k; intros; inversion HieT; subst; auto.
+  apply fT_eT_sv with (st' := y); auto. apply IHk with (st' := st'); auto.
+Qed.
+
+
+Lemma fT_MeT_sf :  forall (V V' : 𝓥) (st st' t t' t'' : Λ),
+
+        ⊨ t ⟼⋆ t' -> ⪡ V ; st ; t' ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢ -> 
+    (*-------------------------------------------------------------*)
+              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st' ; t'' ⪢.
+Proof.
+  intros V V' st st' t t' t'' HmeT. apply multi_indexed in HmeT as [k HieT].
+  revert V V' st st' t t' t'' HieT; induction k; intros; inversion HieT; subst; auto.
+  apply fT_eT_sf with (t' := y); auto. apply IHk with (t' := t'); auto.
+Qed.
+
+
 (** ** Preservation *)
 
 (** *** Proof of preservation of keys in the environment 
@@ -262,48 +285,33 @@ Proof.
   - destruct (Resource.eq_dec r r'); subst; apply RE.OP.P.add_in_iff; auto.
 Qed.
 
+Section safety.
 
-(**
-  *** General proof of preservation of typing through functional transition
+Hypothesis all_arrow_halting : forall Re t α β,
+  ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts <[t v]>.
 
-  **** Hypothesis
+(** ** Preservation *)
 
-  Knowing the term sf is well typed (1), the stream term is also well typed (2),
-  there is a transition using the two previous terms (3) and each term in the
-  environment is well typed to a type findable in the context if they are
-  the same resource name that mapped them (4);
-
-  **** Results
-
-  We can state that:
-  - each value mapped with a resource name present in R has to be unused (5);
-  - each value mapped with a resource name not present in R' but present in V has to be the same in V' (6);
-  - there is the same property between Re and V' that between Re and V (7); 
-  - Each value mapped with a resource name present in R has to be used in V' (8);
-  - the output stream term is well typed (9);
-  - the term sf' is well typed (10).
-
-*)
 Theorem functional_preserves_typing (Re : ℜ) (V V' : 𝓥) (tv tv' t t' : Λ) (τ τ' : Τ) (R : resources) :
 
-  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V -> (* (4) *) all_arrow_halting ->
+  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V ->
 
-  (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
-  (* (3) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ -> 
+  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
+  (* (6) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ -> 
 
-  (* (4) *) Wfᵣₜ(Re,V) ->
+  (* (7) *) Wfᵣₜ(Re,V) ->
 
 (*---------------------------------------------------------------------------------------------*)
-  (* (5) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
-  (* (6) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
-  (* (7) *) Wfᵣₜ(Re,V') /\ (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
+  (*  (8) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) /\
+  (*  (9) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
+  (* (10) *) Wfᵣₜ(Re,V') /\ (* (11) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V') /\
 
-  (* (9) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\ (* (10) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R) /\
+  (* (12) *) ∅ᵥᵪ ⋅ Re ⊫ tv' ∈ τ' /\ (* (13) *) ∅ᵥᵪ ⋅ Re ⊫ t' ∈ (τ ⟿ τ' ∣ R) /\
 
-  (* (10) *) halts t' /\ (* (11) *) halts tv'/\ (* (12) *) RE.halts V'.
+  (* (14) *) halts t' /\ (* (15) *) halts tv'/\ (* (16) *) RE.halts V'.
 Proof.
-  intros Hlt Hltv HltV HlAll Hwt Hwtv fT; revert Re R τ τ' Hlt Hltv HltV HlAll Hwt Hwtv.
-  induction fT; intros Re R α β Hlt Hltv HltV HlAll Hwt Hwtv Hinst.
+  intros Hlt Hltv HltV Hwt Hwtv fT; revert Re R τ τ' Hlt Hltv HltV Hwt Hwtv.
+  induction fT; intros Re R α β Hlt Hltv HltV Hwt Hwtv Hinst.
   (* fT_eT_sf *)
   - 
     (* clean *)
@@ -332,7 +340,7 @@ Proof.
     -- intros r HIn; inversion HIn.
     -- intros r HIn; inversion HIn.
     -- apply wt_app with (τ2 := α); assumption.
-    -- unfold all_arrow_halting in HlAll; eapply HlAll; eauto; econstructor; eauto.
+    -- eapply all_arrow_halting; eauto; econstructor; eauto.
   (* fT_first *)
   -
     (* clean *)
@@ -448,37 +456,26 @@ Proof.
 Qed.
 
 
+
 (** ** Progress *)
-
-Theorem fT_MeT_sv :  forall (V V' : 𝓥) (st st' st'' t t' : Λ),
-
-        ⊨ st ⟼⋆ st' -> ⪡ V ; st' ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢ -> 
-    (*-------------------------------------------------------------*)
-              ⪡ V ; st ; t ⪢ ⭆ ⪡ V' ; st'' ; t' ⪢.
-Proof.
-  intros V V' st st' st'' t t' HmeT. apply multi_indexed in HmeT as [k HieT].
-  revert V V' st st' st'' t t' HieT; induction k; intros; inversion HieT; subst; auto.
-  apply fT_eT_sv with (st' := y); auto. apply IHk with (st' := st'); auto.
-Qed.
-
 
 Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
 
-    (* (1) *) halts tv -> (* (2) *) RE.halts V -> (* (3) *) all_arrow_halting ->
+    (* (1) *) halts tv -> (* (2) *) RE.halts V ->
     
-    (* (4) *) value(t) -> 
+    (* (3) *) value(t) -> 
 
-    (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
-    (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+    (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
+    (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
 
-    (* (7) *) Wfᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+    (* (6) *) Wfᵣₜ(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
   (*-------------------------------------------------------------------------------------------------*)
     (exists (V' : 𝓥) (tv' : Λ), (* (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t ⪢ /\ 
                                 (* (9) *) halts tv' /\ (* (10) *) RE.halts V').
 Proof.
-  intros Hltv HltV HlAll Hvt wt; revert V tv Hltv HltV HlAll Hvt.
-  dependent induction wt; intros V tv Hltv HltV HlAll Hvt Hwtv Hinst Hunsd; inversion Hvt; subst.
+  intros Hltv HltV Hvt wt; revert V tv Hltv HltV Hvt.
+  dependent induction wt; intros V tv Hltv HltV Hvt Hwtv Hinst Hunsd; inversion Hvt; subst.
   (* wt-arr *)
   -
     (* clean *)
@@ -487,7 +484,7 @@ Proof.
 
     exists V; exists <[t tv]>; repeat split; auto.
     -- now repeat constructor.
-    -- unfold all_arrow_halting in HlAll; apply (HlAll Re _ τ τ'); auto. 
+    -- apply (all_arrow_halting Re _ τ τ'); auto. 
   (* wt-first *)
   -
     (* clean *)
@@ -560,7 +557,7 @@ Proof.
   (* wt-rsf *)
   - 
     (* clean *)
-    clear HlAll Hvt. rename H into HfRe; move HfRe before Hwtv.
+    clear all_arrow_halting Hvt. rename H into HfRe; move HfRe before Hwtv.
     (* clean *)
 
     destruct (Hunsd r); try (now apply Resources.singleton_spec). 
@@ -580,20 +577,20 @@ Qed.
 
 Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
 
-  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V -> (* (4) *) all_arrow_halting ->
+  (* (1) *) halts t -> (* (2) *) halts tv -> (* (3) *) RE.halts V ->
 
-  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
 
-  (* (7) *) Wfᵣₜ(Re,V) -> (* (8) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (6) *) Wfᵣₜ(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
   (*-------------------------------------------------------------------------------------------------*)
-    (exists (V' : 𝓥) (tv' t' : Λ), (*  (9) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
-                                   (* (10) *) halts t' /\ (* (11) *) halts tv'/\ 
-                                   (* (12) *) RE.halts V').
+    (exists (V' : 𝓥) (tv' t' : Λ), (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
+                                   (*  (9) *) halts t' /\ (* (10) *) halts tv'/\ 
+                                   (* (11) *) RE.halts V').
 Proof. 
   intros Hlt; destruct Hlt as [t' [HmeT Hvt']]. apply multi_indexed in HmeT as [k HieT].
   revert Re V tv t τ τ' R t' HieT Hvt'. induction k; 
-  intros Re V tv t τ τ' R t' HieT Hvt' Hltv HltV HltAll Hwt Hwtv Hinst Hunsd.
+  intros Re V tv t τ τ' R t' HieT Hvt' Hltv HltV Hwt Hwtv Hinst Hunsd.
   (* sf is a value *)
   - inversion HieT; subst. 
     apply (progress_of_functional_value _ _ tv t' τ τ' R) in Hinst; try assumption.
@@ -617,22 +614,22 @@ Qed.
 (** *** Proof of Resource safety *)
 Theorem safety_resources_interaction (Re : ℜ) (V : 𝓥) (t : Λ) (τ τ' : Τ) (R : resources) :
 
-    (* (1) *) halts t -> (* (2) *) RE.halts V -> (* (3) *) all_arrow_halting ->
+    (* (1) *) halts t -> (* (2) *) RE.halts V ->
 
-    (* (4) *) Wfᵣₜ(Re,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+    (* (3) *) Wfᵣₜ(Re,V) -> (* (4) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
 
-    (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
+    (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
 
   (*-----------------------------------------------------------------------------------------------*)
-    forall (tv : Λ), (* (7) *) halts tv -> (* (8) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
+    forall (tv : Λ), (* (6) *) halts tv -> (* (7) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
 
     exists (V' : 𝓥) (tv' t' : Λ), 
-      (*  (9) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
+      (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
 
-      (* (10) *) (forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
-      (* (11) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V').
+      (*  (9) *) (forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
+      (* (10) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V').
 Proof.
-  intros Hlt HltV HlAll Hinst Hunsd Hwt tv Hltv Hwtv.
+  intros Hlt HltV Hinst Hunsd Hwt tv Hltv Hwtv.
   apply (progress_of_functional _ V _ t _ τ' R) in Hwtv as prog; auto.
   destruct prog as [V' [tv' [t' [HfT [Hlt' [Hltv' HltV']]]]]].
 
@@ -651,3 +648,5 @@ Proof.
 
   exists V'; exists tv'; exists t'; repeat split; assumption.
 Qed.
+
+End safety.

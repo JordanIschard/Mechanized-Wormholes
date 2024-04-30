@@ -10,6 +10,9 @@ Makefile.coq: _CoqProject
 
 force _CoqProject Makefile: ;
 
+admitted :
+	@grep -nR --color=auto Admitted theories/
+
 %: Makefile.coq force
 	@+$(MAKE) -f Makefile.coq $@
 
