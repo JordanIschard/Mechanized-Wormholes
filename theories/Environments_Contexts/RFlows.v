@@ -1,4 +1,5 @@
 From Mecha Require Import Term Evaluation Resource REnvironment Cell RFlow.
+From Coq Require Import Lia.
 From DeBrLevel Require Import MapExtInterface MapExt.
 From MMaps Require Import MMaps.
 
@@ -17,19 +18,47 @@ Definition nexts (fl : RFlows.t) : REnvironment.t :=
 
 Definition puts_func V x v fl := 
   match V⌊x⌋ᵣᵦ with 
-    | Some (⩽ … v' ⩾) =>  add x (RFlow.put v' v) fl
-    |  _ => fl 
+    | Some (⩽ … v' ⩾) =>  add x (RFlow.put (Some v') v) fl
+    |  _ => add x (RFlow.put None v) fl 
   end.
 
 Definition puts (Vout : REnvironment.t) (fl : RFlows.t) : RFlows.t :=
   fold (puts_func Vout) fl empty.
 
+Definition updates_func x v fl := add x (RFlow.update v) fl.
+
+Definition updates fl := fold updates_func fl empty.
+
 Definition halts (fl : RFlows.t) := forall (r : resource) v, 
  find r fl = Some v -> RFlow.halts v.
 
-
-
 Hint Resolve REnvironment.eq_equiv : core.
+
+(** *** Updates *)
+
+#[export]
+Instance updates_prop :
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) updates_func.
+Proof.
+  repeat red; intros; subst; unfold updates_func; now rewrite H1.
+Qed.
+
+Lemma updates_diamond : Diamond eq updates_func.
+Proof.
+  repeat red; intros; unfold updates_func in *; rewrite <- H0; rewrite <- H1.
+  rewrite add_add_2; auto.
+Qed.
+
+Hint Resolve updates_prop updates_diamond : core.
+
+Lemma updates_Empty t : Empty t -> eq (updates t) empty.
+Proof. intros; unfold updates; rewrite fold_Empty; auto; reflexivity. Qed.
+
+Lemma updates_Add_spec x v t t' : 
+  ~ In x t -> Add x v t t' -> eq (updates t') (add x (RFlow.update v) (updates t)).
+Proof.
+  intros; unfold eq, updates; rewrite fold_Add; eauto; try reflexivity.
+Qed.
 
 (** *** Nexts *)
 
@@ -141,6 +170,19 @@ Proof.
        rewrite REnvironment.OP.P.add_neq_o; auto.
 Qed.   
 
+Lemma nexts_new_key fl : (new_key fl) = (REnvironment.new_key (nexts fl)).
+Proof.
+  induction fl using map_induction.
+  - rewrite Ext.new_key_Empty_spec; auto. rewrite nexts_Empty; auto.
+  - rewrite (nexts_Add_spec x e fl1 fl2); auto.
+    unfold Add in H0. rewrite H0.
+    apply (new_key_add_spec fl1 x e) in H as IH.
+    rewrite nexts_in_iff in H. 
+    apply (REnvironment.Ext.new_key_add_spec _ x (Cell.inp (RFlow.next e))) in H as IH'.
+    destruct IH as [[Hnk Hle] | [Hnk Hgt]]; 
+    destruct IH' as [[Hnk' Hle'] | [Hnk' Hgt']]; try lia.
+Qed.
+
 (** *** Puts *)
 
 #[export]
@@ -148,26 +190,25 @@ Instance puts_prop V :
   Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) (puts_func V).
 Proof.
   repeat red; intros; subst; unfold puts_func. destruct (V⌊y⌋ᵣᵦ); auto.
-  destruct r; auto. now rewrite H1.
+  - destruct r; auto; now rewrite H1.
+  - now rewrite H1.
 Qed.
 
 Lemma puts_diamond V : Diamond Equal (puts_func V).
 Proof. 
   repeat red; intros; unfold puts_func. 
   destruct (V⌊k⌋ᵣᵦ) eqn:HfV; destruct (V⌊k'⌋ᵣᵦ) eqn:HfV'.
-  -- destruct r,r0; try 
-     (rewrite <- H1; rewrite <- H0; unfold puts_func;
-      now rewrite HfV', HfV).
-     rewrite <- H1; rewrite <- H0; unfold puts_func.
-     rewrite HfV',HfV. rewrite add_add_2; auto.
-  -- destruct r; try 
-     (rewrite <- H1; rewrite <- H0; unfold puts_func;
-      now rewrite HfV', HfV).
-  -- destruct r; try 
-     (rewrite <- H1; rewrite <- H0; unfold puts_func;
-      now rewrite HfV', HfV).
-  -- rewrite <- H1; rewrite <- H0; unfold puts_func.
-     now rewrite HfV', HfV.
+  - destruct r,r0;
+    rewrite <- H1; rewrite <- H0; unfold puts_func; 
+    rewrite HfV,HfV'; now rewrite add_add_2.
+  - destruct r;
+    rewrite <- H1; rewrite <- H0; unfold puts_func; 
+    rewrite HfV,HfV'; now rewrite add_add_2.
+  - destruct r;
+    rewrite <- H1; rewrite <- H0; unfold puts_func; 
+    rewrite HfV,HfV'; now rewrite add_add_2.
+  - rewrite <- H1; rewrite <- H0; unfold puts_func.
+    rewrite HfV', HfV; now rewrite add_add_2.
 Qed.
 
 Hint Resolve puts_prop puts_diamond : core.
@@ -240,9 +281,13 @@ Proof.
   - rewrite puts_Add_spec; eauto. unfold Add in H0; rewrite H0 in *.
     apply halts_add_spec_1 in H1 as [Hle Hlt1]; auto.
     apply (IHt1 V) in Hlt1; auto. unfold puts_func.
-    destruct (V⌊x⌋ᵣᵦ) eqn:HfV; auto. destruct r; auto.
-    apply halts_add_spec; split; auto.
-    apply RFlow.halts_put; auto. apply H2 in HfV; now simpl in *. 
+    destruct (V⌊x⌋ᵣᵦ) eqn:HfV; auto.
+    -- destruct r; apply halts_add_spec; split; auto.
+       + apply RFlow.halts_put_None; auto.
+       + apply RFlow.halts_put_Some; auto.  
+         apply H2 in HfV; now simpl in *.
+    -- apply halts_add_spec; split; auto.
+       apply RFlow.halts_put_None; auto.
 Qed.
 
 

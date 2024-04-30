@@ -43,14 +43,15 @@ Inductive wf_env_TT : ℜ -> 𝐅 -> Prop :=
       Wfₜₜ(Re,Fl) ->
       Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' ->
       Addᵣₔ (newᵣₔ(Fl)) r Fl Fl' ->
-      Streams.ForAll (fun v => ∅ᵥᵪ ⋅ Re ⊫ {Streams.hd v} ∈ τ') (fst r) -> 
-      Streams.ForAll (fun v => ∅ᵥᵪ ⋅ Re ⊫ {Streams.hd v} ∈ τ) (snd r) -> 
+      RFlow.inp_wt Re τ' r ->
+      RFlow.out_wt Re τ r ->
       Wfₜₜ(Re',Fl')
 
-  | wfTT_update : forall (Re : ℜ) (V : 𝓥) Rf,
-                    Wfᵣₜ(Re,V) -> 
-                    Wfₜₜ(Re,Rf) ->
-                    Wfₜₜ(Re,RFlows.puts V Rf)
+  | wfTT_update : forall (Re : ℜ) V (Fl : 𝐅),
+      Wfₜₜ(Re,Fl) ->
+      Wfᵣₜ(Re,V) ->
+      Wfₜₜ(Re,(RFlows.puts V Fl))
+
 where "'Wfₜₜ(' Re , Fl )" := (wf_env_TT Re Fl).
 
 Lemma wf_env_TT_to_fT Re Fl : 
@@ -61,7 +62,10 @@ Proof.
     apply RFlows.OP.P.empty_1.
   - apply (wfFT_add Re Re' (RFlows.nexts Fl) (RFlows.nexts Fl')
                      τ τ' (RFlow.next r)); auto.
-    -- unfold RE.OP.P.Add. apply RFlows.nexts_Add_spec; auto; admit.
+    -- unfold RE.OP.P.Add. apply RFlows.nexts_Add_spec; auto;
+       rewrite <- RFlows.nexts_new_key.
+       + apply RFlows.new_key_notin_spec; auto.
+       + assumption.
     -- destruct r; simpl in *; apply H2.
   - 
 Admitted.
@@ -111,14 +115,14 @@ Proof.
     eapply functional_preserves_typing in H0; eauto.
     -- destruct H0 as [_ [_ [HwfV [_ [_ [HwP' [HltP' [_ HltVout]]]]]]]].
        split; auto; split.
-       + eapply wfTT_update; auto.
+       +  admit.
        + split; auto. apply RFlows.halts_puts; auto.
     -- exists <[unit]>; split; auto.
     -- apply RFlows.halts_nexts in HlRf. eapply RE.halts_eq; eauto.
     -- now rewrite H.
   - apply IHHTT1 in HwP as IH; auto. destruct IH as [HwP' [Hwf' [HlP' HlR']]].
     apply IHHTT2; assumption.
-Qed. 
+Admitted. 
 
 
 Theorem progress_of_temporal (Re : ℜ) (Rf : 𝐅) (P : Λ) (R : resources) :
@@ -150,25 +154,5 @@ Proof.
     rewrite wf_env_fT_in in HwP; eauto; subst.
     apply RFlows.nexts_unused. now rewrite RFlows.nexts_in_iff.
 Qed.
-
-(*
-(** *** Proof of Resource safety *)
-Theorem safety_resources_interaction (Re : ℜ) (Rf : 𝐅) (t : Λ) (τ τ' : Τ) (R : resources) :
-
-    (* (1) *) halts t -> (* (2) *) RFlows.halts Rf ->
-
-    (* (3) *) Wfₜₜ(Re,Rf) -> (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) ->
-
-  (*-----------------------------------------------------------------------------------------------*)
-    forall (tv : Λ), (* (5) *) halts tv -> (* (6) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
-
-    exists (V' : 𝓥) (tv' t' : Λ), 
-      (* (7) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V' ; tv' ; t' ⪢ /\
-
-      (* (8) *) (forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> V ⌊r⌋ᵣᵦ = V' ⌊r⌋ᵣᵦ) /\
-      (* (9) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V').
-Proof.
-Admitted.
-*)
 
 End safety.

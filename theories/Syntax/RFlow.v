@@ -1,30 +1,37 @@
 From Coq Require Import Lists.Streams Structures.Equalities.
-From Mecha Require Import Term Evaluation Resource.
+From Mecha Require Import Term Typ Evaluation Resource VContext RContext Typing.
 From DeBrLevel Require Import LevelInterface.
 
 Module RFlow <: EqualityType.
 
 Import Streams.
 
-Definition t : Type := (Stream Λ * Stream Λ).
+Definition t : Type := (Stream Λ * Stream (option Λ)).
 
 Definition eq (t t' : t) := (EqSt (fst t) (fst t')) /\ (EqSt (snd t) (snd t')). 
 
 Definition next (rr : t) : Λ := 
   let (inp,_) := rr in hd inp.
 
-Definition put (v : Λ) (rr : t) : t :=
+Definition put (v : option Λ) (rr : t) : t :=
   let (inp,out) := rr in (tl inp,Cons v out).
 
-Definition put_opt (v : option Λ) (rr : t) : t :=
-  match v with
-    | Some v' => put v' rr
-    | _ => rr
-  end.
+Definition update (rr : t) : t :=
+  let (inp,out) := rr in (tl inp,out).
 
 Definition halts (rr : t) := 
   ForAll (fun st => halts (Streams.hd st)) (fst rr) /\
-  ForAll (fun st => halts (Streams.hd st)) (snd rr).
+  ForAll (fun st => match (Streams.hd st) with Some st' => halts st' | _ => True end) (snd rr).
+
+Definition inp_wt Re (τ : Τ) (rr : t) :=
+      Streams.ForAll (fun v => ∅ᵥᵪ ⋅ Re ⊫ {Streams.hd v} ∈ τ) (fst rr).
+
+Definition out_wt Re (τ : Τ) (rr : t) :=
+  Streams.ForAll (fun v => match (Streams.hd v) with 
+                            | Some v' => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
+                            | _ => True 
+                           end) (snd rr).
+
 
 Lemma halts_next t : 
   halts t -> Evaluation.halts (next t).
@@ -33,18 +40,20 @@ Proof.
   destruct s; simpl in *; inversion H; now simpl in *.
 Qed.
 
-Lemma halts_put t v :
-  halts t -> Evaluation.halts v -> halts (put v t).
+Lemma halts_put_Some t v :
+  halts t -> Evaluation.halts v -> halts (put (Some v) t).
 Proof.
   intros; unfold put; destruct t; destruct H; split; simpl in *.
   - inversion H; auto.
   - split; simpl; auto.
 Qed. 
 
-Lemma halts_put_opt t v :
-  halts t -> match v with Some v => Evaluation.halts v | _ => True end -> halts (put_opt v t).
+Lemma halts_put_None t :
+  halts t -> halts (put None t).
 Proof.
-  intros. destruct v; auto. unfold put_opt; now apply halts_put.
+  intros; unfold put; destruct t; destruct H; split; simpl in *.
+  - inversion H; auto.
+  - split; simpl; auto.
 Qed. 
 
 #[export]
