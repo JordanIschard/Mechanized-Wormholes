@@ -49,3 +49,4 @@ Makefile.coq.conf
 _build
 _CoqProject
 doc/html/
+.vscode
