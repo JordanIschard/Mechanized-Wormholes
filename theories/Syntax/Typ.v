@@ -6,7 +6,7 @@ From Mecha Require Import Resource Resources.
 
   Here is the definition of types based on the Wormholes language.
 *)
-Module Typ <: StrongShiftValidFullDTWithLeibniz.
+Module Typ <: IsBdlLvlFullDTWL.
 
 Module RS := Resources.
 
@@ -308,8 +308,7 @@ End Typ.
   can be shifted, its elements need to implement shift, valid functions 
   and their associated lemmas.
 *)
-Module PairTyp <: StrongShiftValidFullETWithLeibniz 
-:= StrongShiftValidFullPairETWL Typ Typ.
+Module PairTyp <: IsBdlLvlFullETWL := IsBdlLvlFullPairETWL Typ Typ.
 
 (** *** Scope and Notations *)
 Declare Scope typ_scope.

@@ -6,7 +6,7 @@ From Mecha Require Import Var Resource Typ.
 
   Here is the definition of terms based on the Wormholes language.
 *)
-Module Term <: ShiftValidFullDTWithLeibniz.
+Module Term <: IsLvlFullDTWL.
 
 (** *** Definition *)
 

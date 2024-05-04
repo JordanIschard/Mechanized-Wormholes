@@ -3,10 +3,10 @@ From Mecha Require Import Resource Typ Var.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel.
 
 (** * Context between variables and types *)
-Module VContext <: StrongShiftValidET.
+Module VContext <: IsBdlLvlET.
 
 
-Include MapD.MakeStrongShiftValidMapD Var Typ.
+Include MapD.MakeBdlLvlMapD Var Typ.
 Import Raw Ext.
 
 (** *** Morphism *)

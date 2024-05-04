@@ -1,13 +1,13 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
 From Mecha Require Import Resource Term Cell Evaluation.
-From DeBrLevel Require Import  LevelInterface MapLevelInterface MapLevel MapExtInterface 
+From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface 
                MapExt.
 From MMaps Require Import MMaps.
 
 
 (** * Environment between resources and cells *)
-Module REnvironment <: ShiftValidET.
-Include MapLvlD.MakeShiftValidMapWLLVL Cell.
+Module REnvironment <: IsLvlET.
+Include MapLvlD.MakeLvlMapWLLVL Cell.
 
 Import Raw Ext.
 

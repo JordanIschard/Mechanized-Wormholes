@@ -4,9 +4,9 @@ From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtIn
 From MMaps Require Import MMaps.
 
 (** * Context between resources and pairs of types *)
-Module RContext <: StrongShiftValidET.
+Module RContext <: IsBdlLvlET.
 
-Include MapLvlD.MakeStrongShiftValidMapWLLVL PairTyp.
+Include MapLvlD.MakeBdlLvlMapWLLVL PairTyp.
 Import Raw Ext.
 
 Lemma max_key_wh_spec : forall (m : t) v v',

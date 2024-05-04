@@ -12,7 +12,7 @@ From Mecha Require Import Resource Term.
     is stocked for the update done at the end of this instant by the [temporal] transition and
     the resource is used.
 *)
-Module Cell <: ShiftValidFullDTWithLeibniz.
+Module Cell <: IsLvlFullDTWL.
 
 (** *** Definition  *)
 

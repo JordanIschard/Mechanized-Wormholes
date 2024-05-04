@@ -4,9 +4,9 @@ From DeBrLevel Require Import LevelInterface MapExt PairLevel.
 From MMaps Require Import MMaps.
 
 
-Module Stock <: ShiftValidET.
+Module Stock <: IsLvlET.
 
-Include ShiftValidPairET ReadStock WriteStock.
+Include IsLvlPairET ReadStock WriteStock.
 
 (** *** Definition *)
 

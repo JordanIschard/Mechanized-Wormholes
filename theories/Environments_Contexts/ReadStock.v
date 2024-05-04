@@ -5,9 +5,9 @@ From MMaps Require Import MMaps.
 
 
 (** * Map between resources and terms *)
-Module ReadStock <: ShiftValidET.
+Module ReadStock <: IsLvlET.
 
-Include MapLvlD.MakeShiftValidMapWLLVL Term.
+Include MapLvlD.MakeLvlMapWLLVL Term.
 Import Raw Ext.
 
 (** *** Definition *)
