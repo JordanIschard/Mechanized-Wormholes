@@ -23,15 +23,13 @@ Definition halts (rr : t) :=
   ForAll (fun st => halts (Streams.hd st)) (fst rr) /\
   ForAll (fun st => match (Streams.hd st) with Some st' => halts st' | _ => True end) (snd rr).
 
-Definition inp_wt Re (τ : Τ) (rr : t) :=
-      Streams.ForAll (fun v => ∅ᵥᵪ ⋅ Re ⊫ {Streams.hd v} ∈ τ) (fst rr).
-
-Definition out_wt Re (τ : Τ) (rr : t) :=
+Definition well_typed_rflow (Γ : Γ) (Re : ℜ) (s : t) (α β : Τ) :=
+  let (is,os) := s in 
+  ForAll (fun v => Γ ⋅ Re ⊫ {Streams.hd v} ∈ α) is /\
   Streams.ForAll (fun v => match (Streams.hd v) with 
-                            | Some v' => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
+                            | Some v' => Γ ⋅ Re ⊫ v' ∈ β
                             | _ => True 
-                           end) (snd rr).
-
+                           end) os.
 
 Lemma halts_next t : 
   halts t -> Evaluation.halts (next t).
@@ -66,6 +64,48 @@ Proof.
   - red; intros; destruct x,y,z; simpl in *; destruct H,H0; split.
     -- eapply trans_EqSt; eauto.
     -- eapply trans_EqSt; eauto.
+Qed.
+
+Lemma rflow_weakening_Γ : forall Γ Γ' Re s α β,
+  Γ ⊆ᵥᵪ Γ' ->
+  well_typed_rflow Γ Re s α β ->
+  well_typed_rflow Γ' Re s α β.
+Proof.
+  intros. unfold well_typed_rflow in *; destruct s,H0; split.
+  - clear H1. revert H0. apply ForAll_coind; intros.
+    -- destruct x. inversion H0; simpl in *.
+       apply weakening_Γ with (Γ := Γ); assumption.
+    -- destruct x; inversion H0; simpl in *; assumption.
+  - clear H0. revert H1. apply ForAll_coind; intros.
+    -- destruct x; inversion H0; simpl in *; destruct o; auto.
+       apply weakening_Γ with (Γ := Γ); assumption.
+    -- destruct x; inversion H0; simpl in *; assumption.
+Qed.
+
+Lemma rflow_weakening_ℜ : forall Γ Re Re' s α β,
+  Re ⊆ᵣᵪ Re' ->
+  well_typed_rflow Γ Re s α β ->
+  well_typed_rflow Γ Re' s α β.
+Proof.
+  intros. unfold well_typed_rflow in *; destruct s,H0; split.
+  - clear H1. revert H0. apply ForAll_coind; intros.
+    -- destruct x. inversion H0; simpl in *.
+       apply weakening_ℜ with (Re := Re); assumption.
+    -- destruct x; inversion H0; simpl in *; assumption.
+  - clear H0. revert H1. apply ForAll_coind; intros.
+    -- destruct x; inversion H0; simpl in *; destruct o; auto.
+       apply weakening_ℜ with (Re := Re); assumption.
+    -- destruct x; inversion H0; simpl in *; assumption.
+Qed.
+
+Lemma rflow_well_typed_None : forall Γ Re s α β,
+  well_typed_rflow Γ Re s α β ->
+  well_typed_rflow Γ Re (RFlow.put None s) α β.
+Proof.
+  intros. unfold well_typed_rflow in *; destruct s; unfold put.
+  destruct H; split.
+  - now inversion H.
+  - constructor; simpl; auto.
 Qed.
 
 End RFlow.

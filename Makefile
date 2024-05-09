@@ -11,7 +11,7 @@ Makefile.coq: _CoqProject
 force _CoqProject Makefile: ;
 
 admitted :
-	@grep -nR --color=auto Admitted theories/
+	@grep -nR --color=auto [aA]dmit theories/
 
 %: Makefile.coq force
 	@+$(MAKE) -f Makefile.coq $@

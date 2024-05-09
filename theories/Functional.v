@@ -47,7 +47,7 @@ Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> Prop :=
   | fT_first :  forall (v1 v1' v2 t t' : Λ) (τ : Τ) (V V' : 𝓥),
 
                      ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V' ; v1' ; t' ⪢ ->
-    (*--------------------------------------(((--------------------------*)
+    (*-------------------------------------------------------------------*)
        ⪡ V ; ⟨v1,v2⟩ ; first(τ:t) ⪢ ⭆ ⪡ V' ; ⟨v1',v2⟩ ; first(τ:t') ⪢
 
   | fT_comp  :  forall (st st' st'' t1 t1' t2 t2' : Λ) (V V' V'' : 𝓥),
@@ -240,6 +240,52 @@ Proof.
        apply IHwf_env_fT. rewrite RE.OP.P.add_in_iff in H4.
        destruct H4; subst; auto.
 Qed.
+
+Lemma wf_env_fT_k : forall Re V,
+  Wfᵣₜ(Re,V) -> (forall k, k < (newᵣᵪ(Re)) -> k ∈ᵣᵪ Re /\ k ∈ᵣᵦ V).
+Proof.
+  intros Re V wf. induction wf; intros k Hlt.
+  - rewrite RC.Ext.new_key_Empty_spec in *; auto; lia.
+  - apply RC.Ext.new_key_Add_spec in H as HI.
+    -- destruct HI as [[Heq Hle] | [Heq Hgt]]; subst; auto; try lia.
+       destruct (Resource.eq_dec k (newᵣᵪ( Re))); subst.
+       + split.
+         ++ unfold RC.OP.P.Add in H. rewrite H. rewrite RC.OP.P.add_in_iff; now left.
+         ++ apply wf_env_fT_new in wf. rewrite wf.
+            unfold RE.OP.P.Add in H0. rewrite H0.
+            rewrite RE.OP.P.add_in_iff; now left.
+       + rewrite Heq in Hlt. assert (k < (newᵣᵪ( Re))) by lia.
+         apply IHwf in H2 as [HInRe HInV].
+         split.
+         ++ unfold RC.OP.P.Add in H. rewrite H.
+            rewrite RC.OP.P.add_in_iff; now right.
+         ++ unfold RE.OP.P.Add in H0. rewrite H0.
+            rewrite RE.OP.P.add_in_iff; now right.
+    -- apply RC.Ext.new_key_notin_spec; lia.
+  - apply IHwf in Hlt as [HInRe HInV].
+    split; auto. unfold RE.OP.P.Add in H1. rewrite H1.
+    rewrite RE.OP.P.add_in_iff; now right.
+Qed.
+
+Lemma wf_env_fT_weakening_bis:  forall (Re : ℜ) V,
+  Wfᵣₜ(Re,V) -> Wfᵣₜ(RC.Raw.remove (maxᵣᵪ(Re)) Re,RE.Raw.remove (maxᵣᵦ(V)) V).
+Proof.
+
+Admitted.
+
+Lemma wf_env_fT_weakening:  forall (Re Re' : ℜ) V V' τ τ' v,
+  Addᵣᵪ (newᵣᵪ(Re)) (τ, τ') Re Re' ->
+  Addᵣᵦ (newᵣᵦ(V)) v V V' ->
+  Wfᵣₜ(Re',V') -> Wfᵣₜ(Re,V).
+Proof.
+  intros Re Re' V V' τ τ' v HAddRe HAddV wfrt. 
+  revert Re V τ τ' v HAddRe HAddV. inversion wfrt; intros.
+  - exfalso. apply (H (newᵣᵪ( Re0)) (τ, τ')).
+    apply RC.OP.P.find_2. rewrite HAddRe.
+    now rewrite RC.OP.P.add_eq_o.
+  - subst. assert (HnewRe: newᵣᵪ(Re) = newᵣᵪ(Re0)). 
+   
+Admitted.  
 
 (** ** Lift of multiple evaluation transitions *)
 

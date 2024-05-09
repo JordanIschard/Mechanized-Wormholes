@@ -22,6 +22,12 @@ Definition puts_func V x v fl :=
     |  _ => add x (RFlow.put None v) fl 
   end.
 
+Definition puts_func_1 V x v :=
+  match V⌊x⌋ᵣᵦ with 
+    | Some (⩽ … v' ⩾) =>  (RFlow.put (Some v') v)
+    |  _ => (RFlow.put None v) 
+  end.
+
 Definition puts (Vout : REnvironment.t) (fl : RFlows.t) : RFlows.t :=
   fold (puts_func Vout) fl empty.
 
@@ -154,6 +160,17 @@ Proof.
        now rewrite IHfl1.
 Qed. 
 
+Lemma nexts_Empty_eq fl : Empty fl <-> REnvironment.OP.P.Empty (nexts fl).
+Proof.
+  split; intros HEmp.
+  - apply nexts_Empty in HEmp; rewrite HEmp.
+    apply empty_1.
+  - intros x v. intro HMap. 
+    assert (HIn: In x fl) by (now exists v).
+    rewrite nexts_in_iff in HIn. destruct HIn.
+    now apply (HEmp x x0).
+Qed.
+
 Lemma nexts_unused r fl : In r fl -> REnvironment.unused r (nexts fl).
 Proof.
   revert r; induction fl using map_induction; unfold REnvironment.unused; intros.
@@ -224,6 +241,132 @@ Proof.
   intros. unfold puts, eq. now rewrite fold_Add; eauto.
 Qed.
 
+Lemma puts_Add_spec_1 r v V fl fl' : 
+  ~ In r fl -> Add r v fl fl' -> Add r (puts_func_1 V r v) (puts V fl) (puts V fl').
+Proof.
+  intros. apply puts_Add_spec with (V := V) in H0; auto.
+  unfold Add. rewrite H0. unfold puts_func,puts_func_1; destruct (V⌊r⌋ᵣᵦ);
+  try reflexivity.
+  destruct r0; reflexivity.
+Qed.
+
+Lemma puts_Add_spec_2 r v vf V V' fl fl' : 
+  ~ In r fl -> r ∉ᵣᵦ V -> 
+  Add r vf fl fl' -> 
+  Addᵣᵦ r v V V' -> 
+  
+  Add r (puts_func_1 V r vf) (puts V fl) (puts V' fl').
+Proof. Admitted.
+
+Lemma puts_Empty_eq V fl : Empty fl <-> Empty (puts V fl).
+Proof.
+  split; intros HEmp.
+  - apply puts_Empty with (V := V) in HEmp; rewrite HEmp.
+    apply empty_1.
+  - revert V HEmp; induction fl using map_induction; 
+    intros V HEmp; auto.
+    unfold Empty in *; intros. intro. destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+    -- destruct r.
+       + apply (HEmp x (RFlow.put None e)).
+         apply find_2. rewrite puts_Add_spec; eauto. 
+         unfold puts_func. rewrite HfV. now rewrite add_eq_o. 
+       + apply (HEmp x (RFlow.put (Some λ) e)).
+         apply find_2. rewrite puts_Add_spec; eauto. 
+         unfold puts_func. rewrite HfV. now rewrite add_eq_o.
+    -- apply (HEmp x (RFlow.put None e)).
+        apply find_2. rewrite puts_Add_spec; eauto. 
+        unfold puts_func. rewrite HfV. now rewrite add_eq_o.
+Qed.
+
+Lemma puts_is_empty_eq V fl : is_empty fl = is_empty (puts V fl).
+Proof.
+  destruct (is_empty fl) eqn:H.
+  - symmetry. apply is_empty_2 in H. apply is_empty_1. 
+    now apply puts_Empty_eq.
+  - symmetry. apply not_true_is_false. intro.
+    apply is_empty_2 in H0. rewrite <- puts_Empty_eq in H0.
+    revert H. apply eq_true_false_abs. now apply is_empty_1.
+Qed.
+
+Lemma puts_In_spec r V fl : In r fl <-> In r (puts V fl).
+Proof.
+  revert r V; induction fl using map_induction; intros r V.
+  - split; intro HIn.
+    -- exfalso. destruct HIn as [v HMap]. now apply (H r v).
+    -- exfalso. destruct HIn as [v HMap].
+       rewrite puts_Empty_eq with (V := V) in H.
+       now apply (H r v).
+  - split; intro HIn.
+    -- rewrite puts_Add_spec; eauto.
+       unfold Add in H0. rewrite H0 in *. rewrite add_in_iff in HIn.
+       destruct HIn as [Heq | HIn]; subst.
+       + unfold puts_func; destruct(V⌊r⌋ᵣᵦ).
+         ++ destruct r0; rewrite add_in_iff; now left.
+         ++ rewrite add_in_iff; now left.
+       + unfold puts_func; destruct(V⌊x⌋ᵣᵦ).
+         ++ destruct r0; rewrite add_in_iff; right; now rewrite <- IHfl1.
+         ++ rewrite add_in_iff; right; now rewrite <- IHfl1.
+    -- rewrite puts_Add_spec in HIn; eauto.
+       unfold Add in *; rewrite H0. rewrite add_in_iff.
+       unfold puts_func in *. destruct(V⌊x⌋ᵣᵦ).
+       ++ destruct r0; 
+          apply add_in_iff in HIn as [Heq | HIn]; subst; auto;
+          right; now rewrite (IHfl1 r V).
+       ++ apply add_in_iff in HIn as [Heq | HIn]; subst; auto.
+          right; now rewrite (IHfl1 r V).
+Qed. 
+
+Lemma puts_max_spec V fl : max_key fl = max_key (puts V fl).
+Proof.
+  revert V. induction fl using map_induction; intro V.
+  - apply max_key_Empty_spec in H as Hmax; rewrite Hmax.
+    symmetry. rewrite puts_Empty_eq with (V := V) in H.
+    apply max_key_Empty_spec in H; now rewrite H.
+  - apply max_key_Add_spec in H0 as HI; auto.
+    destruct HI as [[Heq Hle] | [Heq Hgt]]; subst.
+    -- rewrite puts_Add_spec; eauto. unfold puts_func.
+       destruct (V⌊max_key fl2⌋ᵣᵦ) eqn:HfV.
+       + destruct r; rewrite max_key_add_spec_1; auto;
+         try (now rewrite <- IHfl1);
+         now rewrite <- puts_In_spec.
+       + rewrite max_key_add_spec_1; auto.
+         ++ now rewrite <- puts_In_spec.
+         ++ now rewrite <- IHfl1.
+    -- rewrite puts_Add_spec; eauto. unfold puts_func.
+       destruct (V⌊x⌋ᵣᵦ) eqn:HfV; rewrite Heq.
+       + destruct r; rewrite max_key_add_spec_2; auto;
+         try (now rewrite <- IHfl1);
+         now rewrite <- puts_In_spec.
+       + rewrite max_key_add_spec_2; auto.
+         ++ now rewrite <- puts_In_spec.
+         ++ now rewrite <- IHfl1.
+Qed.
+
+Lemma puts_new_spec V fl : new_key fl = new_key (puts V fl).
+Proof.
+  unfold new_key; destruct (is_empty fl) eqn:Hempt.
+  - rewrite puts_is_empty_eq with (V := V) in Hempt.
+    rewrite Hempt; reflexivity.
+  - rewrite puts_is_empty_eq with (V := V) in Hempt.
+    rewrite Hempt; f_equal; apply puts_max_spec.
+Qed.
+
+Lemma puts_find_spec V fl r v :
+ find r fl = Some v -> find r (puts V fl) = Some (puts_func_1 V r v).
+Proof.
+  revert r v; induction fl using map_induction; intros r v HfFl.
+  - exfalso; apply (H r v); now apply find_2.
+  - rewrite puts_Add_spec; eauto. unfold Add in H0; rewrite H0 in *.
+    destruct (Resource.eq_dec r x); subst.
+    -- rewrite add_eq_o in HfFl; auto; inversion HfFl; subst; clear HfFl.
+       unfold puts_func,puts_func_1; destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+       + destruct r; rewrite add_eq_o; auto.
+       + rewrite add_eq_o; auto.
+    -- rewrite add_neq_o in *; auto. 
+       unfold puts_func; destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+       + destruct r0; rewrite add_neq_o; auto.
+       + rewrite add_neq_o; auto.
+Qed.
 
 (** *** Halts *)
 
