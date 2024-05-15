@@ -13,6 +13,8 @@ Import Raw OP.P.
 
 Definition nexts_func x v V := ⌈x ⤆ (Cell.inp (RFlow.next v))⌉ᵣᵦ V.
 
+Definition nexts_func_1 v := (Cell.inp (RFlow.next v)).
+
 Definition nexts (fl : RFlows.t) : REnvironment.t := 
   fold nexts_func fl (∅ᵣᵦ).
 
@@ -171,6 +173,183 @@ Proof.
     now apply (HEmp x x0).
 Qed.
 
+Lemma nexts_remove_spec x t: 
+  (REnvironment.Raw.remove x (nexts t) = (nexts (remove x t)))%re.
+Proof.
+ revert x; induction t using map_induction; intros.
+ - unfold nexts; rewrite fold_Empty; auto.
+   rewrite fold_Empty; auto.
+   -- apply REnvironment.OP.P.remove_id.
+      intro c; inversion c; inversion H0.
+   -- intro. intro; intro. 
+      apply remove_mapsto_iff in H0 as [_ H0].
+      apply (H x0 e H0).
+ - unfold nexts.
+   apply REnvironment.OP.P.Equal_mapsto_iff; split; intros.
+   -- apply REnvironment.OP.P.remove_mapsto_iff in H1 as [Hneq HM].
+      apply REnvironment.OP.P.find_1 in HM.
+      rewrite (nexts_Add_spec x e t1 t2) in HM; auto.
+      destruct (Resource.eq_dec k x); subst.
+      + rewrite REnvironment.OP.P.add_eq_o in HM; auto.
+        inversion HM; subst; clear HM.
+        assert (Add x e (remove x0 t1) (remove x0 t2)).
+        { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+        {
+         apply REnvironment.OP.P.find_2.
+         rewrite fold_Add with (m1 := remove x0 t1); eauto.
+         - unfold nexts_func; fold nexts_func.
+           rewrite REnvironment.OP.P.add_eq_o; reflexivity.
+         - intro. apply remove_in_iff in H2 as [_ H2]. contradiction.
+        }
+      + rewrite REnvironment.OP.P.add_neq_o in HM; auto.
+        apply REnvironment.OP.P.find_2 in HM.
+        destruct (Resource.eq_dec x x0); subst.
+        ++ assert (nexts (remove x0 t2) = nexts t1)%re. 
+           { 
+            eapply nexts_eq.
+            unfold Add,eq in *. rewrite H0.
+            rewrite remove_add_1. 
+            now erewrite (remove_id t1 x0).
+           }
+           assert (k = k) by reflexivity.
+           assert (e0 = e0) by reflexivity.
+           eapply (REnvironment.OP.P.MapsTo_m H2 H3 H1); eauto.
+        ++ rewrite <- (REnvironment.OP.P.remove_neq_mapsto_iff) in HM; eauto.
+           apply REnvironment.OP.P.find_1 in HM.
+           rewrite IHt1 in HM. 
+           assert (nexts (remove x0 t2) = nexts (add x e (remove x0 t1)))%re. 
+           { 
+            eapply nexts_eq.
+            unfold Add,eq in *. rewrite H0.
+            rewrite remove_add_2; auto; reflexivity.
+           }
+           assert (k = k) by reflexivity.
+           assert (e0 = e0) by reflexivity.
+           eapply (REnvironment.OP.P.MapsTo_m H2 H3 H1); eauto.
+           eapply REnvironment.OP.P.find_2.
+           rewrite (nexts_Add_spec x e (remove x0 t1)); eauto.
+           * rewrite REnvironment.OP.P.add_neq_o; eauto.
+           * intro. apply remove_in_iff in H4 as [_ H4]. contradiction.
+           * unfold Add; reflexivity.
+  -- destruct (Resource.eq_dec x0 k); subst.
+     + exfalso.
+       destruct (Resource.eq_dec k x); subst.
+       ++ assert ((nexts t1) = (nexts (remove x t2)))%re.
+          {
+            eapply nexts_eq. 
+            unfold Add in *; rewrite H0.
+            rewrite remove_add_1; auto.
+            symmetry; unfold eq.
+            now rewrite remove_id.
+          }
+          assert (x = x) by reflexivity.
+          assert (e0 = e0) by reflexivity.
+          eapply (REnvironment.OP.P.MapsTo_m H3 H4 H2) in H1; eauto.
+          rewrite nexts_in_iff in H.
+          apply H. now exists e0.
+       ++ assert (Add x e (remove k t1) (remove k t2)).
+          { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+          apply REnvironment.OP.P.find_1 in H1.
+          apply (nexts_Add_spec x e) in H2.
+          * rewrite H2 in H1.
+            rewrite REnvironment.OP.P.add_neq_o in H1; auto.
+            rewrite <- IHt1 in *.
+            rewrite REnvironment.OP.P.remove_eq_o in H1; auto.
+            inversion H1.
+          * intro. apply remove_in_iff in H3 as [_ H3]. contradiction.
+     + apply REnvironment.OP.P.remove_mapsto_iff; split; auto.
+       apply REnvironment.OP.P.find_2.
+       rewrite (nexts_Add_spec x e t1 t2); auto.
+       destruct (Resource.eq_dec k x); subst.
+       ++ rewrite REnvironment.OP.P.add_eq_o; auto; f_equal. 
+          assert (Add x e (remove x0 t1) (remove x0 t2)).
+          { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+          {
+          apply REnvironment.OP.P.find_1 in H1.
+          rewrite fold_Add with (m1 := remove x0 t1) in H1; eauto.
+          - unfold nexts_func in *; fold nexts_func in *.
+            rewrite REnvironment.OP.P.add_eq_o in *; auto; now inversion H1.
+          - intro. apply remove_in_iff in H3 as [_ H3]. contradiction.
+          }
+       ++ rewrite REnvironment.OP.P.add_neq_o; auto.
+          apply REnvironment.OP.P.find_1.
+          destruct (Resource.eq_dec x x0); subst.
+          * assert (nexts (remove x0 t2) = nexts t1)%re. 
+            { 
+              eapply nexts_eq.
+              unfold Add,eq in *. rewrite H0.
+              rewrite remove_add_1. 
+              now erewrite (remove_id t1 x0).
+            }
+            assert (k = k) by reflexivity.
+            assert (e0 = e0) by reflexivity.
+            eapply (REnvironment.OP.P.MapsTo_m H3 H4 H2); eauto.
+          * rewrite <- (REnvironment.OP.P.remove_neq_mapsto_iff); eauto.
+            apply REnvironment.OP.P.find_2.
+            rewrite IHt1. 
+            assert (nexts (remove x0 t2) = nexts (add x e (remove x0 t1)))%re. 
+            { 
+              eapply nexts_eq.
+              unfold Add,eq in *. rewrite H0.
+              rewrite remove_add_2; auto; reflexivity.
+            }
+            assert (k = k) by reflexivity.
+            assert (e0 = e0) by reflexivity.
+            eapply (REnvironment.OP.P.MapsTo_m H3 H4 H2) in H1; eauto.
+            eapply REnvironment.OP.P.find_1 in H1.
+            rewrite (nexts_Add_spec x e (remove x0 t1)) in H1; eauto.
+            ** rewrite REnvironment.OP.P.add_neq_o in H1; eauto.
+            ** intro. apply remove_in_iff in H5 as [_ H5]. contradiction.
+            ** unfold Add; reflexivity.       
+Qed.
+
+Lemma nexts_Add_spec_1 x v t t' : 
+  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (RFlow.next v))⌉ᵣᵦ (nexts t))%re.
+Proof.
+  intros. destruct (In_dec t x).
+  - unfold Add in *. rewrite H.
+    transitivity (nexts (add x v (remove x t))).
+    -- now rewrite add_remove_1.
+    -- unfold nexts. rewrite fold_Add with (m1 := (remove x t)) (k := x) (e := v); eauto.
+       + unfold nexts_func; fold nexts_func; simpl.
+         rewrite <- (nexts_remove_spec x t).
+         now rewrite REnvironment.OP.P.add_remove_1.
+       + intro. apply remove_in_iff in H0 as [H0 _]. now apply H0.
+       + unfold Add; reflexivity. 
+  - now apply nexts_Add_spec.
+Qed.
+
+Lemma nexts_find_e_spec Fl r v :
+  (nexts Fl) ⌈r ⩦ v⌉ᵣᵦ -> exists rf, v = nexts_func_1 rf.
+Proof.
+  revert r v; induction Fl using map_induction; intros.
+  - apply nexts_Empty_eq in H.
+    exfalso; apply (H r v).
+    now apply REnvironment.OP.P.find_2.
+  - rewrite nexts_Add_spec in H1; eauto.
+    destruct (Resource.eq_dec x r); subst.
+    -- rewrite REnvironment.OP.P.add_eq_o in H1; auto.
+       inversion H1; subst; clear H1.
+       now exists e; unfold nexts_func_1.
+    -- rewrite REnvironment.OP.P.add_neq_o in H1; auto.
+       now apply (IHFl1 r).
+Qed.
+
+Lemma nexts_find_spec Fl r rf :
+  find r Fl = Some rf -> (nexts Fl) ⌈r ⩦ (nexts_func_1 rf)⌉ᵣᵦ.
+Proof.
+  revert r rf; induction Fl using map_induction; intros.
+  - exfalso; apply (H r rf).
+    now apply find_2.
+  - rewrite nexts_Add_spec in *; eauto.
+    unfold Add in *. rewrite H0 in *.
+    destruct (Resource.eq_dec r x); subst.
+    -- rewrite add_eq_o in H1; auto; inversion H1; subst; clear H1.
+       rewrite REnvironment.OP.P.add_eq_o; auto.
+    -- rewrite add_neq_o in H1; auto.
+       rewrite REnvironment.OP.P.add_neq_o; auto.
+Qed.
+
 Lemma nexts_unused r fl : In r fl -> REnvironment.unused r (nexts fl).
 Proof.
   revert r; induction fl using map_induction; unfold REnvironment.unused; intros.
@@ -249,14 +428,6 @@ Proof.
   try reflexivity.
   destruct r0; reflexivity.
 Qed.
-
-Lemma puts_Add_spec_2 r v vf V V' fl fl' : 
-  ~ In r fl -> r ∉ᵣᵦ V -> 
-  Add r vf fl fl' -> 
-  Addᵣᵦ r v V V' -> 
-  
-  Add r (puts_func_1 V r vf) (puts V fl) (puts V' fl').
-Proof. Admitted.
 
 Lemma puts_Empty_eq V fl : Empty fl <-> Empty (puts V fl).
 Proof.

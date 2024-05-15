@@ -1,7 +1,7 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses 
                         Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
 From Mecha Require Import Resource Resources Term Typ Var Substitution Typing VContext RContext Evaluation
-               Cell REnvironment.
+               Cell REnvironment WfConEnv.
 
 (** * Transition - Functional
 
@@ -65,227 +65,6 @@ Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> Prop :=
 
 where "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ⪢" := (functional V st t V1 st1 t1).
 
-
-Inductive wf_env_fT : ℜ -> 𝓥 -> Prop := 
-  | wfFT_empty  : forall (Re : ℜ) (V : 𝓥), 
-                    isEmptyᵣᵪ(Re) -> isEmptyᵣᵦ(V) -> Wfᵣₜ(Re,V)
-
-  | wfFT_add   : 
-    forall (Re Re' : ℜ) (V V' : 𝓥) (τ τ' : Τ) (v : Λ),
-      Wfᵣₜ(Re,V) ->
-      Addᵣᵪ (newᵣᵪ(Re)) (τ,τ') Re Re' -> 
-      Addᵣᵦ (newᵣᵦ(V)) (⩽ v … ⩾) V V' -> 
-      ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
-      Wfᵣₜ(Re',V')
-  
-  | wfFT_update : forall (Re : ℜ) (V V' : 𝓥) r (τ τ' : Τ) (v : Λ),
-                    Wfᵣₜ(Re,V) -> Re ⌈r ⩦ (τ,τ')⌉ᵣᵪ -> 
-                    r ∈ᵣᵦ V -> Addᵣᵦ r ((⩽ … v ⩾)) V V' -> 
-                    ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ -> Wfᵣₜ(Re,V')
-
-where "'Wfᵣₜ(' Re , V )" := (wf_env_fT Re V).
-
-(** *** wf_env_fT *)
-
-Lemma wf_env_fT_is_empty_spec : forall (Re : ℜ) (V : 𝓥),
-  Wfᵣₜ(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
-Proof.
-  intros Re V Hinst; induction Hinst.
-  - rewrite RC.OP.P.is_empty_1; auto; 
-    now rewrite RE.OP.P.is_empty_1.
-  - apply RC.notEmpty_Add_spec in H.
-    apply RE.notEmpty_Add_spec in H0.
-    destruct (RC.Raw.is_empty Re') eqn:HEmp.
-    -- apply RC.OP.P.is_empty_2 in HEmp; contradiction.
-    -- destruct (RE.Raw.is_empty V') eqn:HEmp'; auto.
-        apply RE.OP.P.is_empty_2 in HEmp'; contradiction.
-  - apply RE.notEmpty_Add_spec in H1.
-    destruct (RC.Raw.is_empty Re) eqn:HEmp.
-    -- apply RC.OP.P.is_empty_2 in HEmp.
-        apply RC.notEmpty_find_spec in H; auto; contradiction.
-    -- destruct (RE.Raw.is_empty V') eqn:HEmp'; auto.
-        apply RE.OP.P.is_empty_2 in HEmp'; contradiction.
-Qed.
-
-Lemma wf_env_fT_max : forall (Re : ℜ) (V : 𝓥),
-  Wfᵣₜ(Re,V) -> maxᵣᵪ(Re) = maxᵣᵦ(V).
-Proof.
-  intros Re V inst; induction inst.
-  - rewrite RC.Ext.max_key_Empty_spec; auto.
-    now rewrite RE.Ext.max_key_Empty_spec.
-  - apply RC.Ext.max_key_Add_spec in H as [[H H'] | [H H']]; auto.
-    -- rewrite H. 
-        apply RE.Ext.max_key_Add_spec in H0 as [[H0 H0'] | [H0 H0']].
-        + rewrite H0; apply wf_env_fT_is_empty_spec in inst as HEmp.
-          unfold RC.Ext.new_key,RE.Ext.new_key; rewrite HEmp.
-          destruct (RE.Raw.is_empty V); auto.
-        + assert (newᵣᵦ(V) >= maxᵣᵦ(V)). { apply RE.Ext.new_key_geq_max_key. }
-          lia.
-        + apply RE.new_key_notin_spec; auto.
-    -- unfold RC.Ext.new_key in H'. 
-        destruct (RC.Raw.is_empty Re) eqn:HEmp; try lia.
-        rewrite RC.Ext.max_key_Empty_spec in H'; try lia.
-        now apply RC.OP.P.is_empty_2.
-    -- apply RC.Ext.new_key_notin_spec; lia.
-  - unfold RE.OP.P.Add in H1; rewrite H1.
-    rewrite RE.Ext.max_key_add_spec_3; auto.
-Qed.
-
-Lemma wf_env_fT_new : forall (Re : ℜ) (V : 𝓥),
-  Wfᵣₜ(Re,V) -> newᵣᵪ(Re) = newᵣᵦ(V).
-Proof.
-  intros Re V Hinst; unfold RC.Ext.new_key,RE.Ext.new_key.
-  apply wf_env_fT_is_empty_spec in Hinst as HisEmp.
-  destruct (RC.Raw.is_empty Re) eqn:HEmp.
-  - now rewrite <- HisEmp.
-  - rewrite <- HisEmp; f_equal; now apply wf_env_fT_max.
-Qed.
-
-Lemma wf_env_fT_domains_match: forall (Re : ℜ) V (k : resource) (πτ : πΤ),
-  Wfᵣₜ(Re,V) -> Re ⌈k ⩦ πτ⌉ᵣᵪ -> exists (v : 𝑣), V ⌈k ⩦ v⌉ᵣᵦ.
-Proof.
-  intros Re V k πτ inst; revert k πτ; induction inst; intros k' πτ' Hfin.
-  - apply RC.notEmpty_find_spec in Hfin; auto; contradiction.
-  - rewrite H0 in *; destruct (Resource.eq_dec (newᵣᵪ(Re)) k'); subst.
-    -- exists (⩽ v … ⩾). 
-        apply wf_env_fT_new in inst as Hnew; rewrite Hnew.
-        now apply RE.OP.P.add_eq_o.
-    -- rewrite H in Hfin. rewrite RC.OP.P.add_neq_o in Hfin; try assumption.
-        apply IHinst in Hfin as [v' Hfin]; exists v'. 
-        rewrite RE.OP.P.add_neq_o; auto.
-        apply wf_env_fT_new in inst; now rewrite <- inst.
-  - destruct (Resource.eq_dec r k'); subst.
-    -- exists (⩽ … v ⩾); rewrite H1; now apply RE.OP.P.add_eq_o.
-    -- apply IHinst in Hfin; destruct Hfin.
-        exists x. rewrite H1; now rewrite RE.OP.P.add_neq_o.
-Qed.
-
-#[export] 
-Instance wfFT_eq : Proper (RC.eq ==> RE.eq ==> iff) (wf_env_fT).
-Proof.
-  repeat red; split; intros.
-  - revert y y0 H0 H; induction H1; subst; intros y y0 Heq Heq'.
-    -- apply wfFT_empty; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- eapply wfFT_add; eauto; try (now rewrite <- Heq); now rewrite <- Heq'.
-    -- apply (wfFT_update y V y0 r τ τ' v); auto.
-        + eapply IHwf_env_fT; auto. reflexivity.
-        + rewrite <- Heq'; auto.
-        + rewrite <- Heq; auto.
-        + now rewrite <- Heq'. 
-  - revert x x0 H0 H; induction H1; subst; intros x x0 Heq Heq'.
-    -- apply wfFT_empty; try (now rewrite Heq'); now rewrite Heq.
-    -- eapply wfFT_add; eauto; try (now rewrite Heq); now rewrite Heq'.
-    -- apply (wfFT_update x V x0 r τ τ' v); auto.
-        + apply IHwf_env_fT; auto; reflexivity.
-        + rewrite Heq'; auto.
-        + now rewrite Heq.
-        + now rewrite Heq'.
-Qed.
-
-Lemma wf_env_fT_well_typed : forall (Re : ℜ) V (r : resource) (v : 𝑣) (πτ : πΤ),
-  Wfᵣₜ(Re,V) -> Re ⌈ r ⩦ πτ ⌉ᵣᵪ -> V ⌈ r ⩦ v ⌉ᵣᵦ -> 
-  match (πτ,v) with
-    | ((_,τ),⩽ v' … ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
-    | ((τ,_),⩽ … v' ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
-  end.
-Proof.
-  intros Re V r v πτ inst; revert r v πτ; induction inst;
-  intros r' v' πτ' HfRe HfV; destruct πτ'.
-  - apply RC.notEmpty_find_spec in HfRe; auto; contradiction.
-  - rewrite H in HfRe; rewrite H0 in HfV.
-    apply wf_env_fT_new in inst as Hnew. 
-    destruct (Resource.eq_dec (newᵣᵪ(Re)) r'); subst.
-    -- rewrite Hnew in HfV. rewrite RC.OP.P.add_eq_o in HfRe; auto; 
-        inversion HfRe; clear HfRe; subst.
-        rewrite RE.OP.P.add_eq_o in HfV; auto; inversion HfV; subst; clear HfV.
-        unfold RC.OP.P.Add in H; rewrite H. apply weakening_ℜ with Re; auto.
-        apply RC.Submap_add_spec_1.
-        + apply RC.Ext.new_key_notin_spec; lia.
-        + apply RC.Submap_refl.
-    -- rewrite <- Hnew in HfV. rewrite RC.OP.P.add_neq_o in HfRe; auto.
-        rewrite RE.OP.P.add_neq_o in HfV; auto. eapply IHinst in HfV; eauto.
-        simpl in *; destruct v'.
-        + apply weakening_ℜ with Re; auto; unfold RC.OP.P.Add in H; rewrite H;
-          apply RC.Submap_add_spec_1.
-          ++ apply RC.new_key_notin_spec; lia.
-          ++ apply RC.Submap_refl.
-        + apply weakening_ℜ with Re; auto; unfold RC.OP.P.Add in H; rewrite H;
-          apply RC.Submap_add_spec_1.
-          ++ apply RC.new_key_notin_spec; lia.
-          ++ apply RC.Submap_refl.
-  - rewrite H1 in HfV; destruct (Resource.eq_dec r r'); subst.
-    -- rewrite RE.OP.P.add_eq_o in HfV; auto; inversion HfV; subst; clear HfV.
-        rewrite H in HfRe; inversion HfRe; subst; auto.
-    -- rewrite RE.OP.P.add_neq_o in HfV; auto. eapply IHinst in HfV; eauto.
-        now simpl in HfV.
-Qed.
-
-Lemma wf_env_fT_in : forall (Re : ℜ) V (r : resource),
-  Wfᵣₜ(Re,V) -> r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V.
-Proof.
-  split.
-  - intros; destruct H0; apply RC.OP.P.find_1 in H0. 
-    eapply wf_env_fT_domains_match in H0; eauto;
-    destruct H0. exists x0; now apply RE.OP.P.find_2.
-  - revert r; induction H.
-    -- intros. unfold RE.OP.P.Empty in *; exfalso.
-       destruct H1. now apply (H0 r x).
-    -- intros. unfold RE.OP.P.Add in *. rewrite H1 in *.
-       unfold RC.OP.P.Add in *. rewrite H0.
-       apply RE.OP.P.add_in_iff in H3; destruct H3; subst.
-       + apply wf_env_fT_new in H; rewrite H.
-         rewrite RC.OP.P.add_in_iff; now left.
-       + rewrite RC.OP.P.add_in_iff; right; now apply IHwf_env_fT.
-    -- intros. unfold RE.OP.P.Add in *. rewrite H2 in *. 
-       apply IHwf_env_fT. rewrite RE.OP.P.add_in_iff in H4.
-       destruct H4; subst; auto.
-Qed.
-
-Lemma wf_env_fT_k : forall Re V,
-  Wfᵣₜ(Re,V) -> (forall k, k < (newᵣᵪ(Re)) -> k ∈ᵣᵪ Re /\ k ∈ᵣᵦ V).
-Proof.
-  intros Re V wf. induction wf; intros k Hlt.
-  - rewrite RC.Ext.new_key_Empty_spec in *; auto; lia.
-  - apply RC.Ext.new_key_Add_spec in H as HI.
-    -- destruct HI as [[Heq Hle] | [Heq Hgt]]; subst; auto; try lia.
-       destruct (Resource.eq_dec k (newᵣᵪ( Re))); subst.
-       + split.
-         ++ unfold RC.OP.P.Add in H. rewrite H. rewrite RC.OP.P.add_in_iff; now left.
-         ++ apply wf_env_fT_new in wf. rewrite wf.
-            unfold RE.OP.P.Add in H0. rewrite H0.
-            rewrite RE.OP.P.add_in_iff; now left.
-       + rewrite Heq in Hlt. assert (k < (newᵣᵪ( Re))) by lia.
-         apply IHwf in H2 as [HInRe HInV].
-         split.
-         ++ unfold RC.OP.P.Add in H. rewrite H.
-            rewrite RC.OP.P.add_in_iff; now right.
-         ++ unfold RE.OP.P.Add in H0. rewrite H0.
-            rewrite RE.OP.P.add_in_iff; now right.
-    -- apply RC.Ext.new_key_notin_spec; lia.
-  - apply IHwf in Hlt as [HInRe HInV].
-    split; auto. unfold RE.OP.P.Add in H1. rewrite H1.
-    rewrite RE.OP.P.add_in_iff; now right.
-Qed.
-
-Lemma wf_env_fT_weakening_bis:  forall (Re : ℜ) V,
-  Wfᵣₜ(Re,V) -> Wfᵣₜ(RC.Raw.remove (maxᵣᵪ(Re)) Re,RE.Raw.remove (maxᵣᵦ(V)) V).
-Proof.
-
-Admitted.
-
-Lemma wf_env_fT_weakening:  forall (Re Re' : ℜ) V V' τ τ' v,
-  Addᵣᵪ (newᵣᵪ(Re)) (τ, τ') Re Re' ->
-  Addᵣᵦ (newᵣᵦ(V)) v V V' ->
-  Wfᵣₜ(Re',V') -> Wfᵣₜ(Re,V).
-Proof.
-  intros Re Re' V V' τ τ' v HAddRe HAddV wfrt. 
-  revert Re V τ τ' v HAddRe HAddV. inversion wfrt; intros.
-  - exfalso. apply (H (newᵣᵪ( Re0)) (τ, τ')).
-    apply RC.OP.P.find_2. rewrite HAddRe.
-    now rewrite RC.OP.P.add_eq_o.
-  - subst. assert (HnewRe: newᵣᵪ(Re) = newᵣᵪ(Re0)). 
-   
-Admitted.  
 
 (** ** Lift of multiple evaluation transitions *)
 
@@ -382,9 +161,7 @@ Proof.
     inversion Hwt; subst; rename H3 into Hwt'; clear Hwt; move Hwt' after Hwtv.
     (* clean *)
 
-    repeat split; auto.
-    -- intros r HIn; inversion HIn.
-    -- intros r HIn; inversion HIn.
+    repeat (split; try now auto).
     -- apply wt_app with (τ2 := α); assumption.
     -- eapply all_arrow_halting; eauto; econstructor; eauto.
   (* fT_first *)
@@ -406,7 +183,7 @@ Proof.
         move Hwt' before Hwt; clear Hwt; move Hinst' before Hinst; move Hunsd before Husd.
         (* clean *)
 
-        repeat split; auto.
+        repeat (split; try now auto).
         + now apply halts_first.
         + rewrite halts_pair in *; destruct Hltv as [_ Hltv2]; split; assumption.
 
@@ -443,7 +220,7 @@ Proof.
           move Hlt2' before Hlt1'; move Hltv'' before Hltv'; move HltV'' before HltV'.
           (* clean *)
 
-          repeat split; auto.
+          repeat (split; try now auto).
           ++ intros r HIn; rewrite Resources.union_spec in HIn; destruct HIn as [HIn1 | HIn2]; auto.
              apply Hunsd2 in HIn2 as Hunsd. destruct Hunsd as [v HfV'].
              exists v; rewrite Hlcl1; auto; split.
@@ -482,18 +259,26 @@ Proof.
     move HfV after HfRe. 
     (* clean *)
 
-    repeat split.
+    repeat (split; try now auto).
     -- intros r' HIn; rewrite Resources.singleton_spec in HIn; subst; now exists v.
     -- intros r' [HnIn HIn]; apply Resources.singleton_notin_spec in HnIn.
        rewrite RE.OP.P.add_neq_o; auto.
-    -- eapply wfFT_update; eauto.
-       + apply RE.OP.P.in_find; intro c; rewrite HfV in c; inversion c.
-       + unfold RE.OP.P.Add; reflexivity.
+    -- intros. rewrite (wf_env_fT_in Re V) in H; auto.
+       rewrite RE.OP.P.add_in_iff; auto.
+    -- intro HInV. rewrite RE.OP.P.add_in_iff in HInV.
+       destruct HInV as [Heq | HInV]; subst.
+       + exists (α,β). now apply (RC.OP.P.find_2).
+       + rewrite (wf_env_fT_in Re V); assumption.
+    -- intros. destruct (Resource.eq_dec r r0); subst.
+       + rewrite RE.OP.P.add_eq_o in H0; auto.
+         inversion H0; subst; clear H0.
+         rewrite H in HfRe; inversion HfRe; subst; clear HfRe.
+         assumption.
+       + rewrite RE.OP.P.add_neq_o in H0; auto.
+         eapply wf_env_fT_well_typed; eauto.
     -- intros r' HIn; apply Resources.singleton_spec in HIn; subst; unfold RE.used.
        exists st; now apply RE.OP.P.add_eq_o.
     -- apply wf_env_fT_well_typed with (V := V) (v := ⩽ v … ⩾) in HfRe; try assumption.
-    -- now constructor.
-    -- exists <[rsf[r]]>; split; auto.
     -- unfold RE.halts in HltV; apply HltV in HfV; now simpl in *.
     -- unfold RE.halts in *; intros. rewrite RE.OP.P.add_o in H.
        destruct (Resource.eq_dec r r0); subst.

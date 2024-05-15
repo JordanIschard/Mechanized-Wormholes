@@ -1,4 +1,4 @@
-From Coq Require Import Lists.Streams Structures.Equalities.
+From Coq Require Import Lists.Streams Structures.Equalities Classes.Morphisms.
 From Mecha Require Import Term Typ Evaluation Resource VContext RContext Typing.
 From DeBrLevel Require Import LevelInterface.
 
@@ -66,6 +66,14 @@ Proof.
     -- eapply trans_EqSt; eauto.
 Qed.
 
+Lemma rflow_well_typed_next : forall Γ Re s α β,
+  well_typed_rflow Γ Re s α β ->
+  Γ ⋅ Re ⊫ {RFlow.next s} ∈ α.
+Proof.
+  intros. unfold well_typed_rflow in H. destruct s; simpl.
+  destruct H as [H _]. now inversion H.
+Qed.
+
 Lemma rflow_weakening_Γ : forall Γ Γ' Re s α β,
   Γ ⊆ᵥᵪ Γ' ->
   well_typed_rflow Γ Re s α β ->
@@ -101,6 +109,17 @@ Qed.
 Lemma rflow_well_typed_None : forall Γ Re s α β,
   well_typed_rflow Γ Re s α β ->
   well_typed_rflow Γ Re (RFlow.put None s) α β.
+Proof.
+  intros. unfold well_typed_rflow in *; destruct s; unfold put.
+  destruct H; split.
+  - now inversion H.
+  - constructor; simpl; auto.
+Qed.
+
+Lemma rflow_well_typed_Some : forall Γ Re s v α β,
+  well_typed_rflow Γ Re s α β ->
+  Γ ⋅ Re ⊫ v ∈ β ->
+  well_typed_rflow Γ Re (RFlow.put (Some v) s) α β.
 Proof.
   intros. unfold well_typed_rflow in *; destruct s; unfold put.
   destruct H; split.
