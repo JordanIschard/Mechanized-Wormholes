@@ -29,7 +29,6 @@ An old representation for dealing with names in lambda calculus uses **De Bruijn
 
 ## De Bruijn level
 
-
 De Bruijn level is a representation that avoid the capture of variables issue for the lambda-calculus. Like the De Bruijn indices, variables are numbers that are chosen regards of a constraint. For De Bruijn indices, the number associated to the variable is "distance" between the variable and the abstraction. The distance is the number of abstraction between the abstraction and its associated variable. In De Bruijn levels, there is a concept of level or depth in the term, each time we enter an abstraction the depth increase. The best advantage of levels is the simplicity to handle free variables and the fact that all variables are associated to a unique level.
 
 <div align="center">

@@ -456,3 +456,16 @@ Proof.
                                         (k := Re1⁺ᵣᵪ - Re⁺ᵣᵪ); try assumption.
   apply weakening_ℜ_1 with (Re := Re); auto.
 Qed.
+
+Corollary weakening_ℜ_bis : forall Γ (Re Re1 : ℜ) k k' t (τ : Τ),
+  Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
+  
+  Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+
+  k = Re⁺ᵣᵪ ->
+  k' = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
+  
+  Γ ⋅ Re1 ⊫ [⧐ₜₘ k ≤ k'] t ∈ τ.
+Proof. 
+  intros; subst. now apply weakening_ℜ. 
+Qed.
