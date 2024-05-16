@@ -1,6 +1,6 @@
 From Coq Require Import Classes.Morphisms Bool.Bool Classical_Prop Classes.RelationClasses.
 From DeBrLevel Require Import LevelInterface.
-Require Import Resource Term.
+From Mecha Require Import Resource Term.
 
 (** * Syntax - Cell 
 
@@ -12,7 +12,7 @@ Require Import Resource Term.
     is stocked for the update done at the end of this instant by the [temporal] transition and
     the resource is used.
 *)
-Module Cell <: ShiftValidFullDTWithLeibniz.
+Module Cell <: IsLvlFullDTWL.
 
 (** *** Definition  *)
 

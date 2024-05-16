@@ -1,6 +1,6 @@
 From Coq Require Import Classical_Prop Bool.Bool Lia Relations.Relation_Definitions
                         Classes.RelationClasses Program.
-Require Import Typ Resource Resources Term Var VContext RContext Substitution Typing.
+From Mecha Require Import Typ Resource Resources Term Var VContext RContext Substitution Typing.
 
 (** * Transition - Evaluation
 
@@ -410,6 +410,14 @@ Proof.
   - now apply Term.shift_value_iff.
 Qed.
 
+Lemma halts_weakening_1 : 
+  forall k k' t, halts k t -> halts (k + k') <[[⧐ₜₘ k ≤ k'] t]>.
+Proof.
+  intros. 
+  replace <[[⧐ₜₘ k ≤ k'] t]> with <[[⧐ₜₘ k ≤ {(k + k') - k}] t ]> by (f_equal; lia).
+  apply halts_weakening; auto; lia.
+Qed.
+
 Lemma halts_pair : forall k t1 t2,
   halts k <[⟨t1,t2⟩]> <-> halts k t1 /\ halts k t2.
 Proof.
@@ -438,6 +446,82 @@ Proof.
     -- apply multi_trans with <[⟨t1',t2⟩]>.
        + now apply multi_pair1.
        + now apply multi_pair2.
+    -- now constructor.
+Qed.
+
+Lemma halts_first : forall k τ t,
+  halts k <[first(τ:t)]> <-> halts k t.
+Proof.
+  intros k τ t; split; intros HA.
+  - destruct HA as [t' [HmeT Hvt]]; dependent induction HmeT.
+    -- inversion Hvt; subst; exists t; split; auto.
+    -- inversion H; subst. apply (IHHmeT τ t') in Hvt; eauto.
+       rewrite evaluate_preserves_halting; eauto.
+  - destruct HA as [t' [HmeT Hvt']]; exists <[first(τ:t')]>; split; auto.
+    now apply multi_first.
+Qed.
+
+Lemma halts_comp : forall k t1 t2,
+  halts k <[t1 >>> t2]> <-> halts k t1 /\ halts k t2.
+Proof.
+  assert (Hcomp : forall k t1 t2 t, k ⊨ t1 >>> t2 ⟼⋆ t ->
+                             exists t1' t2', t = <[t1' >>> t2']>).
+  {
+    intros k t1 t2 t HeT; dependent induction HeT; subst.
+    - exists t1; now exists t2.
+    - inversion H; subst; eauto. 
+  }
+  intros k t1 t2; split; intros HA.
+  - destruct HA as [t [HmeT Hvt]]. apply Hcomp in HmeT as Heq.
+    destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
+    -- inversion Hvt; subst; split.
+       + exists t1'; split; auto.
+       + exists t2'; split; auto.
+    -- inversion H; subst.
+       + apply IHHmeT with (t1 := t1'0) (t2 := t2) in Hvt; auto.
+         destruct Hvt; split; auto; clear H1.
+         rewrite evaluate_preserves_halting; eauto.
+       + apply IHHmeT with (t1 := t1) (t2 := t') in Hvt; auto.
+         destruct Hvt; split; auto; clear H0.
+         rewrite evaluate_preserves_halting; eauto.
+  - destruct HA. destruct H as [t1' [HmeT1 Hvt1']];
+    destruct H0 as [t2' [HmeT2 Hvt2']].
+    exists <[t1' >>> t2']>; split.
+    -- apply multi_trans with <[t1' >>> t2]>.
+       + now apply multi_comp1.
+       + now apply multi_comp2.
+    -- now constructor.
+Qed.
+
+Lemma halts_wh : forall k t1 t2,
+  halts k <[wormhole(t1;t2)]> <-> halts k t1 /\ halts (S (S k)) t2.
+Proof.
+  assert (Hwh : forall k t1 t2 t, k ⊨ wormhole(t1;t2) ⟼⋆ t ->
+                             exists t1' t2', t = <[wormhole(t1';t2')]>).
+  {
+    intros k t1 t2 t HeT; dependent induction HeT; subst.
+    - exists t1; now exists t2.
+    - inversion H; subst; eauto. 
+  }
+  intros k t1 t2; split; intros HA.
+  - destruct HA as [t [HmeT Hvt]]. apply Hwh in HmeT as Heq.
+    destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
+    -- inversion Hvt; subst; split.
+       + exists t1'; split; auto.
+       + exists t2'; split; auto.
+    -- inversion H; subst.
+       + apply IHHmeT with (t1 := i') (t2 := t2) in Hvt; auto.
+         destruct Hvt; split; auto; clear H1.
+         rewrite evaluate_preserves_halting; eauto.
+       + apply IHHmeT with (t1 := t1) (t2 := t') in Hvt; auto.
+         destruct Hvt; split; auto; clear H0.
+         rewrite evaluate_preserves_halting; eauto.
+  - destruct HA. destruct H as [t1' [HmeT1 Hvt1']];
+    destruct H0 as [t2' [HmeT2 Hvt2']].
+    exists <[wormhole(t1';t2')]>; split.
+    -- apply multi_trans with <[wormhole(t1';t2)]>.
+       + now apply multi_wh1.
+       + now apply multi_wh2.
     -- now constructor.
 Qed.
 

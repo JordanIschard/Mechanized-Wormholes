@@ -7,7 +7,7 @@ From DeBrLevel Require Import Level Levels SetLevelInterface.
   a new arrow which carries a set of used resources. In order to define this type
   we define a set of resources identifiers.
 *)
-Module Resources <: StrongShiftValidFullSetOTWLInterface Level.
+Module Resources <: IsBdlLvlFullSetOTWLInterface Level.
 
 Include Levels.
 

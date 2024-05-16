@@ -1,12 +1,12 @@
 From Coq Require Import Classical_Prop Classes.RelationClasses MSets Bool.Bool Lia.
 From DeBrLevel Require Import LevelInterface.
-Require Import Var Resource Typ.
+From Mecha Require Import Var Resource Typ.
 
 (** * Syntax - Term
 
   Here is the definition of terms based on the Wormholes language.
 *)
-Module Term <: ShiftValidFullDTWithLeibniz.
+Module Term <: IsLvlFullDTWL.
 
 (** *** Definition *)
 

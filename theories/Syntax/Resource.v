@@ -1,4 +1,4 @@
-From DeBrLevel Require Import Level LevelInterface PairLevel.
+From DeBrLevel Require Import LevelInterface Level PairLevel.
 
 (** * Syntax - Resource
 
@@ -6,11 +6,10 @@ From DeBrLevel Require Import Level LevelInterface PairLevel.
   we need identifiers for resources. Thus, we choose De Bruijn level as representation in
   order to avoid capture variables. It is a direct use of the [Level] module.
 *)
-Module Resource <: StrongShiftValidFullOTWithLeibniz := Level.
+Module Resource <: IsBdlLvlFullOTWL := Level.
 
 (** * Syntax - Pair of resources *)
-Module PairResource <: StrongShiftValidFullETWithLeibniz
-:= StrongShiftValidFullPairOTWL Resource Resource. 
+Module PairResource <: IsBdlLvlFullETWL := IsBdlLvlFullPairOTWL Resource Resource.
 
 (** *** Scope and Notations *)
 Declare Custom Entry wormholes.

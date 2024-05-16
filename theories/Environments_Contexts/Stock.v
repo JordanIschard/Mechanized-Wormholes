@@ -1,12 +1,12 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-Require Import Resource Resources Term REnvironment Cell ReadStock WriteStock.
+From Mecha Require Import Resource Resources Term REnvironment Cell ReadStock WriteStock.
 From DeBrLevel Require Import LevelInterface MapExt PairLevel.
 From MMaps Require Import MMaps.
 
 
-Module Stock <: ShiftValidET.
+Module Stock <: IsLvlET.
 
-Include ShiftValidPairET ReadStock WriteStock.
+Include IsLvlPairET ReadStock WriteStock.
 
 (** *** Definition *)
 

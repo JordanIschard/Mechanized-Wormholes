@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Program Bool.Bool Classes.Morphisms.
-Require Import Typ Resource Resources Term Var VContext RContext.
+From Mecha Require Import Typ Resource Resources Term Var VContext RContext.
 
 
 (** * Typing 
@@ -19,7 +19,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
   | wt_abs    : forall Γ Re x τ2 τ1 t1,
                     (⌈x ⤆ τ1⌉ᵥᵪ Γ) ⋅ Re ⊫ t1 ∈ τ2 -> 
-                         newᵣᵪ(Re) ⊩ₜ τ1 ->
+                         Re⁺ᵣᵪ ⊩ₜ τ1 ->
                 (*---------------------------------- WT-Abs *)
                   Γ ⋅ Re ⊫ (\x:τ1, t1) ∈ (τ1 → τ2)
 
@@ -58,7 +58,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
                   Γ ⋅ Re ⊫ arr(t) ∈ (τ1 ⟿ τ2 ∣ ∅ᵣₛ)
 
   | wt_first  : forall Γ Re R t (τ1 τ2 τ : Τ),
-                          Γ ⋅ Re ⊫ t ∈ (τ1 ⟿ τ2 ∣ R) -> newᵣᵪ(Re) ⊩ₜ τ ->
+                          Γ ⋅ Re ⊫ t ∈ (τ1 ⟿ τ2 ∣ R) -> Re⁺ᵣᵪ ⊩ₜ τ ->
                 (*------------------------------------------------ WT-First *)
                   Γ ⋅ Re ⊫ first(τ:t) ∈ ((τ1 × τ) ⟿ (τ2 × τ) ∣ R)
 
@@ -74,7 +74,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
                   Γ ⋅ Re ⊫ rsf[r] ∈ (τin ⟿ τout ∣ \{{r}})
 
   | wt_wh     : forall Γ (Re : ℜ) i t (R R' : resources) (τ τ1 τ2 : Τ),
-                    let k := (newᵣᵪ(Re)) in
+                    let k := (Re⁺ᵣᵪ) in
                     Γ ⋅ Re ⊫ i ∈ τ ->
                     (R = R' \ \{{ k; (S k) }})%rs -> k ⊩ₜ τ1 -> k ⊩ₜ τ2 ->
                     Γ ⋅ (⌈(S k) ⤆ (τ,<[𝟙]>)⌉ᵣᵪ ⌈k ⤆ (<[𝟙]>,τ)⌉ᵣᵪ Re) ⊫ t ∈ (τ1 ⟿ τ2 ∣ R') ->
@@ -93,9 +93,9 @@ Notation "G '⋅' R '⊫' t '∈' T" := (well_typed G R t T) (at level 40,
 Instance well_typed_rc :
   Proper (VContext.eq ==> RContext.eq ==> Term.eq ==> Typ.eq ==> iff) well_typed.
 Proof.
-  repeat red; intros Γ Γ' HΓeq Re Re' Hℜeq t t' HΛeq τ τ' HΤeq; split; 
+  repeat red; intros Γ Γ' HΓeq Re Re1 Hℜeq t t' HΛeq τ τ' HΤeq; split; 
   unfold Term.eq,Typ.eq in *; subst.
-  - revert Γ Γ' τ' Re Re' HΓeq Hℜeq. induction t'; intros Γ Γ' τ' Re Re' HΓeq Hℜeq Hwt;
+  - revert Γ Γ' τ' Re Re1 HΓeq Hℜeq. induction t'; intros Γ Γ' τ' Re Re1 HΓeq Hℜeq Hwt;
     inversion Hwt; subst; try (econstructor; now eauto).
     -- constructor; now rewrite <- HΓeq.
     -- apply wt_abs; try (now rewrite <- Hℜeq).
@@ -110,14 +110,14 @@ Proof.
        + now rewrite <- Hℜeq.
        + now rewrite <- Hℜeq.
        + eapply IHt'2; eauto; now rewrite Hℜeq.
-  - revert Γ Γ' τ' Re Re' HΓeq Hℜeq; induction t'; intros Γ Γ' τ' Re Re' HΓeq Hℜeq Hwt;
+  - revert Γ Γ' τ' Re Re1 HΓeq Hℜeq; induction t'; intros Γ Γ' τ' Re Re1 HΓeq Hℜeq Hwt;
     inversion Hwt; subst; try (econstructor; now eauto).
     -- constructor; now rewrite HΓeq.
     -- apply wt_abs; try (now rewrite Hℜeq).
-       apply IHt' with (Re' := Re') (Γ' := ⌈ v ⤆ τ ⌉ᵥᵪ Γ'); auto.
+       apply IHt' with (Re1 := Re1) (Γ' := ⌈ v ⤆ τ ⌉ᵥᵪ Γ'); auto.
        now rewrite HΓeq.
     -- apply wt_first; try (now rewrite Hℜeq).
-       apply IHt' with (Re' := Re') (Γ' := Γ'); auto.
+       apply IHt' with (Re1 := Re1) (Γ' := Γ'); auto.
     -- apply wt_rsf; now rewrite Hℜeq.
     -- unfold k in *; apply wt_wh with (R' := R') (τ := τ).
        + eapply IHt'1; eauto.
@@ -268,11 +268,10 @@ Qed.
   We can state that the term [t](4) and the type [τ](5) is also valid regards of [lb].
 *)
 Theorem well_typed_implies_valid : forall Γ Re t τ,
-  let lb := newᵣᵪ(Re) in
-  (* (1) *) lb ⊩ᵥᵪ Γ -> 
-  (* (2) *) lb ⊩ᵣᵪ Re -> (* (3) *) Γ ⋅ Re ⊫ t ∈ τ ->
+  (* (1) *) Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> 
+  (* (2) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re -> (* (3) *) Γ ⋅ Re ⊫ t ∈ τ ->
 (*---------------------------------------------------*)
-      (* (4) *) lb ⊩ₜₘ t /\ (* (5) *) lb ⊩ₜ τ.
+      (* (4) *) Re⁺ᵣᵪ ⊩ₜₘ t /\ (* (5) *) Re⁺ᵣᵪ ⊩ₜ τ.
 Proof.
   intros Γ Re t; revert Γ Re; induction t; intros Γ Re τ'; simpl; intros HvΓ HvRe Hwt;
   inversion Hwt; subst.
@@ -305,24 +304,24 @@ Proof.
     apply IHt2 in H5; auto; destruct H5; inversion H3; subst; split; repeat constructor; auto.
     apply Resources.eq_leibniz in H2; subst. rewrite Resources.valid_union_spec; split; auto.
   (* rsf *)
-  - apply RContext.valid_find_spec with (lb := newᵣᵪ(Re)) in H2 as []; auto.
+  - apply RContext.valid_find_spec with (lb := Re⁺ᵣᵪ) in H2 as []; auto.
     destruct H0; simpl in *. split; constructor; auto. now apply Resources.valid_singleton_spec.
   (* wormhole *)
   - apply IHt1 in H1; auto; destruct H1; apply IHt2 in H8; eauto.
     -- unfold k in *; clear k; destruct H8; inversion H4; subst.
       rewrite RContext.new_key_wh_spec in *; split; 
       repeat constructor; eauto. apply Resources.eq_leibniz in H2; subst. now apply Resources.valid_wh_spec.
-    -- apply VContext.valid_weakening with (k := newᵣᵪ(Re)); auto. unfold k in *; rewrite RContext.new_key_wh_spec in *; lia.
+    -- apply VContext.valid_weakening with (k := Re⁺ᵣᵪ); auto. unfold k in *; rewrite RContext.new_key_wh_spec in *; lia.
     -- unfold k in *; rewrite RContext.new_key_wh_spec. rewrite RContext.valid_add_notin_spec.
       + repeat split.
         ++ unfold Resource.valid; lia.
-        ++ simpl; apply Typ.valid_weakening with (k := newᵣᵪ( Re)); auto.
+        ++ simpl; apply Typ.valid_weakening with (k := Re⁺ᵣᵪ); auto.
         ++ simpl; constructor.
         ++ rewrite RContext.valid_add_notin_spec; repeat split; simpl.
             * unfold Resource.valid; lia.
             * constructor.
-            * apply Typ.valid_weakening with (k := newᵣᵪ( Re)); auto.
-            * apply RContext.valid_weakening with (k := newᵣᵪ( Re)); auto.
+            * apply Typ.valid_weakening with (k := Re⁺ᵣᵪ); auto.
+            * apply RContext.valid_weakening with (k := Re⁺ᵣᵪ); auto.
             * apply RContext.Ext.new_key_notin_spec; lia.
       + apply RContext.Ext.new_key_notin_spec; 
         rewrite RContext.Ext.new_key_add_spec_1; auto.
@@ -346,30 +345,30 @@ Proof.
 Qed.
 
 (** *** General proof of resource context weakening *)
-Theorem weakening_ℜ_gen : forall Γ (Re Re' : ℜ) t (τ : Τ) (k k' : nat),
-  k <= newᵣᵪ(Re) -> 
-  k' <= newᵣᵪ(Re') -> 
+Theorem weakening_ℜ_gen : forall Γ (Re Re1 : ℜ) t (τ : Τ) (k k' : nat),
+  k <= Re⁺ᵣᵪ -> 
+  k' <= Re1⁺ᵣᵪ -> 
   k <= k' -> 
-  newᵣᵪ(Re) <= newᵣᵪ(Re') ->
-  k' - k = newᵣᵪ(Re') - newᵣᵪ(Re) ->
-  ([⧐ᵣᵪ k ≤ (k' - k)] Re) ⊆ᵣᵪ Re' -> Γ ⋅ Re ⊫ t ∈ τ -> 
+  Re⁺ᵣᵪ <= Re1⁺ᵣᵪ ->
+  k' - k = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
+  ([⧐ᵣᵪ k ≤ (k' - k)] Re) ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
 
-  ([⧐ᵥᵪ k ≤ (k' - k)] Γ) ⋅ Re' ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ [⧐ₜ k ≤ {k' - k}] τ.
+  ([⧐ᵥᵪ k ≤ (k' - k)] Γ) ⋅ Re1 ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ [⧐ₜ k ≤ {k' - k}] τ.
 Proof.
-  simpl; intros Γ Re Re' t τ k k' Hle Hle' Hle'' Hlen Heq Hsub wt.
-  revert Re' k k' Hle' Hsub Hle  Hle'' Heq Hlen.
-  dependent induction wt; intros Re' n m Hle' Hsub Hle  Hle'' Heq Hlen; simpl; 
+  simpl; intros Γ Re Re1 t τ k k' Hle Hle' Hle'' Hlen Heq Hsub wt.
+  revert Re1 k k' Hle' Hsub Hle  Hle'' Heq Hlen.
+  dependent induction wt; intros Re1 n m Hle' Hsub Hle  Hle'' Heq Hlen; simpl; 
   try (econstructor; now eauto); eauto.
   (* variable *)
   - constructor; now apply VContext.shift_find_spec.
   (* abstraction *) 
   - constructor.
     -- rewrite <- VContext.shift_add_spec. apply IHwt; auto.
-    -- apply Typ.shift_preserves_valid_2 with (newᵣᵪ(Re)); auto.
+    -- apply Typ.shift_preserves_valid_2 with (Re⁺ᵣᵪ); auto.
   (* arr *)
   - rewrite Resources.shift_empty_spec. econstructor; eauto.
   (* first *)
-  - econstructor; eauto. apply Typ.shift_preserves_valid_2 with (newᵣᵪ(Re)); auto.
+  - econstructor; eauto. apply Typ.shift_preserves_valid_2 with (Re⁺ᵣᵪ); auto.
   (* comp *)
   - econstructor; eauto.
     -- apply Resources.eq_leibniz in H; subst.
@@ -387,21 +386,21 @@ Proof.
     -- apply Resources.eq_leibniz in H; subst; unfold k.
       rewrite Resources.shift_diff_spec. repeat rewrite Resources.shift_add_notin_spec.
       + unfold Resource.shift. rewrite <- Nat.leb_le in Hle; rewrite Hle.
-        replace (n <=? S (newᵣᵪ( Re))) with true.
+        replace (n <=? S (Re⁺ᵣᵪ)) with true.
         ++ rewrite Resources.shift_empty_spec. rewrite Heq; simpl.
-            replace (newᵣᵪ( Re) + (newᵣᵪ( Re') - newᵣᵪ( Re))) with (newᵣᵪ(Re')); try reflexivity.
+            replace (Re⁺ᵣᵪ + (Re1⁺ᵣᵪ - Re⁺ᵣᵪ)) with (Re1⁺ᵣᵪ); try reflexivity.
             apply RContext.Ext.new_key_Submap_spec in Hsub; lia.
         ++ symmetry; rewrite Nat.leb_le in *; lia.
       + intro; inversion H.
       + rewrite Resources.add_notin_spec; split; auto. intro; inversion H.
-    -- apply Typ.shift_preserves_valid_2 with (newᵣᵪ(Re)); auto.
-    -- apply Typ.shift_preserves_valid_2 with (newᵣᵪ(Re)); auto.
+    -- apply Typ.shift_preserves_valid_2 with (Re⁺ᵣᵪ); auto.
+    -- apply Typ.shift_preserves_valid_2 with (Re⁺ᵣᵪ); auto.
     -- apply IHwt2; unfold k in *; try (rewrite RContext.new_key_wh_spec in *);
         try lia.
-      + assert ((([⧐ᵣᵪ n ≤ (m - n)] ⌈ S (newᵣᵪ( Re)) ⤆ (τ,<[ 𝟙 ]>) ⌉ᵣᵪ 
-                                  (⌈ newᵣᵪ( Re) ⤆ (<[ 𝟙 ]>,τ) ⌉ᵣᵪ Re)) = 
-                  ( ⌈ ([⧐ᵣ n ≤ (m - n)] S (newᵣᵪ( Re))) ⤆ ( <[[⧐ₜ n ≤ {m - n}] τ]>,<[ 𝟙 ]>) ⌉ᵣᵪ 
-                  (⌈ ([⧐ᵣ n ≤ (m - n)] newᵣᵪ( Re)) ⤆ (<[ 𝟙 ]>,<[[⧐ₜ n ≤ {m - n}] τ]>) ⌉ᵣᵪ ([⧐ᵣᵪ n ≤ (m - n)] Re))))%rc).
+      + assert ((([⧐ᵣᵪ n ≤ (m - n)] ⌈ S (Re⁺ᵣᵪ) ⤆ (τ,<[ 𝟙 ]>) ⌉ᵣᵪ 
+                                  (⌈ Re⁺ᵣᵪ ⤆ (<[ 𝟙 ]>,τ) ⌉ᵣᵪ Re)) = 
+                  ( ⌈ ([⧐ᵣ n ≤ (m - n)] S (Re⁺ᵣᵪ)) ⤆ ( <[[⧐ₜ n ≤ {m - n}] τ]>,<[ 𝟙 ]>) ⌉ᵣᵪ 
+                  (⌈ ([⧐ᵣ n ≤ (m - n)] Re⁺ᵣᵪ) ⤆ (<[ 𝟙 ]>,<[[⧐ₜ n ≤ {m - n}] τ]>) ⌉ᵣᵪ ([⧐ᵣᵪ n ≤ (m - n)] Re))))%rc).
         ++ rewrite RContext.shift_add_notin_spec; eauto.
             * unfold PairTyp.shift; simpl.
               rewrite RContext.shift_add_notin_spec.
@@ -410,26 +409,26 @@ Proof.
             * rewrite RContext.add_in_iff. intro. destruct H2; try lia.
               apply RContext.Ext.new_key_notin_spec in H2; auto.
         ++ eapply RContext.Submap_eq_left_spec; eauto. unfold Resource.shift; simpl.
-            replace (n <=? S (newᵣᵪ( Re))) with true; replace (n <=? newᵣᵪ( Re)) with true;
+            replace (n <=? S (Re⁺ᵣᵪ)) with true; replace (n <=? Re⁺ᵣᵪ) with true;
             try (symmetry; rewrite Nat.leb_le; lia). rewrite Heq; simpl.
-            replace (newᵣᵪ( Re) + (newᵣᵪ( Re') - newᵣᵪ( Re))) with (newᵣᵪ( Re')) by lia.
+            replace (Re⁺ᵣᵪ + (Re1⁺ᵣᵪ - Re⁺ᵣᵪ)) with (Re1⁺ᵣᵪ) by lia.
             repeat apply RContext.Submap_add_spec. rewrite <- Heq. assumption.
       + rewrite RContext.new_key_wh_spec; lia.
       + rewrite RContext.new_key_wh_spec; lia.
 Qed. 
 
 (** *** Proof of resource context weakening *)
-Corollary weakening_ℜ : forall Γ (Re Re' : ℜ) t (τ : Τ),
-  let k := newᵣᵪ(Re) in let k' := newᵣᵪ(Re') in
-  k ⊩ᵣᵪ Re -> 
-  Re ⊆ᵣᵪ Re' ->
+Corollary weakening_ℜ_1 : forall Γ (Re Re1 : ℜ) t (τ : Τ),
+  Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
+  Re ⊆ᵣᵪ Re1 ->
   Γ ⋅ Re ⊫ t ∈ τ -> 
 
-  ([⧐ᵥᵪ k ≤ (k' - k)] Γ) ⋅ Re' ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ [⧐ₜ k ≤ {k' - k}] τ.
+  ([⧐ᵥᵪ Re⁺ᵣᵪ ≤ (Re1⁺ᵣᵪ - Re⁺ᵣᵪ)] Γ) ⋅ Re1 ⊫ 
+              [⧐ₜₘ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] t ∈ [⧐ₜ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] τ.
 Proof. 
   simpl; intros; apply weakening_ℜ_gen with (Re := Re); auto;
   try (apply RContext.Ext.new_key_Submap_spec in H0; assumption).
-  assert ((([⧐ᵣᵪ newᵣᵪ( Re) ≤ newᵣᵪ( Re') - newᵣᵪ( Re)] Re) = Re)%rc) 
+  assert ((([⧐ᵣᵪ Re⁺ᵣᵪ ≤ Re1⁺ᵣᵪ - Re⁺ᵣᵪ] Re) = Re)%rc) 
   by now apply RContext.shift_valid_refl.
   eapply RContext.Submap_eq_left_spec; eauto. 
 Qed.
@@ -442,20 +441,31 @@ Corollary weakening_Γ_empty : forall Γ Re t τ,
   Γ ⋅ Re ⊫ t ∈ τ.
 Proof. intros Γ Re t τ; eapply weakening_Γ. apply VContext.Submap_empty_spec. Qed.
 
-Corollary weakening_ℜ_1 : forall Γ (Re Re' : ℜ) t (τ : Τ),
-  let k := newᵣᵪ(Re) in let k' := newᵣᵪ(Re') in
-  k ⊩ᵥᵪ Γ -> 
-  k ⊩ᵣᵪ Re -> 
-  Re ⊆ᵣᵪ Re' ->
-  Γ ⋅ Re ⊫ t ∈ τ -> 
+Corollary weakening_ℜ : forall Γ (Re Re1 : ℜ) t (τ : Τ),
+  Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
   
-  Γ ⋅ Re' ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ τ.
+  Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+  
+  Γ ⋅ Re1 ⊫ [⧐ₜₘ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] t ∈ τ.
 Proof. 
   simpl; intros. apply well_typed_implies_valid in H2 as H2'; try assumption.
   destruct H2'. 
-  rewrite <- VContext.shift_valid_refl with (lb := newᵣᵪ(Re)) (t := Γ) 
-                                            (k := newᵣᵪ(Re') - newᵣᵪ(Re)); try assumption.
-  rewrite <- Typ.shift_valid_refl with (lb := newᵣᵪ(Re)) (τ := τ) 
-                                        (k := newᵣᵪ(Re') - newᵣᵪ(Re)); try assumption.
-  apply weakening_ℜ with (Re := Re); auto.
+  rewrite <- VContext.shift_valid_refl with (lb := Re⁺ᵣᵪ) (t := Γ) 
+                                            (k := Re1⁺ᵣᵪ - Re⁺ᵣᵪ); try assumption.
+  rewrite <- Typ.shift_valid_refl with (lb := Re⁺ᵣᵪ) (τ := τ) 
+                                        (k := Re1⁺ᵣᵪ - Re⁺ᵣᵪ); try assumption.
+  apply weakening_ℜ_1 with (Re := Re); auto.
+Qed.
+
+Corollary weakening_ℜ_bis : forall Γ (Re Re1 : ℜ) k k' t (τ : Τ),
+  Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
+  
+  Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+
+  k = Re⁺ᵣᵪ ->
+  k' = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
+  
+  Γ ⋅ Re1 ⊫ [⧐ₜₘ k ≤ k'] t ∈ τ.
+Proof. 
+  intros; subst. now apply weakening_ℜ. 
 Qed.

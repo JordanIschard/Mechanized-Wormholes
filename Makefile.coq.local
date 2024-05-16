@@ -13,5 +13,7 @@ coqdoc: $(GLOBFILES) $(VFILES) $(CSSFILES) $(JSFILES) $(HTMLFILES)
 	$(HIDE)mkdir -p $(COQDOCDIR)
 	$(HIDE)$(COQDOC) $(COQDOCHTMLFLAGS) $(COQDOCLIBS) -d $(COQDOCDIR) $(VFILES)
 	$(HIDE)cp -r doc/resources $(COQDOCDIR)
+	@+$(MAKE) -f Makefile.coq cleanall
+	@rm -f Makefile.coq Makefile.coq.conf
   
 .PHONY: coqdoc

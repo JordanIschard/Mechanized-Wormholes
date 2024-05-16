@@ -8,6 +8,9 @@ clean: Makefile.coq
 Makefile.coq: _CoqProject
 	$(COQBIN)coq_makefile -f _CoqProject -o Makefile.coq
 
+admitted :
+	@grep -nR --color=auto [aA]dmit theories/
+
 force _CoqProject Makefile: ;
 
 %: Makefile.coq force

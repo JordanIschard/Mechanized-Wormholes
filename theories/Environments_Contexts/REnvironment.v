@@ -1,13 +1,13 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-Require Import Resource Term Cell Evaluation.
-From DeBrLevel Require Import  LevelInterface MapLevelInterface MapLevel MapExtInterface 
+From Mecha Require Import Resource Term Cell Evaluation.
+From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface 
                MapExt.
 From MMaps Require Import MMaps.
 
 
 (** * Environment between resources and cells *)
-Module REnvironment <: ShiftValidET.
-Include MapLvlD.MakeShiftValidMapWLLVL Cell.
+Module REnvironment <: IsLvlET.
+Include MapLvlD.MakeLvlMapWLLVL Cell.
 
 Import Raw Ext.
 
@@ -166,6 +166,28 @@ Proof.
               ++ apply valid_weakening with (k := new_key m); auto.
 Qed.
 
+Lemma valid_wh_spec_1 : forall m v v',
+  valid (new_key m) m -> (new_key m) ⊩ᵣₓ v -> (new_key m) ⊩ᵣₓ v' -> 
+  valid (S (S (new_key m))) (add (S (new_key m)) v 
+                              (add (new_key m) (Cell.shift (new_key m) 2 v') (shift (new_key m) 2 m))).
+Proof.
+  intros. apply valid_add_notin_spec.
+  - apply new_key_notin_spec; rewrite new_key_add_spec_1; auto.
+    * apply new_key_notin_spec; rewrite shift_new_spec; auto.
+    * rewrite shift_new_spec; auto.
+  - repeat split. 
+    -- unfold Resource.valid; lia.
+    -- apply Cell.valid_weakening with (k := new_key m); auto.
+    -- apply valid_add_notin_spec.
+       * apply new_key_notin_spec; auto; rewrite shift_new_spec; auto.
+       * repeat split.
+         + unfold Resource.valid; lia.
+         + replace (S (S (new_key m))) with ((new_key m) + 2) by lia. 
+           now apply Cell.shift_preserves_valid_1.
+         + replace (S (S (new_key m))) with ((new_key m) + 2) by lia. 
+           now apply shift_preserves_valid_1.  
+Qed.
+
 Lemma valid_update_spec : forall m r v k,
   In r m -> valid k m -> Cell.valid k v -> valid k (add r v m).
 Proof.
@@ -243,6 +265,30 @@ Proof.
     -- auto.
 Qed.
 
+Lemma shift_find_spec_3 : forall lb k r V V',
+  lb ⊩ᵣ r -> In r V ->
+  find r V = find r V' -> find r (shift lb k V) = find r (shift lb k V').
+Proof.
+  intros. destruct H0 as [v HfV]; apply find_1 in HfV.
+  apply shift_find_spec with (lb := lb) (k := k) in HfV as HfV1.
+  rewrite H1 in HfV. 
+  apply shift_find_spec with (lb := lb) (k := k) in HfV as HfV2.
+  rewrite Resource.shift_valid_refl in *; auto. now rewrite HfV1, HfV2. 
+Qed.
+
+Lemma shift_find_e_spec_1 : forall lb k r v V,
+  find r (shift lb k V) = Some v -> 
+  (exists r', r = ([⧐ᵣ lb ≤ k] r')) /\ exists v', Cell.eq v (Cell.shift lb k v').
+Proof.
+  intros.
+  assert (In r (shift lb k V)). { now exists v; apply find_2. }
+  split.
+  - now apply shift_in_e_spec in H0.
+  - apply shift_in_e_spec in H0; destruct H0; subst. 
+    eapply shift_find_e_spec; eauto. 
+Qed.
+
+
 (** *** Halts *)
 
 Lemma halts_add_spec : forall m k x v,
@@ -253,12 +299,23 @@ Proof.
   apply Hltm in Hfi; auto.
 Qed.
 
-(*
-Lemma halts_valid_weakening : forall V k k',
-  k <= k' -> halts k V -> halts k' (shift k (k' - k) V).
+Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
 Proof.
- unfold halts; intros V k k' Hlt Hhlt r v Hfi.
-*)
+  intros k k' t Hle Hlt. unfold halts in *; intros r v HfV.
+  apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
+  rewrite Heqv' in *; clear Heqv'; rewrite <- shift_find_spec in HfV.
+  apply Hlt in HfV.
+  destruct v,v'; simpl in *; apply Evaluation.halts_weakening; auto.
+Qed.
+
+Lemma halts_weakening_1 : 
+  forall k k' t, halts k t -> halts (k + k') (shift k k' t).
+Proof.
+  intros k k' t Hlt. 
+  replace (shift k k' t) with (shift k ((k + k') - k) t) by (f_equal; lia).
+  apply halts_weakening; auto; lia.
+Qed.
+
 
 Lemma max_key_wh_spec : forall (m : t) v v',
   max_key (add (S (S (max_key m))) v (add (S (max_key m)) v' m)) = S (S (max_key m)).
@@ -267,6 +324,20 @@ Proof.
   assert (~In (S (S (max_key m))) (add (S (max_key m)) v' m)).
   - apply max_key_notin_spec. rewrite max_key_add_spec_1; auto; lia.
   - rewrite max_key_add_spec_1; auto. rewrite max_key_add_spec_1; auto.
+Qed.
+
+Lemma new_key_wh_spec m v v' :
+  new_key (add (S (new_key m)) v 
+          (add (new_key m) (Cell.shift (new_key m) 2 v') 
+                                      (shift (new_key m) 2 m))) = S (S (new_key m)).
+Proof.
+  rewrite new_key_add_spec_1; auto.
+  + apply new_key_notin_spec; rewrite new_key_add_spec_1; auto.
+    ++ apply new_key_notin_spec; rewrite shift_new_spec; auto.
+    ++ rewrite shift_new_spec; auto.
+  + rewrite new_key_add_spec_1; auto.
+    ++ apply new_key_notin_spec; rewrite shift_new_spec; auto.
+    ++ rewrite shift_new_spec; auto.
 Qed.
 
 (** *** Morphism *)
@@ -345,6 +416,8 @@ Notation "R ⌈ x ⩦ ⊥ '⌉ᵣᵦ'"  := (REnvironment.Raw.find x R = None) (a
                                                                                     x constr).
 
 Infix "=" := REnvironment.eq : renvironment_scope.
+
+Notation "V '⁺ᵣᵦ'" := (REnvironment.Ext.new_key V) (at level 16).
 
 Notation "'[⧐ᵣᵦ' lb '≤' k ']' t" := (REnvironment.shift lb k t) (at level 45, 
                                                                       right associativity).
