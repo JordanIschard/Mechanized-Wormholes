@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Lists.List Program.
-Require Import Term Typ Var Typing Context.
+From Mecha Require Import Term Typ Var Typing Context.
 
 (** * Substitution *)
 

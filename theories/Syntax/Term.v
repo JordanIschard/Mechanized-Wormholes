@@ -1,6 +1,6 @@
 From Coq Require Import Classical_Prop Classes.RelationClasses MSets Bool.Bool Lia.
 From DeBrLevel Require Import LevelInterface.
-Require Import Var Typ.
+From Mecha Require Import Var Typ.
 
 (** * Syntax - Term
 

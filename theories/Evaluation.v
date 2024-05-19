@@ -1,6 +1,6 @@
 From Coq Require Import Classical_Prop Bool.Bool Lia Relations.Relation_Definitions
                         Classes.RelationClasses Program.
-Require Import Typ Term Var Substitution Typing Context.
+From Mecha Require Import Typ Term Var Substitution Typing Context.
 
 (** * Transition - Evaluation
 
@@ -267,7 +267,6 @@ intros n; induction n; intros t t1 t2 Hev1 Hev2.
   apply evaluate_deterministic with (t1 := y) in H5; auto; subst. 
   now apply IHn with (t := y0).
 Qed.
-
 
 (** *** Halts *)
 

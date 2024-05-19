@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Program Bool.Bool Classes.Morphisms.
-Require Import Typ Term Var Context.
+From Mecha Require Import Typ Term Var Context.
 
 
 (** * Typing 

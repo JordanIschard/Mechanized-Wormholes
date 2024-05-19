@@ -1,6 +1,6 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses 
                         Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
-Require Import Typ Term Var Substitution Evaluation Typing Context.
+From Mecha Require Import Typ Term Var Substitution Evaluation Typing Context.
 
 (** * Transition - Functional
 

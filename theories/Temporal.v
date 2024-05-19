@@ -1,6 +1,6 @@
 From Coq Require Import Lists.Streams micromega.Lia Relations.Relation_Definitions 
                         Classes.RelationClasses Relations.Relation_Operators Program.
-Require Import Term Typ Var Substitution Typing Evaluation 
+From Mecha Require Import Term Typ Var Substitution Typing Evaluation 
                Functional Context.
 
 Module Reference.
