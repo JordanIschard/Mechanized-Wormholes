@@ -66,6 +66,34 @@ Proof.
     -- eapply trans_EqSt; eauto.
 Qed.
 
+Lemma wt_EqSt_left  Γ Re α : forall (s s1: Stream Λ),
+  EqSt s s1 ->
+  ForAll (fun v : Stream Λ => Γ ⋅ Re ⊫ {hd v} ∈ α) s ->
+  ForAll (fun v : Stream Λ => Γ ⋅ Re ⊫ {hd v} ∈ α) s1.
+cofix wt_EqSt_left.
+  intros; destruct H,s,s1; simpl in *.
+  destruct H0; split; simpl in *.
+  - now rewrite <- H.
+  - apply (wt_EqSt_left s s1); auto.
+Qed.
+
+Lemma wt_EqSt_right  Γ Re α : forall (s s1: Stream (option Λ)),
+  EqSt s s1 ->
+  ForAll (fun v => match (Streams.hd v) with 
+                            | Some v' => Γ ⋅ Re ⊫ v' ∈ α
+                            | _ => True 
+                           end) s ->
+  ForAll (fun v => match (Streams.hd v) with 
+                            | Some v' => Γ ⋅ Re ⊫ v' ∈ α
+                            | _ => True 
+                           end) s1.
+cofix wt_EqSt_right.
+  intros; destruct H,s,s1; simpl in *.
+  destruct H0; split; simpl in *.
+  - now rewrite <- H.
+  - apply (wt_EqSt_right s s1); auto.
+Qed.
+
 Lemma rflow_well_typed_next : forall Γ Re s α β,
   well_typed_rflow Γ Re s α β ->
   Γ ⋅ Re ⊫ {RFlow.next s} ∈ α.
