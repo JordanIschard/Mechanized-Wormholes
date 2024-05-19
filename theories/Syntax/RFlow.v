@@ -77,6 +77,19 @@ cofix wt_EqSt_left.
   - apply (wt_EqSt_left s s1); auto.
 Qed.
 
+Lemma wt_EqSt_left_bis  Γ Γ' Re Re' α: forall (s s1: Stream Λ),
+  (Γ = Γ')%vc ->
+  (Re = Re')%rc ->
+  EqSt s s1 ->
+  ForAll (fun v : Stream Λ => Γ ⋅ Re ⊫ {hd v} ∈ α) s ->
+  ForAll (fun v : Stream Λ => Γ' ⋅ Re' ⊫ {hd v} ∈ α) s1.
+cofix wt_EqSt_left.
+  intros. destruct H1,s,s1. simpl in *.
+  destruct H2; split; simpl in *.
+  - subst. rewrite <- H. now rewrite <- H0.
+  - apply (wt_EqSt_left s s1); auto.
+Qed.
+
 Lemma wt_EqSt_right  Γ Re α : forall (s s1: Stream (option Λ)),
   EqSt s s1 ->
   ForAll (fun v => match (Streams.hd v) with 
@@ -92,6 +105,45 @@ cofix wt_EqSt_right.
   destruct H0; split; simpl in *.
   - now rewrite <- H.
   - apply (wt_EqSt_right s s1); auto.
+Qed.
+
+Lemma wt_EqSt_right_bis  Γ  Γ' Re Re' α : forall (s s1: Stream (option Λ)),
+  (Γ = Γ')%vc ->
+  (Re = Re')%rc ->
+  EqSt s s1 ->
+  ForAll (fun v => match (Streams.hd v) with 
+                            | Some v' => Γ ⋅ Re ⊫ v' ∈ α
+                            | _ => True 
+                           end) s ->
+  ForAll (fun v => match (Streams.hd v) with 
+                            | Some v' => Γ' ⋅ Re' ⊫ v' ∈ α
+                            | _ => True 
+                           end) s1.
+cofix wt_EqSt_right.
+  intros; destruct H1,s,s1; simpl in *.
+  destruct H2; split; simpl in *.
+  - destruct o0; subst.
+    -- rewrite <- H. now rewrite <- H0.
+    -- auto.
+  - apply (wt_EqSt_right s s1); auto.
+Qed.
+
+#[export]
+Instance wt_rflow_eq :
+  Proper (VContext.eq ==> RContext.eq ==> eq ==> Typ.eq ==> Typ.eq ==> iff) well_typed_rflow.
+Proof.
+  repeat red; intros. apply Typ.eq_leibniz in H2,H3; subst.
+  split; intros.
+  - unfold well_typed_rflow in *. destruct x1,H2,y1.
+    unfold eq in *. simpl in *; destruct H1. split.
+    -- eapply wt_EqSt_left_bis; eauto.
+    -- eapply wt_EqSt_right_bis; eauto. 
+  - unfold well_typed_rflow in *. destruct y1,H2,x1.
+    unfold eq in *. simpl in *; destruct H1. split.
+    -- eapply wt_EqSt_left_bis; eauto; try (now symmetry).
+       now apply sym_EqSt.
+    -- eapply wt_EqSt_right_bis; eauto; try (now symmetry).
+       now apply sym_EqSt.
 Qed.
 
 Lemma rflow_well_typed_next : forall Γ Re s α β,
