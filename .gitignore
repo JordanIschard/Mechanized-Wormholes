@@ -48,3 +48,4 @@ Makefile.coq
 Makefile.coq.conf
 doc
 _build
+.vscode
