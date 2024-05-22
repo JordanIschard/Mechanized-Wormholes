@@ -7,11 +7,11 @@
 
 ## Dependencies
 
-The formalization depends on the library `MMaps` findable in the coq community [git](https://github.com/coq-community/coq-mmaps) and the library `DeBrLevel` findable on [git](https://github.com/JordanIschard/DeBrLevel).
+The formalization depends on the library `MMaps` available on the coq community [git](https://github.com/coq-community/coq-mmaps) and the library `DeBrLevel`, version `1.2.0`, available at [https://github.com/JordanIschard/DeBrLevel](https://github.com/JordanIschard/DeBrLevel).
 
 ## Documentation
 
-It is possible to generate documentation via the command `make coqdoc`. However, it requires to build the project before (`dune build`). The documentation generation uses the `coqdocJs` script findable in the coq community [git](https://github.com/coq-community/coqdocjs).
+It is possible to generate documentation via the command `make coqdoc`. However, it requires to build the project before (`dune build`). The documentation generation uses the `coqdocJs` script available on the coq community [git](https://github.com/coq-community/coqdocjs).
 
 ## The capture avoiding issue
 
@@ -44,6 +44,13 @@ De Bruijn level is a representation that avoid the capture of variables issue fo
 The De Bruijn level representation is more developed in the following figure.
 
 ![Example of the De Bruijn level representation for the lambda calculus](images/level_example_1.svg)
+
+## Statistics
+
+Via `coqwc $(find theories/ -name "*.v")`, we have the following statistic:
+
+| spec | proof | comments | file |
+|:---:|:---:|:---:|:---|
 
 ## Authors
 
