@@ -2,11 +2,11 @@
 
 ## Dependencies
 
-The formalization depends on the library `MMaps` findable in the coq community [git](https://github.com/coq-community/coq-mmaps).
+The formalization depends on the library `MMaps` available on the coq community [git](https://github.com/coq-community/coq-mmaps).
 
 ## Introduction
 
-This project is a formalization of a lambda-calculus with pairs, recursion and arrow terms (`arr`, `first` and `(>>>)`). It is a simplification of the main formalization findable on the [main branch](https://github.com/JordanIschard/Mechanized-Wormholes) of the repository.
+This project is a formalization of a lambda-calculus with pairs, recursion and arrow terms (`arr`, `first` and `(>>>)`). It is a simplification of the main formalization available at the [main branch](https://github.com/JordanIschard/Mechanized-Wormholes) of the repository.
 
 ## Statistics
 
