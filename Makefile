@@ -11,7 +11,7 @@ Makefile.coq: _CoqProject
 force _CoqProject Makefile: ;
 
 admitted :
-	@grep -nR --color=auto [aA]dmit theories/
+	@grep -nR --color=auto [aA]dmit theories/ || echo "No admitted proof found !"
 
 %: Makefile.coq force
 	@+$(MAKE) -f Makefile.coq $@
