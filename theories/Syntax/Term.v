@@ -1,5 +1,5 @@
 From Coq Require Import Classical_Prop Classes.RelationClasses MSets Bool.Bool Lia.
-From DeBrLevel Require Import LevelInterface.
+From DeBrLevel Require Import LevelInterface OptionLevel.
 From Mecha Require Import Var Resource Typ.
 
 (** * Syntax - Term
@@ -489,11 +489,16 @@ Proof. intros. eapply shift_preserves_valid_2; eauto. Qed.
 
 End Term.
 
+Module OptTerm <: IsLvlETWL := IsLvlOptETWL Term.
+
 
 (** *** Scope and Notations *)
 Declare Scope term_scope.
+Declare Scope opt_term_scope.
 Delimit Scope term_scope with tm.
+Delimit Scope opt_term_scope with otm.
 Definition Λ := Term.t.
+Definition Λₒ := OptTerm.t.
 
 Coercion Term.tm_var : variable >-> Term.raw.
 Notation "value( t )" := (Term.value t) (at level 20, no associativity).
@@ -527,9 +532,13 @@ Notation "'wormhole(' i ';' sf ')'" :=  (Term.tm_wh i sf ) (in custom wormholes 
 
 Notation "'[⧐ₜₘ' lb '≤' k ']' t" := (Term.shift lb k t) 
   (in custom wormholes at level 65, right associativity).
+Notation "'[⧐ₒₜₘ' lb '≤' k ']' t" := (OptTerm.shift lb k t) 
+  (in custom wormholes at level 65, right associativity).
 
 Infix "⊩ₜₘ" := Term.valid (at level 20, no associativity).   
+Infix "⊩ₒₜₘ" := OptTerm.valid (at level 20, no associativity).   
 Infix "⊩?ₜₘ" := Term.validb (at level 20, no associativity). 
 
 Infix "=" := Term.eq : term_scope.
 Infix "=?" := Term.eqb  (at level 70) : term_scope.
+Infix "=" := OptTerm.eq : opt_term_scope.

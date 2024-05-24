@@ -32,12 +32,12 @@ Inductive evaluate : nat -> Λ -> Λ -> Prop :=
   | eT_appv   : forall lb x τ t v,
                                   value(v) ->
                 (*-------------------------------------------- ET-Appv *)
-                    lb ⊨ ((\x:τ,t) v) ⟼ ([x:= v ~ lb ≤ 0] t)
+                    lb ⊨ ((\x:τ,t) v) ⟼ ([x:= v ~ lb] t)
 
 
   | eT_fix   : forall lb f τ t,
                 (*------------------------------------------------------------ ET-Fix *)
-                    lb ⊨ (Fix (\f:τ,t)) ⟼ ([f := (Fix (\f:τ,t)) ~ lb ≤ 0] t)
+                    lb ⊨ (Fix (\f:τ,t)) ⟼ ([f := (Fix (\f:τ,t)) ~ lb] t)
 
   | eT_app1   : forall lb t1 t1' t2,
                         lb ⊨ t1 ⟼ t1' -> 
