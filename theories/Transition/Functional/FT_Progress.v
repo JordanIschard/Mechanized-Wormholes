@@ -327,4 +327,45 @@ Proof.
     eapply (wf_env_fT_valid Re V); auto.
 Qed.
 
+Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
+
+  (* (1) *) halts (Re⁺ᵣᵪ)  t -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V ->
+
+  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+
+  (* (6) *) Wfᵣₜ(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+
+  (*-------------------------------------------------------------------------------------------------*)
+    (exists (V1 : 𝓥) (tv' t' : Λ) (W : 𝐖), 
+        (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢ /\
+        (*  (9) *) halts (V1⁺ᵣᵦ) t' /\ (* (10) *) halts (V1⁺ᵣᵦ) tv'/\ (* (11) *) RE.halts (V1⁺ᵣᵦ) V1).
+Proof. 
+  intros Hlt; destruct Hlt as [t' [HmeT Hvt']]. apply multi_indexed in HmeT as [k HieT].
+  revert Re V tv t τ τ' R t' HieT Hvt'. induction k; 
+  intros Re V tv t τ τ' R t' HieT Hvt' Hltv HltV Hwt Hwtv Hwf Hunsd.
+  (* sf is a value *)
+  - inversion HieT; subst. 
+    apply (progress_of_functional_value _ _ tv t' τ τ' R) in Hwf as HfT; try assumption.
+    destruct HfT as [V1 [tv' [t'' [W fT]]]].
+    eapply functional_preserves_typing_gen in fT as HfT; eauto.
+    -- destruct HfT as [_ [_ [Re1 [R' [_ [_ [Hwf1 [_ [_ [_ [_ [_ [Ht'' [Hltv' HlV']]]]]]]]]]]]]].
+       rewrite (wf_env_fT_new Re1 V1) in *; auto.  
+       exists V1; exists tv'; exists t''; exists W; repeat split; auto.
+    -- exists t'; now split.
+  (* sf can be reduced at least one time *)
+  - inversion HieT; subst.
+
+    (* clean *)
+    clear HieT; rename y into t1; rename H0 into HeT; rename H2 into HieT.
+    move t1 before t; move t' before t.
+    (* clean *)
+
+    apply evaluate_preserves_typing with (t' := t1) in Hwt as Hwt1; auto.
+    eapply IHk in HieT as IH; eauto; clear IHk.
+    destruct IH as [V1 [tv' [t1' [W [HfT [Hlt1' [Hltv' HltV']]]]]]].
+    -- exists V1; exists tv'; exists t1'; exists W; split; auto; eapply fT_eT_sf; eauto.
+       now rewrite <- (wf_env_fT_new Re V).
+    -- eapply (wf_env_fT_valid Re V); auto.
+Qed.
+
 End progress.
