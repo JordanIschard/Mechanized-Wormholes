@@ -14,92 +14,6 @@ Hypothesis all_arrow_halting : forall Re t α β,
 
 Hint Resolve VContext.valid_empty_spec Stock.valid_empty_spec WriteStock.valid_empty_spec : core.
 
-Fixpoint test (t : Λ) : nat :=
-  match t with
-    | Term.tm_app t1 t2 => (test t1) + (test t2) 
-    | Term.tm_abs x τ t1 => (test t1)
-    | Term.tm_pair t1 t2 => (test t1) + (test t2) 
-    | Term.tm_fst t1 => (test t1)
-    | Term.tm_snd t1 => (test t1)
-    | Term.tm_first τ t1 => (test t1)
-    | Term.tm_comp t1 t2 => (test t1) + (test t2) 
-    | Term.tm_wh t1 t2 => (test t1) + S (S (test t2))
-    | _ => 0
-  end.
-
-
-Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
-  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
-
-  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
-  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
-
-  (* (6) *) Wfᵣₜ(Re,V) ->
-  (* (7) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
-
-(* k  k'  k <= V+ k ⊢ tv /\ sf    *)
-  exists (V1 : 𝓥) (tv' sf' : Λ) (W : 𝐖),
-    ⪡ V ; tv ; sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
-Proof.
-  (***
-  définir un nombre de wh rencontré depuis le début.
-  *)
- revert Re V tv τ τ' R; induction sf; 
- intros Re V tv τ1 τ1' R Hvsf Hltv HlV Hwsf Hwtv Hwf Hunsd; inversion Hvsf; inversion Hwsf; subst.
- 
- - exists V; exists <[sf tv]>; exists <[arr(sf)]>; exists (∅ₛₖ). now constructor.
- 
- - destruct Hltv as [tv' [HmeT Hvtv']].
-   apply multi_preserves_typing with (t' := tv') in Hwtv as Hwtv'; auto.
-   -- inversion Hvtv'; subst; inversion Hwtv'; subst.
-      apply (IHsf Re V v1 _ τ3 R) in H8 as HfT; auto.
-      + destruct HfT as [V1 [v1' [sf1 [W fT]]]].
-        exists V1; exists <[⟨v1',[⧐ₜₘ {V⁺ᵣᵦ} ≤ {V1⁺ᵣᵦ - V⁺ᵣᵦ}] v2⟩]>; exists <[first(τ:sf1)]>; exists W.
-        apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>).
-        ++ rewrite <- (wf_env_fT_new Re V); auto.
-        ++ now constructor.
-      + inversion Hvtv'; subst; exists v1; now split.
-   -- eapply wf_env_fT_valid; eauto.
-  
-  - admit.
-  - destruct (Hunsd r) as [tr HfV].
-    -- now apply Resources.singleton_spec.
-    -- exists (⌈ r ⤆ ⩽ … tv ⩾ ⌉ᵣᵦ V); exists tr; exists <[rsf[r]]>; exists (∅ₛₖ).
-       now constructor.
-
-  - clear IHsf1. 
-    apply weakening_ℜ_bis 
-    with (Re1 := (⌈ S k ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ (⌈ k ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re))) 
-    (k := Re⁺ᵣᵪ) (k' := 2) in Hwtv as Hwtv'; auto.
-    -- apply (IHsf2 _ (⌈S (V⁺ᵣᵦ) ⤆ ⩽ <[unit]> … ⩾⌉ᵣᵦ (⌈V⁺ᵣᵦ ⤆ [⧐ᵣₓ V⁺ᵣᵦ ≤ 2] ⩽ sf1 … ⩾⌉ᵣᵦ ([⧐ᵣᵦ V⁺ᵣᵦ ≤ 2] V)))
-                    _ _ τ1' R') in Hwtv' as HfT; auto.
-       + destruct HfT as [V1 [tv' [sf' [W HfT]]]].
-         exists V1; exists tv'; exists sf'; exists (⌈V⁺ᵣᵦ ~ S (V⁺ᵣᵦ) ⤆ <[[⧐ₜₘ {V⁺ᵣᵦ} ≤ {V1⁺ᵣᵦ - V⁺ᵣᵦ}] sf1]>⌉ₛₖ W).
-         constructor. rewrite (wf_env_fT_new Re V) in *; auto.
-       + unfold k in *. rewrite RC.new_key_wh_spec.
-         replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
-         now apply halts_weakening_1.
-       + unfold k in *. rewrite RC.new_key_wh_spec.
-         apply RE.halts_add_spec; split; simpl.
-         ++ exists <[unit]>; now split.
-         ++ apply RE.halts_add_spec; split; simpl.
-            * rewrite <- (wf_env_fT_new Re V); auto.
-              replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
-              apply halts_weakening_1. exists sf1; now split.
-            * rewrite <- (wf_env_fT_new Re V); auto.
-              replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
-              now apply RE.halts_weakening_1.
-       + admit.
-       + intros. unfold RE.unused. admit.
-    -- eapply wf_env_fT_valid; eauto.
-    -- unfold k in *. apply RC.Ext.Submap_add_spec_1.
-       + apply RC.Ext.new_key_notin_spec.
-         rewrite RC.Ext.new_key_add_spec_1; auto.
-         apply RC.Ext.new_key_notin_spec; lia.
-       + apply RC.Ext.Submap_add_spec_1; try reflexivity.
-         apply RC.Ext.new_key_notin_spec; lia.
-    -- unfold k in *. rewrite RC.new_key_wh_spec; lia.
-Admitted.
 
 Theorem progress_of_functional_value_gen (Re : ℜ) (m n : list nat) lb (V : 𝓥) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
   (* (1) *) value(sf) -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
@@ -259,47 +173,29 @@ Proof.
               apply well_typed_implies_valid in H8 as [_ Hwτ]; auto.
               eapply (wf_env_fT_valid Re V); auto.
         ++ rewrite RE.new_key_wh_spec.
-            apply RE.valid_wh_spec_1; auto; try now constructor.
-            unfold Cell.valid; simpl.
-            apply well_typed_implies_valid in H8 as [H8 _]; auto.
-            now rewrite <- (wf_env_fT_new Re V).
-       + intros r τ1 τ1' v HfRe HfV.
-         destruct (Resource.eq_dec r (S (Re⁺ᵣᵪ))); subst.
-         ++ rewrite RE.add_eq_o in HfV; auto.
-            rewrite RC.add_eq_o in HfRe; auto.
-            inversion HfRe; inversion HfV; subst; clear HfV HfRe.
-            constructor.
-         ++ destruct (Resource.eq_dec r (Re⁺ᵣᵪ)); subst.
-            * rewrite RE.add_neq_o in HfV; try lia.
-              rewrite RE.add_eq_o in HfV; auto.
-              rewrite RC.add_neq_o in HfRe; try lia.
-              rewrite RC.add_eq_o in HfRe; auto.
-              inversion HfRe; inversion HfV; subst; clear HfV HfRe.
-              apply (weakening_ℜ_bis _ Re); auto.
-              { 
-                apply RC.Ext.Submap_add_spec_1.
-                - apply RC.Ext.new_key_notin_spec.
-                  rewrite RC.Ext.new_key_add_spec_1; auto.
-                  apply RC.Ext.new_key_notin_spec; lia.
-                - apply RC.Ext.Submap_add_spec_1.
-                  -- apply RC.Ext.new_key_notin_spec; lia.
-                  -- reflexivity.
-              }
-              { rewrite RC.new_key_wh_spec; lia. }
-           * rewrite RE.add_neq_o in HfV; try lia.
-             rewrite RE.add_neq_o in HfV; try lia.
-             rewrite RC.add_neq_o in HfRe; try lia.
-             rewrite RC.add_neq_o in HfRe; try lia.
-             apply RE.shift_find_e_spec_1 in HfV as Hr'.
-             destruct Hr' as [[r' Heqr'] [v' Heqv']]; subst.
-             rewrite Heqv' in *; clear Heqv'.
-             apply RE.shift_find_spec in HfV.
-             apply RE.valid_find_spec with (lb := V⁺ᵣᵦ) in HfV as Hvr'; auto.
-             destruct Hvr' as [Hvr' _].
-             rewrite Resource.shift_valid_refl in HfRe; auto.
-             apply (wf_env_fT_well_typed Re V Hwf r' v') in HfRe as Hwv'; auto.
-             destruct v'; auto; simpl.
-             ** apply (weakening_ℜ_bis _ Re); auto.
+           apply RE.valid_wh_spec_1; auto; try now constructor.
+           * eapply (wf_env_fT_valid Re V); auto.
+           * unfold Cell.valid; simpl.
+             apply well_typed_implies_valid in H8 as [H8 _]; auto.
+             ** now rewrite <- (wf_env_fT_new Re V).
+             ** eapply (wf_env_fT_valid Re V); auto.
+        ++ unfold k in *. intros r τ2 τ2' v HfRe HfV.
+           destruct (Resource.eq_dec r (S (Re⁺ᵣᵪ))); subst.
+           * rewrite RE.add_eq_o in HfV; auto.
+             rewrite RC.add_eq_o in HfRe; auto.
+             inversion HfRe; inversion HfV; subst; clear HfV HfRe.
+             constructor.
+             rewrite (wf_env_fT_new Re V); auto.
+           * destruct (Resource.eq_dec r (Re⁺ᵣᵪ)); subst.
+             ** rewrite RE.add_neq_o in HfV;
+                try now rewrite (wf_env_fT_new Re V); auto.
+                rewrite RE.add_eq_o in HfV;
+                try now rewrite (wf_env_fT_new Re V); auto.
+                rewrite RC.add_neq_o in HfRe; try lia.
+                rewrite RC.add_eq_o in HfRe; auto.
+                inversion HfRe; inversion HfV; subst; clear HfV HfRe.
+                apply (weakening_ℜ_bis _ Re); auto.
+                { eapply wf_env_fT_valid; eauto. }
                 { 
                   apply RC.Ext.Submap_add_spec_1.
                   - apply RC.Ext.new_key_notin_spec.
@@ -309,18 +205,57 @@ Proof.
                     -- apply RC.Ext.new_key_notin_spec; lia.
                     -- reflexivity.
                 }
+                { rewrite (wf_env_fT_new Re V); auto. }
                 { rewrite RC.new_key_wh_spec; lia. }
-             ** apply (weakening_ℜ_bis _ Re); auto.
-                { 
-                  apply RC.Ext.Submap_add_spec_1.
-                  - apply RC.Ext.new_key_notin_spec.
-                    rewrite RC.Ext.new_key_add_spec_1; auto.
-                    apply RC.Ext.new_key_notin_spec; lia.
-                  - apply RC.Ext.Submap_add_spec_1.
-                    -- apply RC.Ext.new_key_notin_spec; lia.
-                    -- reflexivity.
+             ** rewrite RE.add_neq_o in HfV;
+                try now rewrite (wf_env_fT_new Re V); auto.
+                rewrite RE.add_neq_o in HfV; 
+                try (rewrite (wf_env_fT_new Re V) in *; auto).
+                {
+                  rewrite RC.add_neq_o in HfRe; try lia.
+                  rewrite RC.add_neq_o in HfRe; try lia.
+                  apply RE.shift_find_e_spec_1 in HfV as Hr'.
+                  destruct Hr' as [[r' Heqr'] [v' Heqv']]; subst.
+                  rewrite Heqv' in *; clear Heqv'.
+                  apply RE.shift_find_spec in HfV.
+                  apply RE.valid_find_spec with (lb := V⁺ᵣᵦ) in HfV as Hvr'; 
+                  try (eapply wf_env_fT_valid; eauto); auto.
+                  destruct Hvr' as [Hvr' _].
+                  rewrite Resource.shift_valid_refl in HfRe; auto.
+                  apply (wf_env_fT_well_typed Re V Hwf r' v') in HfRe as Hwv'; auto.
+                  destruct v'; auto; simpl.
+                  - apply (weakening_ℜ_bis _ Re); auto.
+                    -- eapply wf_env_fT_valid; eauto.
+                    -- apply RC.Ext.Submap_add_spec_1.
+                       + apply RC.Ext.new_key_notin_spec.
+                         rewrite RC.Ext.new_key_add_spec_1; auto.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                            apply RC.Ext.new_key_notin_spec; lia.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                       + apply RC.Ext.Submap_add_spec_1.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                            apply RC.Ext.new_key_notin_spec; lia.
+                         ++ reflexivity.
+                    -- rewrite (wf_env_fT_new Re V); auto.
+                    -- rewrite <- (wf_env_fT_new Re V); auto. 
+                       rewrite RC.new_key_wh_spec; lia.
+                  - apply (weakening_ℜ_bis _ Re); auto.
+                    -- eapply wf_env_fT_valid; eauto.
+                    -- apply RC.Ext.Submap_add_spec_1.
+                       + apply RC.Ext.new_key_notin_spec.
+                         rewrite RC.Ext.new_key_add_spec_1; auto.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                            apply RC.Ext.new_key_notin_spec; lia.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                       + apply RC.Ext.Submap_add_spec_1.
+                         ++ rewrite <- (wf_env_fT_new Re V); auto.
+                            apply RC.Ext.new_key_notin_spec; lia.
+                         ++ reflexivity.
+                    -- rewrite (wf_env_fT_new Re V); auto.
+                    -- rewrite <- (wf_env_fT_new Re V); auto. 
+                       rewrite RC.new_key_wh_spec; lia.
                 }
-                { rewrite RC.new_key_wh_spec; lia. }admit.
+                { rewrite <- (wf_env_fT_new Re V); auto. }
        + intros. 
          assert (r ∈ R \/ r = (S k) \/ r = k)%rs.
          {
@@ -337,7 +272,19 @@ Proof.
          }
          destruct H0 as [HIn | [Heq | Heq]]; subst; unfold k in *.
          ++ apply typing_Re_R with (r := r) in Hwsf; auto.
-            * admit.
+            * apply Hunsd in HIn; destruct HIn.
+              apply (RE.shift_find_spec (V⁺ᵣᵦ) 2) in H0.
+              apply RC.valid_in_spec with (lb := Re⁺ᵣᵪ) in Hwsf as Hvr.
+              ** rewrite (wf_env_fT_new Re V) in Hvr; auto.
+                 rewrite Resource.shift_valid_refl in H0; auto. simpl in *.
+                 exists <[[⧐ₜₘ{V ⁺ᵣᵦ} ≤ 2] x]>.
+                 rewrite RE.OP.P.add_neq_o.
+                 { 
+                  rewrite RE.OP.P.add_neq_o; auto.
+                  unfold Resource.valid in *. lia.
+                 }
+                 { unfold Resource.valid in *. lia. }
+              ** eapply (wf_env_fT_valid Re V); auto.
             * constructor; now apply Term.multi_shift_value_iff.
          ++ exists <[unit]>. rewrite RE.OP.P.add_eq_o; auto.
             now rewrite (wf_env_fT_new Re V).
@@ -355,6 +302,29 @@ Proof.
       + apply RC.Ext.Submap_add_spec_1; try reflexivity.
         apply RC.Ext.new_key_notin_spec; lia.
     -- unfold k in *. rewrite RC.new_key_wh_spec; lia.
-Admitted.
+  - rewrite Term.multi_shift_unit in *; inversion Hwsf.
+  - rewrite Term.multi_shift_fix in *; inversion Hwsf.
+Qed.
+
+Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
+  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
+
+  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
+  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+  (* (6) *) Wfᵣₜ(Re,V) ->
+  (* (7) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+
+  exists (V1 : 𝓥) (tv' sf' : Λ) (W : 𝐖),
+    ⪡ V ; tv ; sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
+Proof.
+  intros. rewrite <- (Term.multi_shift_nil sf) in H2.
+  eapply progress_of_functional_value_gen in H3; eauto.
+  - destruct H3 as [V1 [tv' [sf' [W fT]]]].
+    rewrite (Term.multi_shift_nil sf) in *.
+    now exists V1; exists tv'; exists sf'; exists W.
+  - rewrite (Term.multi_shift_nil sf) in *.
+    apply well_typed_implies_valid in H2 as [H2 _]; auto.
+    eapply (wf_env_fT_valid Re V); auto.
+Qed.
 
 End progress.

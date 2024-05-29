@@ -409,11 +409,6 @@ Proof.
     - now rewrite Resource.shift_unfold_1.
 Qed.
 
-Lemma shift_unfold_2 lb lb' k k' r:
-  lb' <= lb -> lb' <= k' -> lb <= k' -> 
-  shift lb k (shift lb' (k' - lb') r) = shift lb' (k + (k' - lb')) r.
-Proof. Admitted.
-
 (** *** Valid *)
 
 Lemma validb_valid : forall k t, validb k t = true <-> valid k t.
@@ -649,6 +644,12 @@ Lemma multi_shift_nil_r lbs : forall t,
   multi_shift lbs nil t = t.
 Proof. 
   intro. unfold multi_shift; destruct lbs; reflexivity. 
+Qed.
+
+Lemma multi_shift_nil : forall t,
+  multi_shift nil nil t = t.
+Proof. 
+  intro. unfold multi_shift; reflexivity. 
 Qed.
 
 Lemma multi_shift_cons lb k lbs ks t:
