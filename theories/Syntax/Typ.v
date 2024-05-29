@@ -51,6 +51,10 @@ Fixpoint shift (lb : Lvl.t) (k : Lvl.t) (τ : t) : t :=
   end
 .
 
+Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
+  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+
+
 (** **** Valid function
 
   In the same way than the [shift] function, the valid function scan the entire type and
@@ -336,6 +340,8 @@ Notation "τ1 '⟿' τ2 '∣' R" := (Typ.ty_reactive τ1 τ2 R) (in custom wormh
 
 
 Notation "'[⧐ₜ' lb '≤' k ']' t" := (Typ.shift lb k t) (in custom wormholes at level 45, 
+right associativity).
+Notation "'[⧐⧐ₜ' lb '≤' k ']' t" := (Typ.multi_shift lb k t) (in custom wormholes at level 45, 
 right associativity).
 Notation "'[⧐ₚₜ' lb '≤' k ']' t" := (PairTyp.shift lb k t) (in custom wormholes at level 45, 
 right associativity).

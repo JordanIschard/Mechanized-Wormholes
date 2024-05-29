@@ -11,6 +11,10 @@ Module Resources <: IsBdlLvlFullSetOTWLInterface Level.
 
 Include Levels.
 
+Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
+  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+
+
 Lemma valid_wh_spec : forall s lb,
   valid (S (S lb)) s -> valid lb (diff s (add lb (add (S lb) empty))).
 Proof.
@@ -48,3 +52,4 @@ Infix "=?" := Resources.equal (at level 70) : resources_scope.
 Infix "⊩ᵣₛ" := Resources.valid (at level 20, no associativity). 
 Infix "⊩?ᵣₛ" := Resources.validb (at level 20, no associativity). 
 Notation "'[⧐ᵣₛ' lb '≤' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity).
+Notation "'[⧐⧐ᵣₛ' lb '≤' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity).

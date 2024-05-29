@@ -79,6 +79,10 @@ Fixpoint shift (lb : nat) (k : nat) (e : t) : t :=
   end
 .
 
+Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
+  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+
+
 (** **** Valid function 
 
   A term is valid if all their types and resources contained in it are valid.
@@ -405,6 +409,11 @@ Proof.
     - now rewrite Resource.shift_unfold_1.
 Qed.
 
+Lemma shift_unfold_2 lb lb' k k' r:
+  lb' <= lb -> lb' <= k' -> lb <= k' -> 
+  shift lb k (shift lb' (k' - lb') r) = shift lb' (k + (k' - lb')) r.
+Proof. Admitted.
+
 (** *** Valid *)
 
 Lemma validb_valid : forall k t, validb k t = true <-> valid k t.
@@ -487,6 +496,183 @@ Lemma shift_preserves_valid_3 : forall lb lb' t,
     valid lb' (shift lb (lb' - lb) t).
 Proof. intros. eapply shift_preserves_valid_2; eauto. Qed.
 
+(** *** Multi Shift *)
+
+Lemma multi_shift_unit lbs ks :
+  multi_shift lbs ks tm_unit = tm_unit.
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_fix lbs ks :
+  multi_shift lbs ks tm_fix = tm_fix.
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_var lbs ks : forall x,
+  multi_shift lbs ks (tm_var x) = tm_var x.
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_rsf lbs ks : forall r,
+  multi_shift lbs ks (tm_rsf r) = tm_rsf ([⧐⧐ᵣ lbs ≤ ks] r).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_app lbs ks : forall t1 t2,
+  multi_shift lbs ks (tm_app t1 t2) = tm_app (multi_shift lbs ks t1) (multi_shift lbs ks t2).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_pair lbs ks : forall t1 t2,
+  multi_shift lbs ks (tm_pair t1 t2) = tm_pair (multi_shift lbs ks t1) (multi_shift lbs ks t2).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_comp lbs ks : forall t1 t2,
+  multi_shift lbs ks (tm_comp t1 t2) = tm_comp (multi_shift lbs ks t1) (multi_shift lbs ks t2).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_wh lbs ks : forall t1 t2,
+  multi_shift lbs ks (tm_wh t1 t2) = tm_wh (multi_shift lbs ks t1) (multi_shift lbs ks t2).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_fst lbs ks : forall t1,
+  multi_shift lbs ks (tm_fst t1) = tm_fst (multi_shift lbs ks t1).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_snd lbs ks : forall t1,
+  multi_shift lbs ks (tm_snd t1) = tm_snd (multi_shift lbs ks t1).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_arr lbs ks : forall t1,
+  multi_shift lbs ks (tm_arr t1) = tm_arr (multi_shift lbs ks t1).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_abs lbs ks : forall x τ t1,
+  multi_shift lbs ks (tm_abs x τ t1) = tm_abs x <[[⧐⧐ₜ lbs ≤ ks]  τ]> (multi_shift lbs ks t1).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_first lbs ks : forall τ t1,
+  multi_shift lbs ks (tm_first τ t1) = tm_first <[[⧐⧐ₜ lbs ≤ ks]  τ]> (multi_shift lbs ks t1).
+Proof. 
+  unfold multi_shift. revert ks.
+  induction lbs.
+  - simpl; intros; reflexivity.
+  - simpl; intros; destruct ks.
+    -- simpl; reflexivity.
+    -- simpl. rewrite IHlbs. now simpl.
+Qed.
+
+Lemma multi_shift_nil_l ks : forall t,
+  multi_shift nil ks t = t.
+Proof. intro. unfold multi_shift; now simpl. Qed.
+
+Lemma multi_shift_nil_r lbs : forall t,
+  multi_shift lbs nil t = t.
+Proof. 
+  intro. unfold multi_shift; destruct lbs; reflexivity. 
+Qed.
+
+Lemma multi_shift_cons lb k lbs ks t:
+  multi_shift (lb :: lbs) (k :: ks) t = shift lb k (multi_shift lbs ks t).
+Proof.
+  unfold multi_shift; simpl; reflexivity.
+Qed.
+
+Lemma multi_shift_value_iff lbs ks t: 
+  value t <-> value (multi_shift lbs ks t).
+Proof.
+  split.
+  - revert ks t; induction lbs; intros;
+    unfold multi_shift in *; simpl in *; auto.
+    destruct ks; simpl in *; auto.
+    apply shift_value_iff. now apply IHlbs.
+  - revert ks t; induction lbs; intros;
+    unfold multi_shift in *; simpl in *; auto.
+    destruct ks; simpl in *; auto.
+    apply shift_value_iff in H. 
+    eapply IHlbs; eauto.
+Qed.
+
+
 End Term.
 
 Module OptTerm <: IsLvlETWL := IsLvlOptETWL Term.
@@ -531,6 +717,8 @@ Notation "'wormhole(' i ';' sf ')'" :=  (Term.tm_wh i sf ) (in custom wormholes 
                                                                   no associativity).
 
 Notation "'[⧐ₜₘ' lb '≤' k ']' t" := (Term.shift lb k t) 
+  (in custom wormholes at level 65, right associativity).
+Notation "'[⧐⧐ₜₘ' lb '≤' k ']' t" := (Term.multi_shift lb k t) 
   (in custom wormholes at level 65, right associativity).
 Notation "'[⧐ₒₜₘ' lb '≤' k ']' t" := (OptTerm.shift lb k t) 
   (in custom wormholes at level 65, right associativity).
