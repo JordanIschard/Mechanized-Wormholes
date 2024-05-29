@@ -2,7 +2,8 @@
 
 ## Task list
 
-- [ ] Finish the formalization
+- [x] Safety of the functional transition
+- [ ] Safety of the temporal transition
 - [x] Update the project with `dune`
 
 ## Dependencies
@@ -16,15 +17,7 @@ It is possible to generate documentation via the command `make coqdoc`. However,
 ## The capture avoiding issue
 
 The difficulty to formalize `Wormholes` comes from the naming of resources. Indeed, like in the lambda-calculus the naming of variable can provoke bad behavior in the case of lazy evaluation. In our case, **resources** are evaluated during the functional transition but **never replaced** and can **be moved by a substitution** during a beta-reduction. In order to avoid capture of names during an evaluation we have to cautiously deal with resources.
-
-<!--
-First versions do not deal with this issue and end up stuck.
-
-Several representations exist to avoid the alpha renaming issue, we tested the **locally nameless** representation, but it also ends up stuck. The trick in this representation is to name the bound variables (_open_) only when we go through an abstraction and remove the name (_close_) when we go out the abstraction. Unfortunately, in the typing system needs to stock used resource names even the bound resources.
-
-We try to brute force the issue with a handmade equivalence property, but it came to be very annoying to work with.  
--->
-
+****
 An old representation for dealing with names in lambda calculus uses **De Bruijn indexes**. But this representation is hard to read, and all functions provoke a consequent number of shifts. However, there is its little brother not very common named **De Bruijn levels** that caught our attention (thanks to _Adrien Guatto_).
 
 ## De Bruijn level
@@ -51,6 +44,29 @@ Via `coqwc $(find theories/ -name "*.v")`, we have the following statistic:
 
 | spec | proof | comments | file |
 |:---:|:---:|:---:|:---|
+|   67|   32|    4| [VContext](Environments_Contexts/VContext.v) |
+|   82|   67|    3| [RContext](Environments_Contexts/RContext.v) |
+|  128|  272|    8| [REnvironment](Environments_Contexts/REnvironment.v) |
+|  135|  243|    9| [ReadStock](Environments_Contexts/ReadStock.v) |
+|   51|   58|    4| [WriteStock](Environments_Contexts/WriteStock.v) |
+|   68|   91|    7| [Stock](Environments_Contexts/Stock.v) |
+|   17|    4|    3| [Var](Syntax/Var.v) |
+|   34|   19|    6| [Resource](Syntax/Resource.v) |
+|   32|    7|    5| [Resources](Syntax/Resources.v) |
+|  130|  133|   26| [Typ](Syntax/Typ.v) |
+|  264|  325|   28| [Term](Syntax/Term.v) |
+|   96|   77|   24| [Cell](Syntax/Cell.v) |
+|  133|  220|   59| [Typing.v](Typing.v) |
+|   88|    0|   74| [ET_Definition](Transition/Evaluation/ET_Definition.v) |
+|   22|   44|   45| [ET_Preservation](Transition/Evaluation/ET_Preservation.v) |
+|  101|  367|   15| [ET_Props](Transition/Evaluation/ET_Props.v) |
+|    2|   44|    7| [ET_Progress](Transition/Evaluation/ET_Progress.v) |
+|    2|   31|   13| [FT_Safety](Transition/Functional/FT_Safety.v) |
+|    2|   42|   14| [FT_Definition](Transition/Functional/FT_Definition.v) |
+|   58|  140|    8| [FT_Props](Transition/Functional/FT_Props.v) |
+|  105|  713|  154| [FT_Preservation](Transition/Functional/FT_Preservation.v) |
+|   17|  322|   20| [FT_Progress](Transition/Functional/FT_Progress.v) |
+| 1634| 3251|  536| **total** |
 
 ## Authors
 
