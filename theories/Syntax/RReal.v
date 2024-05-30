@@ -1,5 +1,5 @@
 From Coq Require Import Lists.List Structures.Equalities Classes.Morphisms.
-From Mecha Require Import Term Typ Evaluation Resource VContext RContext Typing.
+From Mecha Require Import Term Typ ET_Definition Resource VContext RContext Typing.
 From DeBrLevel Require Import LevelInterface PairLevel ListLevel.
 Import ListNotations.
 
@@ -8,7 +8,7 @@ Module RRealI <: IsLvlETWL.
 Include IsLvlListETWL Term.
 
 Definition halts k t := 
-  forall x, In x t -> Evaluation.halts k x.
+  forall x, In x t -> ET_Definition.halts k x.
 
 Definition well_typed (Γ : Γ) (Re : ℜ) (t : t) (τ : Τ) :=
   forall x, In x t -> Γ ⋅ Re ⊫ x ∈ τ.
@@ -85,11 +85,11 @@ Definition prop_opt (P: Λ -> Prop) ot :=
 
 
 Lemma halts_next k t : 
-  halts k t -> prop_opt (Evaluation.halts k) (next t).
+  halts k t -> prop_opt (ET_Definition.halts k) (next t).
 Proof.  Admitted.
 
 Lemma halts_put_Some k t v :
-  halts k t -> Evaluation.halts k v -> halts k (put (Some v) t).
+  halts k t -> ET_Definition.halts k v -> halts k (put (Some v) t).
 Proof.
   intros; unfold put; destruct t; destruct H; split; simpl in *.
   - unfold RRealI.halts in *; intros. apply H.
