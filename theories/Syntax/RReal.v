@@ -86,7 +86,12 @@ Definition prop_opt (P: Λ -> Prop) ot :=
 
 Lemma halts_next k t : 
   halts k t -> prop_opt (ET_Definition.halts k) (next t).
-Proof.  Admitted.
+Proof.
+  unfold halts,next; intros []. destruct t; simpl in *.
+  destruct l; simpl in *; auto.
+  unfold RRealI.halts in *; apply H.
+  simpl; now left.
+Qed.
 
 Lemma halts_put_Some k t v :
   halts k t -> ET_Definition.halts k v -> halts k (put (Some v) t).
