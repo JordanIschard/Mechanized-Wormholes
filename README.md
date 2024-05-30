@@ -28,9 +28,9 @@ De Bruijn level is a representation that avoid the capture of variables issue fo
 
 | Representation | term |
 |:--:|:--:|
-| basic | $λz.(λx.(λy.(y~z)~x)~z)~~λx.x$ |
-| De Bruijn indices | $λ.(λ.(λ.(0~2)~0)~0)~~λ.0$ |
-| **De Bruijn levels** | $λ.(λ.(λ.(2~0)~1)~0)~~λ.0$ |
+| classic | λz.(λx.(λy.(y z) x) z) λx.x |
+| De Bruijn indices | λ.(λ.(λ.(0 2) 0) 0) λ.0 |
+| **De Bruijn levels** | λ.(λ.(λ.(2 0) 1) 0)λ.0 |
 
 </div>
 
