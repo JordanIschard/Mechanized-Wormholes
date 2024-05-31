@@ -195,10 +195,9 @@ Qed.
   then τ and τ' are equivalent.    
 *)
 Lemma typing_deterministic : forall t Γ Re τ τ',
-  Γ ⋅ Re ⊫ t ∈ τ  -> 
-  Γ ⋅ Re ⊫ t ∈ τ' -> 
-
-  (τ = τ')%typ.
+  Γ ⋅ Re ⊫ t ∈ τ  ->  Γ ⋅ Re ⊫ t ∈ τ' -> 
+(*------------------------------------------*)
+                 (τ = τ')%typ.
 Proof.
   intro t; induction t; intros Γ Re τ1 τ1' Hwt Hwt'; inversion Hwt; inversion Hwt'; subst. 
   - rewrite H2 in *; inversion H7; subst; reflexivity.
@@ -237,10 +236,9 @@ Qed.
   then all resources identifiers contained in R are also in Re.
 *)
 Lemma typing_Re_R : forall t Γ Re τ τ' R,
-  value(t) -> 
-  Γ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
-
-  (forall (r : resource), r ∈ R -> r ∈ᵣᵪ Re)%rs.
+       value(t) -> Γ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
+(*---------------------------------------------------*)
+    (forall (r : resource), r ∈ R -> r ∈ᵣᵪ Re)%rs.
 Proof.
   intro t; induction t; intros Γ Re τ1 τ1' R Hvt Hwt r1 HIn; inversion Hvt; subst; 
   inversion Hwt; subst.
@@ -330,13 +328,12 @@ Proof.
   - repeat constructor.
 Qed.
 
-
 (** *** Proof of variable context weakening *)
+
 Theorem weakening_Γ : forall t Γ Γ' Re τ,
-  Γ ⊆ᵥᵪ Γ' -> 
-  Γ ⋅ Re ⊫ t ∈ τ -> 
-  
-  Γ' ⋅ Re ⊫ t ∈ τ .
+    Γ ⊆ᵥᵪ Γ' -> Γ ⋅ Re ⊫ t ∈ τ -> 
+(*---------------------------------*)
+         Γ' ⋅ Re ⊫ t ∈ τ .
 Proof.
   intros t Γ Γ' Re τ HSub wtt. generalize dependent Γ'.
   dependent induction wtt; intros Γ' HSub; try (econstructor; now eauto).
@@ -346,14 +343,12 @@ Qed.
 
 (** *** General proof of resource context weakening *)
 Theorem weakening_ℜ_gen : forall Γ (Re Re1 : ℜ) t (τ : Τ) (k k' : nat),
-  k <= Re⁺ᵣᵪ -> 
-  k' <= Re1⁺ᵣᵪ -> 
-  k <= k' -> 
-  Re⁺ᵣᵪ <= Re1⁺ᵣᵪ ->
-  k' - k = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
-  ([⧐ᵣᵪ k ≤ (k' - k)] Re) ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+    (* (1) *) k <= Re⁺ᵣᵪ -> (* (2) *) k' <= Re1⁺ᵣᵪ -> (* (3) *) k <= k' -> 
+      (* (4) *) Re⁺ᵣᵪ <= Re1⁺ᵣᵪ -> (* (5) *) k' - k = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
 
-  ([⧐ᵥᵪ k ≤ (k' - k)] Γ) ⋅ Re1 ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ [⧐ₜ k ≤ {k' - k}] τ.
+      (* (6) *) ([⧐ᵣᵪ k ≤ (k' - k)] Re) ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+(*---------------------------------------------------------------------------------*)
+    ([⧐ᵥᵪ k ≤ (k' - k)] Γ) ⋅ Re1 ⊫ [⧐ₜₘ k ≤ {k' - k}] t ∈ [⧐ₜ k ≤ {k' - k}] τ.
 Proof.
   simpl; intros Γ Re Re1 t τ k k' Hle Hle' Hle'' Hlen Heq Hsub wt.
   revert Re1 k k' Hle' Hsub Hle  Hle'' Heq Hlen.
@@ -380,7 +375,7 @@ Proof.
     apply RContext.Submap_find_spec with (m :=  ([⧐ᵣᵪ n ≤ m - n] Re)); auto.
     apply RContext.shift_find_spec with (lb := n) (k := m - n) in H; 
     unfold Typ.PairTyp.shift in *; simpl in *; assumption.
-  (* wormholes*)
+  (* wormhole *)
   - 
     eapply wt_wh with (τ := <[[⧐ₜ n ≤ {m - n}] τ]>) (R' := [⧐ᵣₛ n ≤ m - n] R'); eauto.
     -- apply Resources.eq_leibniz in H; subst; unfold k.
@@ -419,10 +414,8 @@ Qed.
 
 (** *** Proof of resource context weakening *)
 Corollary weakening_ℜ_1 : forall Γ (Re Re1 : ℜ) t (τ : Τ),
-  Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
-  Re ⊆ᵣᵪ Re1 ->
-  Γ ⋅ Re ⊫ t ∈ τ -> 
-
+                Re⁺ᵣᵪ ⊩ᵣᵪ Re -> Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+(*---------------------------------------------------------------------------------*)
   ([⧐ᵥᵪ Re⁺ᵣᵪ ≤ (Re1⁺ᵣᵪ - Re⁺ᵣᵪ)] Γ) ⋅ Re1 ⊫ 
               [⧐ₜₘ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] t ∈ [⧐ₜ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] τ.
 Proof. 
@@ -436,17 +429,14 @@ Qed.
 (** *** Weakening corollaries *)
 
 Corollary weakening_Γ_empty : forall Γ Re t τ,
-  ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  
-  Γ ⋅ Re ⊫ t ∈ τ.
+  ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> Γ ⋅ Re ⊫ t ∈ τ.
 Proof. intros Γ Re t τ; eapply weakening_Γ. apply VContext.Submap_empty_spec. Qed.
 
 Corollary weakening_ℜ : forall Γ (Re Re1 : ℜ) t (τ : Τ),
-  Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
-  
-  Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
-  
-  Γ ⋅ Re1 ⊫ [⧐ₜₘ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] t ∈ τ.
+            Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
+           Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+(*----------------------------------------------------------*)
+     Γ ⋅ Re1 ⊫ [⧐ₜₘ {Re⁺ᵣᵪ} ≤ {Re1⁺ᵣᵪ - Re⁺ᵣᵪ}] t ∈ τ.
 Proof. 
   simpl; intros. apply well_typed_implies_valid in H2 as H2'; try assumption.
   destruct H2'. 
@@ -458,14 +448,11 @@ Proof.
 Qed.
 
 Corollary weakening_ℜ_bis : forall Γ (Re Re1 : ℜ) k k' t (τ : Τ),
-  Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
-  
-  Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
-
-  k = Re⁺ᵣᵪ ->
-  k' = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
-  
-  Γ ⋅ Re1 ⊫ [⧐ₜₘ k ≤ k'] t ∈ τ.
+      Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
+    k = Re⁺ᵣᵪ -> k' = Re1⁺ᵣᵪ - Re⁺ᵣᵪ ->
+     Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
+(*--------------------------------------*) 
+     Γ ⋅ Re1 ⊫ [⧐ₜₘ k ≤ k'] t ∈ τ.
 Proof. 
   intros; subst. now apply weakening_ℜ. 
 Qed.

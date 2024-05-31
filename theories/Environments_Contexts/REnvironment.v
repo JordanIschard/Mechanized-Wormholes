@@ -1,5 +1,6 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Term Cell Evaluation.
+From Mecha Require Import Resource Term Cell.
+From Mecha Require ET_Definition ET_Props.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface 
                MapExt.
 From MMaps Require Import MMaps.
@@ -34,7 +35,7 @@ Definition extracts (V : REnvironment.t) : list (option Λ) :=
                       end) (seq 0 (max_key V)).
 
 Definition halts (k : Lvl.t) (V : REnvironment.t) := forall (r : resource) (v : 𝑣), 
- find r V = Some v -> halts k (Cell.extract v).
+ find r V = Some v -> ET_Definition.halts k (Cell.extract v).
 
 Definition used r (V : REnvironment.t) := exists v, find r V = Some (⩽ … v ⩾).
 Definition unused r (V : REnvironment.t) := exists v, find r V = Some (⩽ v … ⩾).
@@ -292,7 +293,7 @@ Qed.
 (** *** Halts *)
 
 Lemma halts_add_spec : forall m k x v,
-  (Evaluation.halts k (Cell.extract v)) /\ halts k m -> halts k (add x v m).
+  (ET_Definition.halts k (Cell.extract v)) /\ halts k m -> halts k (add x v m).
 Proof.
   intros m k x v [Hltv Hltm]; unfold halts; intros r v' Hfi.
   rewrite add_o in Hfi; destruct (Resource.eq_dec x r); subst; inversion Hfi; subst; auto.
@@ -305,7 +306,7 @@ Proof.
   apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
   rewrite Heqv' in *; clear Heqv'; rewrite <- shift_find_spec in HfV.
   apply Hlt in HfV.
-  destruct v,v'; simpl in *; apply Evaluation.halts_weakening; auto.
+  destruct v,v'; simpl in *; apply ET_Props.halts_weakening; auto.
 Qed.
 
 Lemma halts_weakening_1 : 

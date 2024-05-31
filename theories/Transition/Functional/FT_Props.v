@@ -1,30 +1,36 @@
-From Coq Require Import Classes.Morphisms Lia.
-From Mecha Require Import Resource Typ Typing VContext RContext Cell REnvironment.
-
-(** * Well formed properties between environments *)
+From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
+                        Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
+From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext ET_Definition
+                          Cell REnvironment Stock FT_Definition ET_Props.
 
 Module RC := RContext.
 Module RE := REnvironment.
 
-(** ** Well formed property between the resource context and environment *)
+(** ** Lift of multiple evaluation transitions *)
 
-(** *** Definition *)
+Lemma fT_MeT_sf (V V1 : 𝓥) (W : 𝐖) (st st' t t' t'' : Λ) :
 
-Definition wf_env_fT (Re : ℜ) (V : 𝓥) :=
-  (forall r, r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V) /\
-  Re⁺ᵣᵪ ⊩ᵣᵪ Re /\ V⁺ᵣᵦ ⊩ᵣᵦ V /\
-  (forall r τ τ' v, 
-    Re ⌈ r ⩦ (τ,τ') ⌉ᵣᵪ -> 
-    V ⌈ r ⩦ v ⌉ᵣᵦ -> 
-    match v with
-      | (⩽ v' … ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ'
-      | (⩽ … v' ⩾) => ∅ᵥᵪ ⋅ Re ⊫ v' ∈ τ
-    end
-  ).
+       V⁺ᵣᵦ ⊨ t ⟼⋆ t' -> ⪡ V ; st ; t' ⪢ ⭆ ⪡ V1 ; st' ; t'' ; W ⪢ -> 
+    (*-------------------------------------------------------------------*)
+                ⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st' ; t'' ; W ⪢.
+Proof.
+  intro HmeT. apply multi_indexed in HmeT as [k HieT].
+  revert V V1 st st' t t' t'' HieT; induction k; intros; inversion HieT; subst; auto.
+  apply fT_eT_sf with (t' := y); auto. apply IHk with (t' := t'); auto.
+Qed.
 
-Notation "'Wfᵣₜ(' Re , V )" := (wf_env_fT Re V) (at level 50).
+Lemma fT_MeT_sv (V V1 : 𝓥) (W : 𝐖) (st st' st'' t t' : Λ) :
 
-(** *** Property about domain equality *)
+       V⁺ᵣᵦ ⊨ st ⟼⋆ st' -> ⪡ V ; st' ; t ⪢ ⭆ ⪡ V1 ; st'' ; t' ; W ⪢ -> 
+    (*--------------------------------------------------------------------*)
+                ⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st'' ; t' ; W ⪢.
+Proof.
+  intro HmeT. apply multi_indexed in HmeT as [k HieT].
+  revert V V1 st st' st'' t t' HieT; induction k; intros; inversion HieT; subst; auto.
+  apply fT_eT_sv with (st' := y); auto. apply IHk with (st' := st'); auto.
+Qed.
+
+(** ** Property about domain equality *)
 
 Fact fT_eqDom_Empty (Re : ℜ) (V : 𝓥):
  (forall r, r ∈ᵣᵪ Re <-> r ∈ᵣᵦ V) -> isEmptyᵣᵪ(Re) <-> isEmptyᵣᵦ(V).
@@ -224,4 +230,104 @@ Proof.
        + intros. rewrite H in *. rewrite H0 in *.
          apply (Hwt r τ τ' v) in H2; auto.
          destruct v; now rewrite H.
+Qed.
+
+(** **** Wh *)
+
+Lemma wfFT_env_wh (Re : ℜ) (V : 𝓥) (τ : Τ) (i : Λ) :
+  Re⁺ᵣᵪ ⊩ₜ τ -> Re⁺ᵣᵪ ⊩ₜₘ i -> ∅ᵥᵪ ⋅ Re ⊫ i ∈ τ ->
+  Wfᵣₜ(Re,V) ->
+  Wfᵣₜ((RC.Raw.add (S (Re⁺ᵣᵪ)) (τ,<[𝟙]>) (RC.Raw.add (Re⁺ᵣᵪ) (<[𝟙]>,τ) Re)),
+       (RE.Raw.add (S  (V⁺ᵣᵦ)) (Cell.inp <[unit]>) 
+             (RE.Raw.add (V⁺ᵣᵦ) (Cell.shift (V⁺ᵣᵦ) 2 (Cell.inp i)) ([⧐ᵣᵦ (V⁺ᵣᵦ) ≤ 2] V)))).
+Proof.
+  intros Hvτ Hvi Hwti Hwf. 
+  apply (wf_env_fT_new Re V) in Hwf as Hnew.
+  apply (wf_env_fT_valid Re V) in Hwf as Hv.
+  destruct Hv as [HvRe HvV].
+  repeat split.
+  
+  - intro HIn. repeat rewrite RC.OP.P.add_in_iff in HIn.
+    repeat rewrite RE.OP.P.add_in_iff.
+    destruct HIn as [Heq' | [Heq' | HIn]]; subst.
+    -- left; f_equal; symmetry; assumption.
+    -- right; left. symmetry; assumption.
+    -- repeat right. 
+       rewrite (wf_env_fT_in Re V) in HIn; auto.
+       apply RE.valid_in_spec with (lb := V⁺ᵣᵦ) in HIn as Hvr; auto.
+       rewrite <- (Resource.shift_valid_refl (V⁺ᵣᵦ) 2 r); auto.
+       now apply RE.shift_in_spec.
+  - intro HIn. repeat rewrite RE.OP.P.add_in_iff in HIn.
+    repeat rewrite RC.OP.P.add_in_iff.
+    destruct HIn as [Heq' | [Heq' | HIn]]; subst.
+    -- left; f_equal; assumption.
+    -- right; left; assumption.
+    -- repeat right.
+       apply RE.shift_in_e_spec in HIn as Hr'.
+       destruct Hr' as [r' Heq']; subst.
+       apply RE.shift_in_spec in HIn.
+       apply RE.valid_in_spec with (lb := V⁺ᵣᵦ) in HIn as Hvr; auto.
+       rewrite (Resource.shift_valid_refl (V⁺ᵣᵦ) 2 r'); auto.
+       now apply (wf_env_fT_in Re V).
+  - rewrite RC.new_key_wh_spec; 
+    apply RC.valid_wh_spec; auto; split; simpl; auto;
+    try now constructor.
+  - rewrite RE.new_key_wh_spec.
+    apply RE.valid_wh_spec_1; auto; try now constructor.
+    unfold Cell.valid; simpl. now rewrite <- Hnew.
+  - intros r τ1 τ1' v HfRe HfV.
+    destruct (Resource.eq_dec r (S (Re⁺ᵣᵪ))); subst.
+    -- rewrite RE.add_eq_o in HfV; auto.
+       rewrite RC.add_eq_o in HfRe; auto.
+       inversion HfRe; inversion HfV; subst; clear HfV HfRe.
+       constructor.
+    -- destruct (Resource.eq_dec r (Re⁺ᵣᵪ)); subst.
+       + rewrite RE.add_neq_o in HfV; try lia.
+         rewrite RE.add_eq_o in HfV; auto.
+         rewrite RC.add_neq_o in HfRe; try lia.
+         rewrite RC.add_eq_o in HfRe; auto.
+         inversion HfRe; inversion HfV; subst; clear HfV HfRe.
+         apply (weakening_ℜ_bis _ Re); auto.
+         ++ apply VContext.valid_empty_spec.
+         ++  rewrite RC.new_key_wh_spec; lia.
+         ++ apply RC.Ext.Submap_add_spec_1.
+            * apply RC.Ext.new_key_notin_spec.
+              rewrite RC.Ext.new_key_add_spec_1; auto.
+              apply RC.Ext.new_key_notin_spec; lia.
+            * apply RC.Ext.Submap_add_spec_1.
+              ** apply RC.Ext.new_key_notin_spec; lia.
+              ** reflexivity.
+       + rewrite RE.add_neq_o in HfV; try lia.
+         rewrite RE.add_neq_o in HfV; try lia.
+         rewrite RC.add_neq_o in HfRe; try lia.
+         rewrite RC.add_neq_o in HfRe; try lia.
+         apply RE.shift_find_e_spec_1 in HfV as Hr'.
+         destruct Hr' as [[r' Heqr'] [v' Heqv']]; subst.
+         rewrite Heqv' in *; clear Heqv'.
+         apply RE.shift_find_spec in HfV.
+         apply RE.valid_find_spec with (lb := V⁺ᵣᵦ) in HfV as Hvr'; auto.
+         destruct Hvr' as [Hvr' _].
+         rewrite Resource.shift_valid_refl in HfRe; auto.
+         apply (wf_env_fT_well_typed Re V Hwf r' v') in HfRe as Hwv'; auto.
+         destruct v'; auto; simpl.
+         ++ apply (weakening_ℜ_bis _ Re); auto.
+            * apply VContext.valid_empty_spec.
+            * rewrite RC.new_key_wh_spec; lia.
+            * apply RC.Ext.Submap_add_spec_1.
+              ** apply RC.Ext.new_key_notin_spec.
+                 rewrite RC.Ext.new_key_add_spec_1; auto.
+                 apply RC.Ext.new_key_notin_spec; lia.
+              ** apply RC.Ext.Submap_add_spec_1.
+                 { apply RC.Ext.new_key_notin_spec; lia. }
+                 { reflexivity. }
+         ++ apply (weakening_ℜ_bis _ Re); auto.
+            * apply VContext.valid_empty_spec.
+            * rewrite RC.new_key_wh_spec; lia.
+            * apply RC.Ext.Submap_add_spec_1.
+              ** apply RC.Ext.new_key_notin_spec.
+                rewrite RC.Ext.new_key_add_spec_1; auto.
+                apply RC.Ext.new_key_notin_spec; lia.
+              ** apply RC.Ext.Submap_add_spec_1.
+                { apply RC.Ext.new_key_notin_spec; lia. }
+                { reflexivity. }
 Qed.

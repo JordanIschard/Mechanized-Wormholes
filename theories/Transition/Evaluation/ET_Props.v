@@ -1,134 +1,127 @@
-From Coq Require Import Classical_Prop Bool.Bool Lia Relations.Relation_Definitions
-                        Classes.RelationClasses Program.
-From Mecha Require Import Typ Resource Resources Term Var VContext RContext Substitution Typing.
+From Coq Require Import Classical_Prop Bool.Bool Lia Classes.RelationClasses Program.
+From Mecha Require Import Typ Resource Resources Term Var VContext RContext Typing ET_Definition.
 
-(** * Transition - Evaluation
+(** * Transition - Evaluation - Properties *)
 
-Wormholes's semantics are divided in three sub semantics:
-- evaluation transition <--
-- functional transition
-- temporal transition
+(** ** Substitution function *)
 
-This file focuses on the evaluation transition which is a small step semantics with a call by value evaluation strategy.
-*)
+(** *** Substitution regards of variables *)
 
+Lemma subst_afi_refl : forall t x lb k,
+  ~ isFV(x,t) -> forall v, <[ [x:= v ~ lb ≤ k] t ]> = t.
+Proof with eauto.
+  intros t; induction t; unfold not; intros x lb k afi v1; try (now simpl);
+  try (simpl; f_equal; now eauto).
+  - simpl. destruct (Var.eqb_spec x v); subst; auto; exfalso; apply afi; constructor.
+  - simpl; destruct (Var.eqb_spec x v); subst; auto.
+    f_equal; apply IHt; unfold not; intros; apply afi; now constructor.
+Qed.
 
-(** *** Definition *)
+Lemma subst_closed_refl : forall t lb k,
+  clₜₘ(t) -> forall x t', <[ [x := t' ~ lb ≤ k] t ]> = t.
+Proof. intros. apply subst_afi_refl. apply H. Qed.
 
-Reserved Notation "k '⊨' t '⟼' t1" (at level 57, t custom wormholes, 
-                                                   t1 custom wormholes, no associativity).
-Reserved Notation "k '⊨' t '⟼⋆' t1" (at level 57, t custom wormholes, 
-                                                    t1 custom wormholes, no associativity).
-Reserved Notation "k '⊨' t '⊢' st '⟶' t1" (at level 57, t custom wormholes, 
-                                                         t1 custom wormholes, no associativity).
+Lemma subst_refl : forall v (x : variable) lb, <[[x := v ~ lb ≤ 0] x]> = v.
+Proof. intros v x lb; simpl; rewrite Var.eqb_refl; now apply Term.shift_refl. Qed.
 
-(** **** Small-step semantics
+Lemma closed_subst_not_afi : forall t x v lb k,
+  clₜₘ(v) ->  ~ isFV(x,<[ [x := v ~ lb ≤ k] t ]>).
+Proof.
+  unfold Term.closed, not; intro t; induction t; intros x v1 lb k Hcl HFV; simpl;
+  try (inversion HFV; subst; now eauto); simpl in *;
+  try (destruct (Var.eqb_spec x v); subst; eauto).
+  - apply (Hcl v). rewrite Term.shift_afi_iff; eauto.
+  - inversion HFV; auto.
+  - inversion HFV; subst; eauto.
+  - inversion HFV; subst; eauto.
+Qed.
 
-  Evaluation transition is defined as we found in an stlc formalization with a slight difference. Indeed, we have an additional element
-  [lb]. This is the current level that are valid. It is required because of the definition of validity of terms and for a well use of the 
-  substitution in the [eT_appv] rule. 
-*)
-Inductive evaluate : nat -> Λ -> Λ -> Prop :=
-  | eT_appv   : forall lb x τ t v,
-                                  value(v) ->
-                (*-------------------------------------------- ET-Appv *)
-                    lb ⊨ ((\x:τ,t) v) ⟼ ([x:= v ~ lb ≤ 0] t)
+Lemma subst_shadow : forall t' x t v lb k,
+  clₜₘ(v) -> <[[x := t ~ lb ≤ k] ([ x := v ~ lb ≤ k] t')]> = <[ [x := v ~ lb ≤ k] t' ]>.
+Proof. intros; eapply subst_afi_refl; apply closed_subst_not_afi; assumption. Qed.
 
+Lemma subst_permute : forall t x x1 v v1 lb k,
+  x <> x1 -> clₜₘ(v) -> clₜₘ(v1) ->
+  <[[x1 := v1 ~ lb ≤ k] ([ x := v ~ lb ≤ k] t)]> = <[[x := v ~ lb ≤ k] ([ x1 := v1 ~ lb ≤ k] t)]>.
+Proof.
+  intro t; induction t; intros; simpl; try (now reflexivity); try (f_equal; now auto).
+  - (* var *)
+    destruct (Var.eqb_spec x v); destruct (Var.eqb_spec x1 v); subst; simpl.
+    -- now contradiction H.
+    -- rewrite Var.eqb_refl; rewrite subst_closed_refl; auto; now rewrite <- Term.shift_closed_iff.
+    -- rewrite Var.eqb_refl; rewrite subst_closed_refl; auto; now rewrite <- Term.shift_closed_iff.
+    -- rewrite <- Var.eqb_neq in *; rewrite n; now rewrite n0.
+  - destruct (Var.eqb_spec x v); destruct (Var.eqb_spec x1 v); subst; simpl.
+    -- now contradiction H.
+    -- rewrite Var.eqb_refl; rewrite <- Var.eqb_neq in n; now rewrite n.
+    -- rewrite Var.eqb_refl; rewrite <- Var.eqb_neq in n; now rewrite n.
+    -- rewrite <- Var.eqb_neq in n,n0; rewrite n,n0; f_equal; now apply IHt.
+Qed.
 
-  | eT_fix   : forall lb f τ t,
-                (*------------------------------------------------------------ ET-Fix *)
-                    lb ⊨ (Fix (\f:τ,t)) ⟼ ([f := (Fix (\f:τ,t)) ~ lb ≤ 0] t)
+(** *** Substitution modulo shift function *)
 
-  | eT_app1   : forall lb t1 t1' t2,
-                        lb ⊨ t1 ⟼ t1' -> 
-                (*---------------------------- ET-App1 *)
-                    lb ⊨ (t1 t2) ⟼ (t1' t2)
+Lemma subst_shift_spec : forall lb k k' t x v,
+  <[[⧐ₜₘ lb ≤ k] ([x := v ~ lb ≤ k'] t)]> = 
+  <[[x := ([⧐ₜₘ lb ≤ k] v) ~ lb ≤ k'] ([⧐ₜₘ lb ≤ k] t)]>.
+Proof.
+  intros lb k k' t; revert lb k k'; induction t; intros lb k k' x v1; simpl;
+  f_equal; eauto.
+  - destruct (Var.eqb_spec x v); subst.
+    -- apply Term.shift_permute.
+    -- now simpl.
+  - destruct (Var.eqb x v); simpl; try reflexivity; f_equal; auto.
+Qed.
 
-  | eT_app2   : forall lb v t t',
-                    value(v) -> lb ⊨ t ⟼ t' -> 
-                (*------------------------------- ET-App2 *)
-                      lb ⊨ (v t) ⟼ (v t') 
+Lemma subst_shift_spec_1 : forall lb k k' t x v,
+  <[[⧐ₜₘ lb ≤ k] ([x := v ~ lb ≤ k'] t)]> = 
+  <[[x := ([⧐ₜₘ lb ≤ k] v) ~ {lb + k} ≤ k'] ([⧐ₜₘ lb ≤ k] t)]>.
+Proof.
+  intros lb k k' t; revert lb k k'; induction t; intros lb k k' x v1; simpl;
+  f_equal; eauto.
+  - destruct (Var.eqb_spec x v); subst.
+    -- apply Term.shift_permute_1.
+    -- now simpl.
+  - destruct (Var.eqb x v); simpl; try reflexivity; f_equal; auto.
+Qed.
 
-  | eT_pair1  : forall lb t1 t1' t2,
-                        lb ⊨ t1 ⟼ t1' -> 
-                (*----------------------------- ET-Pair1 *)
-                    lb ⊨ ⟨t1,t2⟩ ⟼ ⟨t1',t2⟩
+Lemma subst_shift_spec_2 : forall lb lb' k k' t x v,
+  lb <= lb' ->
+  <[[⧐ₜₘ lb ≤ k] ([x := v ~ lb' ≤ k'] t)]> = 
+  <[[x := ([⧐ₜₘ lb ≤ k] v) ~ {lb' + k} ≤ k'] ([⧐ₜₘ lb ≤ k] t)]>.
+Proof.
+  intros lb lb' k k' t; revert lb lb' k k'; induction t; intros lb lb' k k' x v1 Hle; simpl;
+  f_equal; eauto.
+  - destruct (Var.eqb_spec x v); simpl; try reflexivity.
+    now apply Term.shift_permute_2.
+  - destruct (Var.eqb_spec x v); simpl; f_equal; auto.
+Qed.
 
-  | eT_pair2  : forall lb v t t',
-                    value(v) -> lb ⊨ t ⟼ t' -> 
-                (*------------------------------- ET-Pair2 *)
-                      lb ⊨ ⟨v,t⟩ ⟼ ⟨v,t'⟩ 
+(** *** Valid through substitution *)
 
-  | eT_fst1   : forall lb t t',
-                      lb ⊨ t ⟼ t' -> 
-                (*------------------------- ET-Fst1 *)
-                    lb ⊨ t.fst ⟼ t'.fst
+Lemma subst_preserves_valid : forall k k' v x t,
+  k >= k' -> k ⊩ₜₘ t -> k' ⊩ₜₘ v -> k ⊩ₜₘ <[[x := v ~ k' ≤ {k - k'}] t]>.
+Proof.
+  intros k k' v x t; revert k k'; induction t; intros k k' Hle Hvt Hvv; auto;
+  try (unfold Term.valid in *; inversion Hvt; subst; constructor; now eauto).
+  - simpl; destruct (Var.eqb_spec x v0); subst; auto.
+    replace (k ⊩ₜₘ <[ [⧐ₜₘ k' ≤ {k - k'}] v ]>) 
+    with ((k' + (k - k')) ⊩ₜₘ <[ [⧐ₜₘ k' ≤ {k - k'}] v ]>).
+    -- now apply Term.shift_preserves_valid.
+    -- f_equal; lia.
+  - unfold Term.valid in *; inversion Hvt; subst; simpl. 
+    destruct (Var.eqb_spec x v0); subst; auto; constructor; auto.
+  - unfold Term.valid in *; inversion Hvt; subst; simpl; constructor;
+    auto. replace (S (S (k - k'))) with ((S (S k)) - k'); try lia. apply IHt2; auto.
+Qed.
 
-  | eT_fstv   : forall lb v1 v2,
-                    value(v1) -> value(v2) -> 
-                (*----------------------------- ET-Fstv *)
-                    lb ⊨ ⟨v1,v2⟩.fst ⟼ v1
+Lemma subst_preserves_valid_4 : forall k x v t,
+  k ⊩ₜₘ t ->  k ⊩ₜₘ v -> k ⊩ₜₘ <[[x := v ~ k] t]>.
+Proof.
+  intros k x v t Hvt; replace 0 with (k - k) by lia; apply subst_preserves_valid;
+  try assumption; lia.
+Qed.
 
-  | eT_snd1   : forall lb t t',
-                        lb ⊨ t ⟼ t' -> 
-                (*-------------------------- ET-Snd1 *)
-                    lb ⊨ t.snd ⟼ t'.snd
-
-  | eT_sndv   : forall lb v1 v2,
-                    value(v1) -> value(v2) -> 
-                (*----------------------------- ET-Sndv *)
-                    lb ⊨ ⟨v1,v2⟩.snd ⟼ v2
-                            
-  | eT_comp1  : forall lb t1 t1' t2,
-                            lb ⊨ t1 ⟼ t1' -> 
-                (*--------------------------------- ET-Comp1 *)
-                    lb ⊨ t1 >>> t2 ⟼ t1' >>> t2
-
-  | eT_comp2  : forall lb v t t',
-                      value(v) -> lb ⊨ t ⟼ t' -> 
-                (*--------------------------------- ET-Comp2 *)
-                      lb ⊨ v >>> t ⟼ v >>> t'
-
-  | eT_arr  : forall lb t t',
-                      lb ⊨ t ⟼ t' -> 
-              (*------------------------- ET-Arr *)
-                  lb ⊨ arr(t) ⟼ arr(t')
-
-  | eT_first  : forall lb τ t t',
-                            lb ⊨ t ⟼ t' -> 
-                (*--------------------------------- ET-First *)
-                    lb ⊨ first(τ:t) ⟼ first(τ:t')
-
-  | eT_wh1   :  forall lb i i' t,
-                                lb ⊨ i ⟼ i' -> 
-                (*----------------------------------------- ET-Wh1 *)
-                    lb ⊨ wormhole(i;t) ⟼ wormhole(i';t)
-
-  | eT_wh2   :  forall lb i t t',
-                    value(i) -> (S (S lb)) ⊨ t ⟼ t' -> 
-                (*----------------------------------------- ET-Wh2 *)
-                    lb ⊨ wormhole(i;t) ⟼ wormhole(i;t')
-
-where "k '⊨' t '⟼' t1" := (evaluate k t t1)
-.
-
-(** **** Multi transition step with fuel *)
-Inductive indexed : nat -> nat -> Λ -> Λ -> Prop :=
-  | index_refl : forall lb x, lb ⊨ x ⊢ 0 ⟶ x
-  | index_step : forall lb k x y z, lb ⊨ x ⟼ y -> lb ⊨ y ⊢ k ⟶ z -> lb ⊨ x ⊢(S k)⟶ z
-where "k '⊨' t '⊢' st '⟶' t1" := (indexed k st t t1)
-.
-
-(** **** Multi transition step *)
-Inductive multi : nat -> Λ -> Λ -> Prop :=
-  | multi_refl : forall k x, k ⊨ x ⟼⋆ x
-  | multi_step : forall k x y z, k ⊨ x ⟼ y -> k ⊨ y ⟼⋆ z -> k ⊨ x ⟼⋆ z
-where "k '⊨' t '⟼⋆' t1" := (multi k t t1).
-
-Definition normal_form {X : Type} (R : relation X) (t : X) : Prop := not (exists t', R t t').
-Definition halts (k : nat)  (t : Λ) : Prop :=  exists t', k ⊨ t ⟼⋆ t' /\  value(t').
-
-#[export] Hint Constructors evaluate multi indexed : core.
+(** ** Evaluation Transition *)
 
 (** *** Lift semantics rules from evaluation to multi evaluation *)
 
@@ -230,12 +223,9 @@ Proof.
   apply multi_step with <[wormhole(t1;y)]>; auto.
 Qed.
 
-
-
-
 (** *** Value regards of evaluation transition *)
 
-Lemma value_normal : forall k t, value(t) -> normal_form (evaluate k) t.
+Lemma value_normal : forall k t, value(t) -> normal_form k t.
 Proof.
   intros k t H; generalize k; clear k; induction H; intros k [t' ST]; 
   try (inversion ST; subst; try destruct (IHvalue k); now eauto);
@@ -367,7 +357,6 @@ intros n; induction n; intros k t t1 t2 Hev1 Hev2.
   apply evaluate_deterministic with (t1 := y) in H6; auto; subst. 
   now apply IHn with (k := k) (t := y0).
 Qed.
-
 
 (** *** Halts *)
 
@@ -545,119 +534,6 @@ Proof.
   - destruct IHmulti. exists (S x0). eapply index_step; eauto.
 Qed.
 
-(** ** Preservation *)
-
-(** *** Proof of preservation of typing through the evaluation transition
-
-  **** Hypothesis
-
-  Knowing the context is valid regards of its own new key (1),
-  the term t is well typed according to a certain context Re (2), 
-  there is a certain t' that is the result of t after one step of transition (3);
-
-  **** Result
-
-  We can state that the term t' is well typed. 
-*)
-Theorem evaluate_preserves_typing : forall Re t t' τ,
-  (* (1) *) newᵣᵪ(Re) ⊩ᵣᵪ Re ->
-  (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) (newᵣᵪ(Re)) ⊨ t ⟼ t' -> 
-
-  ∅ᵥᵪ ⋅ Re ⊫ t' ∈ τ.
-Proof. 
-  intros Re t t' τ HvRe Hwt; generalize dependent t'; dependent induction Hwt; intros t' HeTt;
-  inversion HeTt; subst; try (econstructor; now eauto); eauto.
-  - inversion Hwt1; subst. eapply subst_preserves_typing; eauto.
-  - inversion Hwt2; subst; inversion Hwt1.
-  - inversion Hwt; subst; auto.
-  - inversion Hwt; subst; auto.
-  - inversion Hwt; subst. eapply subst_preserves_typing; eauto. constructor; eauto.
-  - econstructor; eauto. apply IHHwt2; auto.
-    -- rewrite RContext.new_key_wh_spec; apply RContext.valid_wh_spec; auto;
-        unfold Typ.PairTyp.valid; simpl; split; try (constructor);
-        apply well_typed_implies_valid in Hwt1 as [_ Hvτ]; auto; apply VContext.valid_empty_spec.
-    -- now rewrite RContext.new_key_wh_spec.
-Qed.
-
-(** *** Proof of preservation of typing through multiple evaluation transitions
-
-  **** Hypothesis
-
-  Knowing the context is valid regards of its own new key (1),
-  the term t is well typed according to a certain context Re (2), 
-  there is a certain t' that is the result of t after zero or k steps of transition (3);
-
-  **** Result
-
-  We can state that the term t' is well typed. 
-*)
-Theorem multi_preserves_typing : forall Re t t' τ,
-  (* (1) *) newᵣᵪ(Re) ⊩ᵣᵪ Re ->
-  (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) (newᵣᵪ(Re)) ⊨ t ⟼⋆ t' -> 
-  
-  ∅ᵥᵪ ⋅ Re ⊫ t' ∈ τ.
-Proof.
-  intros Re t t' τ HvRe Hwt HmeT; dependent induction HmeT; subst; try assumption.
-  apply IHHmeT; auto. eapply (evaluate_preserves_typing Re x y τ HvRe Hwt H).
-Qed.
-
-(** ** Progress *)
-
-(** *** Proof of progress of the evaluation transtion
-
-  If the term is well typed then 
-  - either we have a value (1) or 
-  - we can evaluate at least one time the term (2).
-
-*)
-Theorem progress_of_evaluate : forall t Re τ,
-  ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  
-  (* (1) *) value(t) \/ 
-  (* (2) *) exists t', (newᵣᵪ(Re)) ⊨ t ⟼ t'.
-Proof.
-  intro t; induction t; intros Re τ' Hwt; inversion Hwt; subst; 
-  try (now left); try (apply IHt1 in H3 as H3'; apply IHt2 in H5 as H5').
-  - destruct H3',H5'; right. 
-    -- inversion H; subst; inversion H3; subst. exists <[[x:= t2 ~ {newᵣᵪ(Re)} ≤ 0] t]>.
-      now constructor.
-    -- destruct H0; exists <[t1 x]>; now constructor.
-    -- destruct H; exists <[x t2]>; now constructor.
-    -- destruct H; exists <[x t2]>; now constructor.
-  - right; apply IHt2 in H4 as H4'; destruct H4'.
-    -- destruct t2; inversion H4; subst; inversion H; subst.
-        exists <[[v := Fix (\ v : τ', t2) ~ {newᵣᵪ(Re)} ≤ 0] t2]>; constructor.
-    -- destruct H; exists <[Fix x]>; constructor; auto.
-  - destruct H3',H5'; auto.
-    -- right; destruct H0; exists <[⟨t1,x⟩]>; now constructor.
-    -- right; destruct H; exists <[⟨x,t2⟩]>; now constructor.
-    -- right; destruct H; exists <[⟨x,t2⟩]>; now constructor.
-  - apply IHt in H2 as H2'; destruct H2'; right.
-    -- inversion H; subst; inversion H2; subst; exists v1; now constructor. 
-    -- destruct H; exists (Term.tm_fst x); now constructor.
-  - apply IHt in H2 as H2'; destruct H2'; right.
-    -- inversion H; subst; inversion H2; subst; exists v2; now constructor. 
-    -- destruct H; exists (Term.tm_snd x); now constructor.
-  - apply IHt in H2 as H2'; destruct H2' as [Hvt | [t' HeT']]; 
-    try (left; now constructor); right; exists <[arr(t')]>; now constructor.
-  - apply IHt in H3 as H3'; destruct H3' as [Hvt | [t' HeT']]; 
-    try (left; now constructor); right; exists <[first(τ:t')]>; now constructor.
-  - apply IHt1 in H1 as H1'; apply IHt2 in H5 as H5';
-    destruct H1' as [Hvt1 | [t1' HeT1']]; destruct H5' as [Hvt2 | [t2' HeT2']];
-    try (left; now constructor); right.
-    -- exists <[t1 >>> t2']>; now constructor.
-    -- exists <[t1' >>> t2]>; now constructor.
-    -- exists <[t1' >>> t2]>; now constructor.
-  - apply IHt1 in H1 as H1'; apply IHt2 in H8 as H8';
-    destruct H1' as [Hvt1 | [t1' HeT1']]; destruct H8' as [Hvt2 | [t2' HeT2']];
-    try (left; now constructor); right.
-    -- exists <[wormhole(t1;t2')]>; constructor; auto.
-        unfold k in HeT2'; rewrite RContext.new_key_wh_spec in HeT2'; auto.
-    -- exists <[wormhole(t1';t2)]>; now constructor.
-    -- exists <[wormhole(t1';t2)]>; now constructor.
-Qed.
 
 (** *** Some corollaries *)  
 

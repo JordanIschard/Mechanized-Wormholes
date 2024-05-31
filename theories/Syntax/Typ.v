@@ -51,6 +51,10 @@ Fixpoint shift (lb : Lvl.t) (k : Lvl.t) (τ : t) : t :=
   end
 .
 
+Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
+  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+
+
 (** **** Valid function
 
   In the same way than the [shift] function, the valid function scan the entire type and
@@ -315,15 +319,6 @@ Declare Scope typ_scope.
 Delimit Scope typ_scope with typ.
 Definition Τ := Typ.t.
 Definition πΤ := PairTyp.t.
-
-(* #[export] Hint Constructors Raw_Typ.lt' : core.
-#[export] Hint Resolve Raw_Typ.eq_refl Raw_Typ.eq_sym Raw_Typ.eq_trans : core. *)
-(* #[export] Instance rtyp_eq_rr : RewriteRelation Raw_Typ.eq := {}.   
-#[export] Instance rtyp_eq_equiv : Equivalence Raw_Typ.eq. Proof. split; auto. Qed.
-#[export] Instance rtyp_lt_strorder : StrictOrder Raw_Typ.lt. 
-          Proof. apply Raw_Typ.lt_strorder. Qed.
-#[export] Instance rtyp_lt_compat : Proper (Raw_Typ.eq ==> Raw_Typ.eq ==> iff) Raw_Typ.lt. 
-          Proof. apply Raw_Typ.lt_compat. Qed. *)
   
 Notation "'𝟙'"       := Typ.ty_unit (in custom wormholes at level 0).
 Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wormholes at level 50, 
@@ -337,13 +332,15 @@ Notation "τ1 '⟿' τ2 '∣' R" := (Typ.ty_reactive τ1 τ2 R) (in custom wormh
 
 Notation "'[⧐ₜ' lb '≤' k ']' t" := (Typ.shift lb k t) (in custom wormholes at level 45, 
 right associativity).
+Notation "'[⧐⧐ₜ' lb '≤' k ']' t" := (Typ.multi_shift lb k t) (in custom wormholes at level 45, 
+right associativity).
 Notation "'[⧐ₚₜ' lb '≤' k ']' t" := (PairTyp.shift lb k t) (in custom wormholes at level 45, 
 right associativity).
 
 Infix "⊩ₜ" := Typ.valid (at level 20, no associativity). 
 Infix "⊩?ₜ" := Typ.validb (at level 20, no associativity). 
 Infix "⊩ₚₜ" := PairTyp.valid (at level 20, no associativity). 
-Infix "⊩?ₚₜ" := PairTyp.valid (at level 20, no associativity). 
+Infix "⊩?ₚₜ" := PairTyp.validb (at level 20, no associativity). 
 
 Infix "=" := Typ.eq : typ_scope.
 Infix "=?" := Typ.eqb  (at level 70) : typ_scope.
