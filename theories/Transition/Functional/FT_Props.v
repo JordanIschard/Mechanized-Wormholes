@@ -289,6 +289,7 @@ Proof.
          inversion HfRe; inversion HfV; subst; clear HfV HfRe.
          apply (weakening_ℜ_bis _ Re); auto.
          ++ apply VContext.valid_empty_spec.
+         ++  rewrite RC.new_key_wh_spec; lia.
          ++ apply RC.Ext.Submap_add_spec_1.
             * apply RC.Ext.new_key_notin_spec.
               rewrite RC.Ext.new_key_add_spec_1; auto.
@@ -296,7 +297,6 @@ Proof.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec; lia.
               ** reflexivity.
-         ++  rewrite RC.new_key_wh_spec; lia.
        + rewrite RE.add_neq_o in HfV; try lia.
          rewrite RE.add_neq_o in HfV; try lia.
          rewrite RC.add_neq_o in HfRe; try lia.
@@ -312,6 +312,7 @@ Proof.
          destruct v'; auto; simpl.
          ++ apply (weakening_ℜ_bis _ Re); auto.
             * apply VContext.valid_empty_spec.
+            * rewrite RC.new_key_wh_spec; lia.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec.
                  rewrite RC.Ext.new_key_add_spec_1; auto.
@@ -319,9 +320,9 @@ Proof.
               ** apply RC.Ext.Submap_add_spec_1.
                  { apply RC.Ext.new_key_notin_spec; lia. }
                  { reflexivity. }
-            * rewrite RC.new_key_wh_spec; lia.
          ++ apply (weakening_ℜ_bis _ Re); auto.
             * apply VContext.valid_empty_spec.
+            * rewrite RC.new_key_wh_spec; lia.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec.
                 rewrite RC.Ext.new_key_add_spec_1; auto.
@@ -329,5 +330,4 @@ Proof.
               ** apply RC.Ext.Submap_add_spec_1.
                 { apply RC.Ext.new_key_notin_spec; lia. }
                 { reflexivity. }
-            * rewrite RC.new_key_wh_spec; lia.
 Qed.

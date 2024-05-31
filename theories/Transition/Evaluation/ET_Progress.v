@@ -11,10 +11,9 @@ From Mecha Require Import Typ Resource Resources Term Var VContext RContext Typi
 
 *)
 Theorem progress_of_evaluate : forall t Re τ,
-  ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  
-  (* (1) *) value(t) \/ 
-  (* (2) *) exists t', (newᵣᵪ(Re)) ⊨ t ⟼ t'.
+                         ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
+(*-----------------------------------------------------------------------*)
+     (* (1) *) value(t) \/ (* (2) *) exists t', (newᵣᵪ(Re)) ⊨ t ⟼ t'.
 Proof.
   intro t; induction t; intros Re τ' Hwt; inversion Hwt; subst; 
   try (now left); try (apply IHt1 in H3 as H3'; apply IHt2 in H5 as H5').

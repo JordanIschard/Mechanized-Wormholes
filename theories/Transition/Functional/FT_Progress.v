@@ -170,13 +170,13 @@ Proof.
               now rewrite (wf_env_fT_new Re V).
             *  now rewrite (wf_env_fT_new Re V).
     -- eapply wf_env_fT_valid; eauto.
+    -- unfold k in *. rewrite RC.new_key_wh_spec; lia.
     -- unfold k in *. apply RC.Ext.Submap_add_spec_1.
       + apply RC.Ext.new_key_notin_spec.
         rewrite RC.Ext.new_key_add_spec_1; auto.
         apply RC.Ext.new_key_notin_spec; lia.
       + apply RC.Ext.Submap_add_spec_1; try reflexivity.
         apply RC.Ext.new_key_notin_spec; lia.
-    -- unfold k in *. rewrite RC.new_key_wh_spec; lia.
   - rewrite Term.multi_shift_unit in *; inversion Hwsf.
   - rewrite Term.multi_shift_fix in *; inversion Hwsf.
 Qed.

@@ -14,18 +14,6 @@ Include Level.
 Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
   List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
 
-Lemma shift_unfold_2 lb lb' k k' r:
-  lb' <= lb -> lb' <= k' -> lb <= k' -> 
-  shift lb k (shift lb' (k' - lb') r) = shift lb' (k + (k' - lb')) r.
-Proof.
-  intros.
-  unfold shift; destruct (Nat.leb_spec0 lb' r).
-  - replace (lb <=? r + (k' - lb')) with true; try lia.
-    symmetry. apply Nat.leb_le. lia.
-  - replace (lb <=? r) with false; auto.
-    symmetry. apply Nat.leb_nle; lia.
-Qed.
-
 Lemma multi_shift_valid_refl lbs ks lb t:
   valid lb t -> (forall i, List.In i lbs -> lb <= i) ->
   multi_shift lbs ks t = t.
@@ -44,15 +32,11 @@ Qed.
 
 End Resource.
 
-(** * Syntax - Pair of resources *)
-Module PairResource <: IsBdlLvlFullETWL := IsBdlLvlFullPairOTWL Resource Resource.
-
 (** *** Scope and Notations *)
 Declare Custom Entry wormholes.
 Declare Scope resource_scope.
 Delimit Scope resource_scope with r.
 Definition resource := Resource.t.
-Definition πresource := PairResource.t.
 
 Notation "<[ e ]>" := e (e custom wormholes at level 99).
 Notation "( x )"   := x (in custom wormholes, x at level 99).
@@ -67,8 +51,3 @@ Infix "⊩ᵣ" := Resource.valid (at level 20, no associativity).
 Infix "⊩?ᵣ" := Resource.validb (at level 20, no associativity). 
 Notation "'[⧐ᵣ' lb '≤' k ']' t" := (Resource.shift lb k t) (at level 65, right associativity).
 Notation "'[⧐⧐ᵣ' lb '≤' k ']' t" := (Resource.multi_shift lb k t) (at level 65, right associativity).
-
-Notation "'[⧐ₚᵣ' lb '≤' k ']' t" := (PairResource.shift lb k t) (in custom wormholes at level 45, 
-                                                                            right associativity).
-Infix "⊩ₚᵣ" := PairResource.valid (at level 20, no associativity). 
-Infix "⊩?ₚᵣ" := PairResource.valid (at level 20, no associativity). 

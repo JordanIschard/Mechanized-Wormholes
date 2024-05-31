@@ -35,6 +35,11 @@ Qed.
 
 End RSampleO.
 
+(** * Syntax - Sample
+
+  In the temporal transition each resources is associated to a value via a next and a put function.
+  We formalize it by a pair term and optional term, because the resource can be unused.
+*)
 Module RSample <: IsLvlETWL.
 
 (** *** Definition *)

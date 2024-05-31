@@ -15,3 +15,6 @@ Notation "'⟦' S ';' W ';' P '⟧' '⟾' '⟦' S1 ';' W1 ';' P1 '⟧'"
                                              P custom wormholes, P1 custom wormholes, 
                                              W constr, W1 constr, no associativity).
 
+(**
+The whole complete definition and proves will be available for the final version.
+*)
