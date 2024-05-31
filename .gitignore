@@ -44,6 +44,7 @@ time-of-build-before.log
 time-of-build-both.log
 time-of-build-pretty.log
 
+*.swp
 Makefile.coq
 Makefile.coq.conf
 _build
