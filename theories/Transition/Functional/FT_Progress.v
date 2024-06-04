@@ -3,9 +3,14 @@ From Coq Require Import Program Lia Relations.Relation_Definitions Classes.Relat
 From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
                           FT_Definition FT_Props FT_Preservation.
-
+Import ResourceNotations TermNotations TypNotations CellNotations
+       VContextNotations RContextNotations REnvironmentNotations
+       ReadStockNotations WriteStockNotations StockNotations.
+       
 Module RC := RContext.
 Module RE := REnvironment.
+
+(** * Transition - Functional - Progress *)
 
 Section progress.
 

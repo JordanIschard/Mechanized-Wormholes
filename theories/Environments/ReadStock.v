@@ -1,16 +1,25 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Resources Term REnvironment Cell.
+From Mecha Require Import Resource Term REnvironment Cell.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 From MMaps Require Import MMaps.
+Import ResourceNotations TermNotations REnvironmentNotations CellNotations.
 
 
-(** * Map between resources and terms *)
+(** * Environment - Virtual Resource Environment - Reader
+
+  W, defined in [Stock.v], is in charge of keeping bound resources
+  and initial terms of each removed wh term. In the original paper,
+  W is a set of triplets, which can be cumbersome to treat. We decide
+  to split W into two data structures: a map and a set. The former,
+  defined here, maps a resource name to a term.
+
+*)
 Module ReadStock <: IsLvlET.
 
 Include MapLvlD.MakeLvlMapWLLVL Term.
 Import Raw Ext.
 
-(** *** Definition *)
+(** ** Definition *)
 
 Definition to_RS (st : ReadStock.t) (s : resources) : resources :=
   fold (fun r _ acc => r +: acc)%rs st s.
@@ -26,7 +35,7 @@ Definition map_update (st : ReadStock.t) (V : REnvironment.t) :=
                         | _ => add r v acc
                        end) st empty.
 
-(** *** In *)
+(** ** In *)
 
 Lemma map_union_spec : forall W W' r, 
   In r (map_union W W') <-> In r W \/ In r W'.
@@ -57,7 +66,7 @@ Proof.
        + apply diamond_add. 
 Qed. 
 
-(** *** Initialized *)
+(** ** Initialized *)
 
 Lemma proper_init_virtual :
   Proper (Logic.eq ==> Logic.eq ==> REnvironment.eq ==> REnvironment.eq)
@@ -131,7 +140,7 @@ Proof.
   - eapply H; eauto.
 Qed.
 
-(** *** Morphism from RStock to Resources *)
+(** ** Morphism from RStock to Resources *)
 
 Lemma proper_rktors :
   Proper (Logic.eq ==> Logic.eq ==> Resources.Equal ==> Resources.Equal)
@@ -240,7 +249,7 @@ Proof.
 Qed. 
 
 
-(** *** Valid *)
+(** ** Valid *)
 
 Lemma valid_map_union_spec : forall st st' lb,
   valid lb st -> valid lb st' -> valid lb (map_union st st').
@@ -281,7 +290,7 @@ Proof.
     -- right. rewrite IHV1; eauto.
 Qed.
 
-(** *** Shift *)
+(** ** Shift *)
 
 Lemma shift_new_in_spec : forall r V,
   In r V ->  r < new_key V.
@@ -323,9 +332,9 @@ Proof.
     eapply shift_find_e_spec; eauto. 
 Qed.
 
-(** *** Morphism *)
+(** ** Morphism *)
 
-#[global] 
+#[export] 
 Instance in_rk : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
@@ -334,11 +343,11 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[global] 
+#[export] 
 Instance find_rk : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_rk : Proper (eq ==> iff) Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
@@ -350,7 +359,7 @@ Proof.
   rewrite H. unfold Add in *. rewrite H1; rewrite H2. split; intros; auto.
 Qed.
 
-#[global] 
+#[export] 
 Instance add_rk : 
 Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq) 
                                                           (@ReadStock.Raw.add Term.t).
@@ -359,7 +368,7 @@ Proof.
  rewrite H1; now rewrite H. 
 Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_rk : 
   Proper (ReadStock.eq ==> ReadStock.eq ==> iff) ReadStock.Submap.
 Proof. 
@@ -372,61 +381,17 @@ Qed.
 
 End ReadStock.
 
-(** *** Scope and Notations *)
+(** * Notation - Reading Virtual Resource Environment *)
+
+Module ReadStockNotations.
+
+(** ** Scope *)
 Declare Scope rstock_scope.
 Delimit Scope rstock_scope with rk.
 
+(** ** Notations *)
 Definition 𝐖ᵣ := ReadStock.t.
 
-#[global] Instance rk_max : Proper (ReadStock.eq ==> Logic.eq) (ReadStock.Ext.max_key).
-          Proof. apply ReadStock.Ext.max_key_eq. Qed.
-
-#[global] Instance rk_new : Proper (ReadStock.eq ==> Logic.eq) (ReadStock.Ext.new_key).
-          Proof. apply ReadStock.Ext.new_key_eq. Qed.
-
-#[global] 
-Instance in_rk : 
-  Proper (Logic.eq ==> ReadStock.eq ==> iff) (ReadStock.Raw.In).
-Proof. apply ReadStock.in_rk. Qed.
-
-#[global] 
-Instance find_rk : Proper (Logic.eq ==> ReadStock.eq ==> Logic.eq) 
-                                                      (ReadStock.Raw.find).
-Proof. apply ReadStock.find_rk. Qed.
-
-#[global] 
-Instance Empty_rk : Proper (ReadStock.eq ==> iff) (ReadStock.Empty).
-Proof. apply ReadStock.Empty_rk. Qed.
-
-#[global] 
-Instance Add_rk : 
-Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq ==> iff) 
-                                                  (@ReadStock.Add Term.t).
-Proof. apply ReadStock.Add_rk. Qed. 
-
-#[global] 
-Instance add_rk : 
-Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq) 
-                                                          (@ReadStock.Raw.add Term.t).
-Proof. apply ReadStock.add_rk. Qed. 
-
-#[global] 
-Instance Submap_rk : 
-  Proper (ReadStock.eq ==> ReadStock.eq ==> iff) ReadStock.Submap.
-Proof. apply ReadStock.Submap_rk. Qed.
-
-#[global] 
-Instance Submap_rk_po : PreOrder ReadStock.Submap.
-Proof. apply ReadStock.Submap_po. Qed. 
-
-#[global] 
-Instance valid_rk : Proper (Logic.eq ==> ReadStock.eq ==> iff) ReadStock.valid.
-Proof. apply ReadStock.valid_eq. Qed.
-
-#[global] 
-Instance shift_rk : 
-  Proper (Logic.eq ==> Logic.eq ==> ReadStock.eq ==> ReadStock.eq) ReadStock.shift.
-Proof. apply ReadStock.shift_eq. Qed.
 
 Infix "⊆ᵣₖ" := ReadStock.Submap (at level 20, no associativity). 
 Infix "∈ᵣₖ" := ReadStock.Raw.In (at level 20, no associativity). 
@@ -449,3 +414,56 @@ Infix "∪" := ReadStock.map_union : rstock_scope.
 
 Notation "'[⧐ᵣₖ' lb '≤' k ']' t" := (ReadStock.shift lb k t) (at level 45, right associativity).
 Infix "⊩ᵣₖ" := ReadStock.valid (at level 20, no associativity).
+
+(** ** Morphisms *)
+#[export] Instance rk_max : Proper (ReadStock.eq ==> Logic.eq) (ReadStock.Ext.max_key).
+          Proof. apply ReadStock.Ext.max_key_eq. Qed.
+
+#[export] Instance rk_new : Proper (ReadStock.eq ==> Logic.eq) (ReadStock.Ext.new_key).
+          Proof. apply ReadStock.Ext.new_key_eq. Qed.
+
+#[export] 
+Instance in_rk : 
+  Proper (Logic.eq ==> ReadStock.eq ==> iff) (ReadStock.Raw.In).
+Proof. apply ReadStock.in_rk. Qed.
+
+#[export] 
+Instance find_rk : Proper (Logic.eq ==> ReadStock.eq ==> Logic.eq) 
+                                                      (ReadStock.Raw.find).
+Proof. apply ReadStock.find_rk. Qed.
+
+#[export] 
+Instance Empty_rk : Proper (ReadStock.eq ==> iff) (ReadStock.Empty).
+Proof. apply ReadStock.Empty_rk. Qed.
+
+#[export] 
+Instance Add_rk : 
+Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq ==> iff) 
+                                                  (@ReadStock.Add Term.t).
+Proof. apply ReadStock.Add_rk. Qed. 
+
+#[export] 
+Instance add_rk : 
+Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq) 
+                                                          (@ReadStock.Raw.add Term.t).
+Proof. apply ReadStock.add_rk. Qed. 
+
+#[export] 
+Instance Submap_rk : 
+  Proper (ReadStock.eq ==> ReadStock.eq ==> iff) ReadStock.Submap.
+Proof. apply ReadStock.Submap_rk. Qed.
+
+#[export] 
+Instance Submap_rk_po : PreOrder ReadStock.Submap.
+Proof. apply ReadStock.Submap_po. Qed. 
+
+#[export] 
+Instance valid_rk : Proper (Logic.eq ==> ReadStock.eq ==> iff) ReadStock.valid.
+Proof. apply ReadStock.valid_eq. Qed.
+
+#[export] 
+Instance shift_rk : 
+  Proper (Logic.eq ==> Logic.eq ==> ReadStock.eq ==> ReadStock.eq) ReadStock.shift.
+Proof. apply ReadStock.shift_eq. Qed.
+
+End ReadStockNotations.

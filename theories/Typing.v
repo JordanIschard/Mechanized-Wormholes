@@ -1,5 +1,6 @@
 From Coq Require Import Lia Arith.PeanoNat Program Bool.Bool Classes.Morphisms.
 From Mecha Require Import Typ Resource Resources Term Var VContext RContext.
+Import ResourceNotations TypNotations TermNotations RContextNotations VContextNotations.
 
 
 (** * Typing 
@@ -9,7 +10,7 @@ From Mecha Require Import Typ Resource Resources Term Var VContext RContext.
 
 (** *** Definition *)
 
-Reserved Notation "G '⋅' R '⊫' t '∈' T" (at level 40, t custom wormholes, T custom wormholes).
+Reserved Notation "G '⋅' R '⊫' t '∈' T" (at level 40, t custom wh, T custom wh).
 
 Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
   | wt_var    : forall Γ R (x : Var.t) τ,
@@ -83,13 +84,9 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
 where "G '⋅' R '⊫' t '∈' T" := (well_typed G R t T).
 
-Notation "G '⋅' R '⊫' t '∈' T" := (well_typed G R t T) (at level 40, 
-                                                            t custom wormholes, 
-                                                            T custom wormholes).
-
 (** *** Some facts *)
 
-#[global] 
+#[export] 
 Instance well_typed_rc :
   Proper (VContext.eq ==> RContext.eq ==> Term.eq ==> Typ.eq ==> iff) well_typed.
 Proof.
@@ -266,9 +263,9 @@ Qed.
   We can state that the term [t](4) and the type [τ](5) is also valid regards of [lb].
 *)
 Theorem well_typed_implies_valid : forall Γ Re t τ,
-  (* (1) *) Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> 
-  (* (2) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re -> (* (3) *) Γ ⋅ Re ⊫ t ∈ τ ->
-(*---------------------------------------------------*)
+   (* (1) *) Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> 
+   (* (2) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re -> (* (3) *) Γ ⋅ Re ⊫ t ∈ τ ->
+(*-------------------------------------------------------*)
       (* (4) *) Re⁺ᵣᵪ ⊩ₜₘ t /\ (* (5) *) Re⁺ᵣᵪ ⊩ₜ τ.
 Proof.
   intros Γ Re t; revert Γ Re; induction t; intros Γ Re τ'; simpl; intros HvΓ HvRe Hwt;
@@ -432,7 +429,7 @@ Corollary weakening_Γ_empty : forall Γ Re t τ,
   ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> Γ ⋅ Re ⊫ t ∈ τ.
 Proof. intros Γ Re t τ; eapply weakening_Γ. apply VContext.Submap_empty_spec. Qed.
 
-Corollary weakening_ℜ : forall Γ (Re Re1 : ℜ) t (τ : Τ),
+Corollary weakening_ℜ : forall (Γ : Γ) (Re Re1 : ℜ) t (τ : Τ),
             Re⁺ᵣᵪ ⊩ᵥᵪ Γ -> Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
            Re ⊆ᵣᵪ Re1 -> Γ ⋅ Re ⊫ t ∈ τ -> 
 (*----------------------------------------------------------*)
@@ -440,7 +437,7 @@ Corollary weakening_ℜ : forall Γ (Re Re1 : ℜ) t (τ : Τ),
 Proof. 
   simpl; intros. apply well_typed_implies_valid in H2 as H2'; try assumption.
   destruct H2'. 
-  rewrite <- VContext.shift_valid_refl with (lb := Re⁺ᵣᵪ) (t := Γ) 
+  rewrite <- VContext.shift_valid_refl with (lb := Re⁺ᵣᵪ) (t := Γ0) 
                                             (k := Re1⁺ᵣᵪ - Re⁺ᵣᵪ); try assumption.
   rewrite <- Typ.shift_valid_refl with (lb := Re⁺ᵣᵪ) (τ := τ) 
                                         (k := Re1⁺ᵣᵪ - Re⁺ᵣᵪ); try assumption.

@@ -1,8 +1,17 @@
 From Coq Require Import Classes.Morphisms.
 From Mecha Require Import Term REnvironment Resource Cell.
 From DeBrLevel Require Import SetLevelInterface SetLevel Level Levels.
+Import ResourceNotations REnvironmentNotations TermNotations CellNotations.
 
-(** * Set of virtual resources *)
+(** * Environment - Virtual Resource Environment - Writer
+
+  W, defined in [Stock.v], is in charge of keeping bound resources
+  and initial terms of each removed wh term. In the original paper,
+  W is a set of triplets, which can be cumbersome to treat. We decide
+  to split W into two data structures: a map and a set. The latter,
+  defined here, contains resources.
+
+*)
 Module WriteStock <: IsBdlLvlFullSetOTWLInterface Level.
 
 Include Levels.
@@ -31,7 +40,7 @@ Proof.
   - rewrite REnvironment.add_add_2; auto; reflexivity.
 Qed.
 
-#[global] 
+#[export] 
 Hint Resolve proper_init_virtual transpose_init_virtual REnvironment.Equal_equiv : core.
 
 Lemma init_virtual_unused : forall wsk V,
@@ -96,24 +105,15 @@ Qed.
 
 End WriteStock.
 
-(** *** Scope and Notations *)
+(** * Notation - Writing Virtual Resource Environment *)
+Module WriteStockNotations.
 
+(** ** Scope *)
 Declare Scope wstock_scope.
 Delimit Scope wstock_scope with wk.
+
+(** ** Notations *)
 Definition 𝐖ₔ := WriteStock.t.
-
-#[global] 
-Instance valid_wk : Proper (Logic.eq ==> WriteStock.eq ==> iff) WriteStock.valid.
-Proof. apply WriteStock.valid_eq. Qed.
-
-#[global] 
-Instance validb_wk : Proper (Logic.eq ==> WriteStock.eq ==> Logic.eq) WriteStock.validb.
-Proof. apply WriteStock.validb_eq. Qed.
-
-#[global] 
-Instance shift_wk : 
-  Proper (Logic.eq ==> Logic.eq ==> WriteStock.eq ==> WriteStock.eq) WriteStock.shift.
-Proof. apply WriteStock.shift_eq. Qed.
 
 Notation "∅ₔₖ" := (WriteStock.empty).
 Infix "∉" := (fun x s => ~ WriteStock.In x s) (at level 75) : wstock_scope.
@@ -132,3 +132,20 @@ Infix "=?" := WriteStock.equal : wstock_scope.
 Notation "'[⧐ₔₖ' lb '≤' k ']' t" := (WriteStock.shift lb k t) (at level 65, right associativity).
 Infix "⊩ₔₖ" := WriteStock.valid (at level 20, no associativity). 
 Infix "⊩?ₔₖ" := WriteStock.validb (at level 20, no associativity). 
+
+(** ** Morphisms *)
+
+#[export] 
+Instance valid_wk : Proper (Logic.eq ==> WriteStock.eq ==> iff) WriteStock.valid.
+Proof. apply WriteStock.valid_eq. Qed.
+
+#[export] 
+Instance validb_wk : Proper (Logic.eq ==> WriteStock.eq ==> Logic.eq) WriteStock.validb.
+Proof. apply WriteStock.validb_eq. Qed.
+
+#[export] 
+Instance shift_wk : 
+  Proper (Logic.eq ==> Logic.eq ==> WriteStock.eq ==> WriteStock.eq) WriteStock.shift.
+Proof. apply WriteStock.shift_eq. Qed.
+
+End WriteStockNotations.

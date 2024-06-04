@@ -1,13 +1,22 @@
-From Coq Require Import Lia.
+From Coq Require Import Lia Classes.Morphisms.
 From Mecha Require Import Typ Resource.
-From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
-From MMaps Require Import MMaps.
+From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel.
+Import ResourceNotations TypNotations.
 
-(** * Context between resources and pairs of types *)
+(** * Context - Resource Context
+
+ A Wormholes term is typed by a type defined in [Typ.v] regards of two contexts:
+ the common variable context and the resource context. The latter is defined here.
+ It maps two types [(ty,ty')] to a resource [r]. These types represent respectively
+ the input type and the output type of the rsf term that contains [r].
+
+*)
 Module RContext <: IsBdlLvlET.
 
 Include MapLvlD.MakeBdlLvlMapWLLVL PairTyp.
 Import Raw Ext.
+
+(** ** Wormholes specification *)
 
 Lemma max_key_wh_spec : forall (m : t) v v',
   max_key (add (S (S (max_key m))) v (add (S (max_key m)) v' m)) = S (S (max_key m)).
@@ -54,7 +63,9 @@ Proof.
               ++ apply valid_weakening with (k := new_key m); auto.
 Qed.
 
-#[global] 
+(** ** Morphisms *)
+
+#[export] 
 Instance in_rctx : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
@@ -63,11 +74,11 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[global] 
+#[export] 
 Instance find_rctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_rctx : Proper (eq ==> iff) Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
@@ -79,7 +90,7 @@ Proof.
   rewrite H. unfold OP.P.Add in *. rewrite H1; rewrite H2. split; intros; auto.
 Qed.
 
-#[global] 
+#[export] 
 Instance add_rctx : 
 Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@add PairTyp.t).
 Proof. 
@@ -87,7 +98,7 @@ Proof.
  rewrite H1; now rewrite H. 
 Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_rctx : 
   Proper (eq ==> eq ==> iff) Submap.
 Proof. 
@@ -100,10 +111,15 @@ Qed.
 
 End RContext.
 
-(** *** Scope and Notations *)
+(** * Notation - Resource Context *)
+Module RContextNotations.
+
+(** ** Scope *)
 Declare Scope rcontext_scope.
 Delimit Scope rcontext_scope with rc.
 
+
+(** ** Notations *)
 Definition ℜ := RContext.t.
 
 Infix "⊆ᵣᵪ" := RContext.Submap (at level 20, no associativity). 
@@ -114,7 +130,6 @@ Notation "'isEmptyᵣᵪ(' Re ')'" := (RContext.Empty Re) (at level 20, no assoc
 Notation "'Addᵣᵪ'" := (RContext.Add) (at level 20, no associativity). 
 Notation "R '⌊' x '⌋ᵣᵪ'"  := (RContext.Raw.find x R) (at level 15, x constr).
 Notation "'maxᵣᵪ(' R ')'"  := (RContext.Ext.max_key R) (at level 15).
-Notation "'newᵣᵪ(' R ')'"  := (RContext.Ext.new_key R) (at level 15).
 Notation "⌈ x ⤆ v '⌉ᵣᵪ' R"  := (RContext.Raw.add x v R) (at level 15, x constr, 
                                                                                 v constr).
 Notation "R ⌈ x ⩦ v '⌉ᵣᵪ'"  := (RContext.Raw.find x R = Some v) (at level 15, 
@@ -128,58 +143,59 @@ Infix "=" := RContext.eq : rcontext_scope.
 Notation "'[⧐ᵣᵪ' lb '≤' k ']' t" := (RContext.shift lb k t) (at level 45, right associativity).
 Infix "⊩ᵣᵪ" := RContext.valid (at level 20, no associativity).
 
+(** ** Morphisms *)
 
-(** *** Morphisms *)
-
-#[global] Instance eq_equiv : Equivalence RContext.eq.
+#[export] Instance eq_equiv : Equivalence RContext.eq.
           Proof. apply RContext.Equal_equiv. Qed.
 
-#[global] Instance max_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.max_key).
+#[export] Instance max_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.max_key).
           Proof. apply RContext.Ext.max_key_eq. Qed.
 
-#[global] Instance new_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.new_key).
+#[export] Instance new_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.new_key).
           Proof. apply RContext.Ext.new_key_eq. Qed.
 
-#[global] 
+#[export] 
 Instance in_rctx : 
   Proper (Logic.eq ==> RContext.eq ==> iff) (RContext.Raw.In).
 Proof. apply RContext.in_rctx. Qed.
 
-#[global] 
+#[export] 
 Instance find_rctx : Proper (Logic.eq ==> RContext.eq ==> Logic.eq) 
                                                       (RContext.Raw.find).
 Proof. apply RContext.find_rctx. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_rctx : Proper (RContext.eq ==> iff) (RContext.Empty).
 Proof. apply RContext.Empty_rctx. Qed.
 
-#[global] 
+#[export] 
 Instance Add_rctx : 
 Proper (Resource.eq ==> PairTyp.eq ==> RContext.eq ==> RContext.eq ==> iff) 
                                                   (@RContext.Add PairTyp.t).
 Proof. apply RContext.Add_rctx. Qed. 
 
-#[global] 
+#[export] 
 Instance add_rctx : 
 Proper (Resource.eq ==> PairTyp.eq ==> RContext.eq ==> RContext.eq) 
                                                           (@RContext.Raw.add PairTyp.t).
 Proof. apply RContext.add_rctx. Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_rctx : 
   Proper (RContext.eq ==> RContext.eq ==> iff) RContext.Submap.
 Proof. apply RContext.Submap_rctx. Qed.
 
-#[global] 
+#[export] 
 Instance Submap_po : PreOrder RContext.Submap.
 Proof. apply RContext.Submap_po. Qed. 
 
-#[global] 
+#[export] 
 Instance valid_eq : Proper (Logic.eq ==> RContext.eq ==> iff) RContext.valid.
 Proof. apply RContext.valid_eq. Qed.
 
-#[global] 
+#[export] 
 Instance shift_eq : 
   Proper (Logic.eq ==> Logic.eq ==> RContext.eq ==> RContext.eq) RContext.shift.
 Proof. apply RContext.shift_eq. Qed.
+
+End RContextNotations.

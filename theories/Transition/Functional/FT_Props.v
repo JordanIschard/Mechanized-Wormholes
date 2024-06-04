@@ -1,10 +1,15 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
-From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext ET_Definition
-                          Cell REnvironment Stock FT_Definition ET_Props.
+From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext 
+                          ET_Definition Cell REnvironment Stock FT_Definition ET_Props.
+Import ResourceNotations TermNotations TypNotations CellNotations
+       VContextNotations RContextNotations REnvironmentNotations
+       ReadStockNotations WriteStockNotations StockNotations.
 
 Module RC := RContext.
 Module RE := REnvironment.
+
+(** * Transition - Functional - Properties *)
 
 (** ** Lift of multiple evaluation transitions *)
 

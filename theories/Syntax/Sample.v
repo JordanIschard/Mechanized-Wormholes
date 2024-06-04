@@ -1,11 +1,12 @@
 From Coq Require Import Lists.List Structures.Equalities Classes.Morphisms.
 From Mecha Require Import Term Typ ET_Definition Resource VContext RContext Typing.
 From DeBrLevel Require Import LevelInterface PairLevel.
-Import ListNotations.
+Import ResourceNotations TermNotations TypNotations VContextNotations RContextNotations.
 
-Module RSampleI <: IsLvlETWL := Term.
 
-Module RSampleO <: IsLvlETWL.
+Module SampleI <: IsLvlETWL := Term.
+
+Module SampleO <: IsLvlETWL.
 
 Include OptTerm.
 
@@ -33,28 +34,28 @@ Proof.
     rewrite HeqVC; rewrite HeqRC; now rewrite Heqty.
 Qed.
 
-End RSampleO.
+End SampleO.
 
 (** * Syntax - Sample
 
   In the temporal transition each resources is associated to a value via a next and a put function.
   We formalize it by a pair term and optional term, because the resource can be unused.
 *)
-Module RSample <: IsLvlETWL.
+Module Sample <: IsLvlETWL.
 
 (** *** Definition *)
 
-Include IsLvlPairETWL RSampleI RSampleO.
+Include IsLvlPairETWL SampleI SampleO.
 
 Definition next (rr : t) : Λ := fst rr.
 
 Definition put (v : option Λ) (rr : t) : t := (fst rr,v).
 
 Definition halts k (rr : t) := 
-  halts k (fst rr) /\ RSampleO.halts k (snd rr).
+  halts k (fst rr) /\ SampleO.halts k (snd rr).
 
 Definition well_typed (Γ : Γ) (Re : ℜ) (s : t) (α β : Τ) :=
-  well_typed Γ Re (fst s) α /\ RSampleO.well_typed Γ Re (snd s) β.
+  well_typed Γ Re (fst s) α /\ SampleO.well_typed Γ Re (snd s) β.
 
 (** *** Halts *)
 
@@ -84,11 +85,11 @@ Proof.
   repeat red; intros; unfold well_typed; split; intros [].
   - split.
     -- rewrite <- H1; rewrite <- H2; rewrite <- H; now rewrite <- H0.
-    -- eapply RSampleO.wt_eq; try symmetry; eauto.
+    -- eapply SampleO.wt_eq; try symmetry; eauto.
        destruct H1. unfold RelationPairs.RelCompFun in *; auto.
   - split.
     -- rewrite H1; rewrite H2; rewrite H; now rewrite H0.
-    -- eapply RSampleO.wt_eq; eauto.
+    -- eapply SampleO.wt_eq; eauto.
        destruct H1. unfold RelationPairs.RelCompFun in *; auto.
 Qed.
 
@@ -101,7 +102,7 @@ Qed.
 
 Lemma well_typed_None : forall Γ Re s α β,
   well_typed Γ Re s α β ->
-  well_typed Γ Re (RSample.put None s) α β.
+  well_typed Γ Re (Sample.put None s) α β.
 Proof.
   intros. unfold well_typed in *; destruct s; unfold put.
   destruct H; split; simpl in *; auto.
@@ -110,11 +111,11 @@ Qed.
 Lemma well_typed_Some : forall Γ Re s v α β,
   well_typed Γ Re s α β ->
   Γ ⋅ Re ⊫ v ∈ β ->
-  well_typed Γ Re (RSample.put (Some v) s) α β.
+  well_typed Γ Re (Sample.put (Some v) s) α β.
 Proof.
   intros. unfold well_typed in *; destruct s; unfold put.
   destruct H; split. simpl in *; auto.
   now simpl in *.
 Qed.
 
-End RSample.
+End Sample.

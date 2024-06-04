@@ -4,15 +4,21 @@ From Mecha Require ET_Definition ET_Props.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface 
                MapExt.
 From MMaps Require Import MMaps.
+Import ResourceNotations TermNotations CellNotations.
 
 
-(** * Environment between resources and cells *)
+(** * Environment - Resource Environment
+
+  The functional transition requires two environments. The first one, defined here, is the
+  resource environment. It maps resources to cells. 
+
+*)
 Module REnvironment <: IsLvlET.
 Include MapLvlD.MakeLvlMapWLLVL Cell.
 
 Import Raw Ext.
 
-(** *** Definition *)
+(** ** Definition *)
 
 Definition embeds_func V v := 
     add (new_key V) ([⧐ᵣₓ (new_key V) ≤ 1 ] ⩽ v … ⩾) (shift (new_key V) 1 V).
@@ -343,7 +349,7 @@ Qed.
 
 (** *** Morphism *)
 
-#[global] 
+#[export] 
 Instance in_renv : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
@@ -352,11 +358,11 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[global] 
+#[export] 
 Instance find_renv : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_renv : Proper (eq ==> iff) Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
@@ -368,7 +374,7 @@ Proof.
   rewrite H. unfold Add in *. rewrite H1; rewrite H2. split; intros; auto.
 Qed.
 
-#[global] 
+#[export] 
 Instance add_renv : 
 Proper (Resource.eq ==> Cell.eq ==> REnvironment.eq ==> REnvironment.eq) 
                                                           (@add Cell.t).
@@ -377,7 +383,7 @@ Proof.
  rewrite H1; now rewrite H. 
 Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_env : 
   Proper (REnvironment.eq ==> REnvironment.eq ==> iff) REnvironment.Submap.
 Proof. 
@@ -390,12 +396,15 @@ Qed.
 
 End REnvironment.
 
+(** * Notation - Resource Environment *)
 
-(** *** Scope and Notations *)
+Module REnvironmentNotations.
 
+(** ** Scope *)
 Declare Scope renvironment_scope.
 Delimit Scope renvironment_scope with re.
 
+(** ** Notation *)
 Definition 𝓥 := REnvironment.t.
 
 Infix "⊆ᵣᵦ" := REnvironment.Submap (at level 20, no associativity). 
@@ -407,7 +416,6 @@ Notation "'isEmptyᵣᵦ(' Re ')'" := (REnvironment.Empty Re) (at level 20, no a
 Notation "'Addᵣᵦ'" := (REnvironment.Add) (at level 20, no associativity). 
 Notation "R '⌊' x '⌋ᵣᵦ'"  := (REnvironment.Raw.find x R) (at level 15, x constr).
 Notation "'maxᵣᵦ(' R ')'"  := (REnvironment.Ext.max_key R) (at level 15).
-Notation "'newᵣᵦ(' R ')'"  := (REnvironment.Ext.new_key R) (at level 15).
 Notation "⌈ x ⤆ v '⌉ᵣᵦ' R"  := (REnvironment.Raw.add x v R) (at level 15, 
                                                                           x constr, v constr).
 Notation "R ⌈ x ⩦ v '⌉ᵣᵦ'"  := (REnvironment.Raw.find x R = Some v) (at level 15, 
@@ -424,57 +432,60 @@ Notation "'[⧐ᵣᵦ' lb '≤' k ']' t" := (REnvironment.shift lb k t) (at leve
                                                                       right associativity).
 Infix "⊩ᵣᵦ" := REnvironment.valid (at level 20, no associativity).
 
-#[global]
+(** ** Morphisms *)
+
+#[export]
 Instance eq_equiv_re : Equivalence REnvironment.eq.
 Proof. apply REnvironment.Equal_equiv. Qed.
 
-#[global] Instance max_renv : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.max_key).
+#[export] Instance max_renv : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.max_key).
           Proof. apply REnvironment.Ext.max_key_eq. Qed.
 
-#[global] Instance new_renv : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.new_key).
+#[export] Instance new_renv : Proper (REnvironment.eq ==> Logic.eq) (REnvironment.Ext.new_key).
           Proof. apply REnvironment.Ext.new_key_eq. Qed.
 
-#[global] 
+#[export] 
 Instance in_renv : 
   Proper (Logic.eq ==> REnvironment.eq ==> iff) (REnvironment.Raw.In).
 Proof. apply REnvironment.in_renv. Qed.
 
-#[global] 
+#[export] 
 Instance find_renv : Proper (Logic.eq ==> REnvironment.eq ==> Logic.eq) 
                                                       (REnvironment.Raw.find).
 Proof. apply REnvironment.find_renv. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_renv : Proper (REnvironment.eq ==> iff) (REnvironment.Empty).
 Proof. apply REnvironment.Empty_renv. Qed.
 
-#[global] 
+#[export] 
 Instance Add_renv : 
 Proper (Resource.eq ==> Cell.eq ==> REnvironment.eq ==> REnvironment.eq ==> iff) 
                                                   (@REnvironment.Add Cell.t).
 Proof. apply REnvironment.Add_renv. Qed. 
 
-#[global] 
+#[export] 
 Instance add_renv : 
 Proper (Resource.eq ==> Cell.eq ==> REnvironment.eq ==> REnvironment.eq) 
                                                           (@REnvironment.Raw.add Cell.t).
 Proof. apply REnvironment.add_renv. Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_env : 
   Proper (REnvironment.eq ==> REnvironment.eq ==> iff) REnvironment.Submap.
 Proof. apply REnvironment.Submap_env. Qed.
 
-#[global] 
+#[export] 
 Instance Submap_env_po : PreOrder REnvironment.Submap.
 Proof. apply REnvironment.Submap_po. Qed. 
 
-#[global] 
+#[export] 
 Instance valid_renv : Proper (Logic.eq ==> REnvironment.eq ==> iff) REnvironment.valid.
 Proof. apply REnvironment.valid_eq. Qed.
 
-#[global] 
+#[export] 
 Instance shift_renv : 
   Proper (Logic.eq ==> Logic.eq ==> REnvironment.eq ==> REnvironment.eq) REnvironment.shift.
 Proof. apply REnvironment.shift_eq. Qed.
 
+End REnvironmentNotations.

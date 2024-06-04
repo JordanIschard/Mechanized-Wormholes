@@ -1,32 +1,52 @@
 From Mecha Require Import Var Resource Term.
+Import ResourceNotations TermNotations.
 
 (** * Transition - Evaluation - Definition
 
-Wormholes's semantics are divided in three sub semantics:
-- evaluation transition <--
-- functional transition
-- temporal transition
+Wormholes’s semantics is given by three sets of transition rules: the evaluation
+transition, which extends standard β-reduction; the functional transition which
+performs the logical instant, and the temporal transition which corresponds to
+the reactivity of the program: it initializes the resources values, performs the
+instant via functional transition and updates the system.
 
-This file focuses on the evaluation transition which is a small step semantics with a call by value evaluation strategy.
+In this file, we focus on the evaluation transition.
 *)
 
 (** ** Substitution *)
 
-Reserved Notation "'[' x ':=' v '~' lb '≤' k ']' t" (in custom wormholes at level 66, 
+Reserved Notation "'[' x ':=' v '~' lb '≤' k ']' t" (in custom wh at level 66, 
                                                                   right associativity).
 
 (** *** Substitution function 
 
-  The substitution function works as well as the classic one with extra information.
-  Indeed, when we go through the term searching compatible variables, we can go through
-  a [wormhole] term. However the wormhole term does not have the same level inside. In fact
-  it has the level outside increment by 2. Then we add extra information:
-  - the current level of the substitute [lb] and
-  - the shift between the level of the substitute [v] and the current term.
-
-  Thus, when we find a compatible variable we substitute it by the term [v] after
-  having perfomed a shift.
-
+  In addition to usual substitution parameters, the [subst] function carries
+  two levels, [lb] and [k]. 
+  Consider, as an illustrating example, the following expressions valid at [0].
+<<
+wh(unit; rsf[0] >>> x) (1)
+wh(unit; rsf[0])       (2)
+>>
+  With a standard substitution, the result of substituting [x] by (2) in (1) is ill-
+  formed because of the resource [0] in (2) is captured by the wh of (1).
+<<
+  [x := (2)] wh(unit; rsf[0] >>> x)
+= wh([x := (2)] unit; [x := (2)] rsf[0] >>> x)
+= wh(unit; [x := (2)] rsf[0] >>> x)
+= wh(unit; [x := (2)] rsf[0] >>> [x := (2)] x)
+= wh(unit; rsf[0] >>> wh(unit; rsf[0]))
+>>
+  With [lb] the validity level of (2), and [k] the number of bound resources encountered, we avoid
+  this issue.
+<<
+  [x := (2) ~ 0 ≤ 0] wh(unit; rsf[0] >>> x)
+= wh([x := (2) ~ 0 ≤ 0] unit; [x := (2) ~ 0 ≤ 2] rsf[0] >>> x)
+= wh(unit; [x := (2) ~ 0 ≤ 2] rsf[0] >>> x)
+= wh(unit; [x := (2) ~ 0 ≤ 2] rsf[0] >>> [x := (2) ~ 0 ≤ 2] x)
+= wh(unit; rsf[0] >>> [⧐ₜₘ 0 ≤ 2] wh(unit; rsf[0]))
+= wh(unit; rsf[0] >>> wh([⧐ₜₘ 0 ≤ 2] unit; [⧐ₜₘ 0 ≤ 2] rsf[0]))
+= wh(unit; rsf[0] >>> wh(unit; [⧐ₜₘ 0 ≤ 2] rsf[0]))
+= wh(unit; rsf[0] >>> wh(unit; rsf[2]))
+>>
 *)
 Fixpoint subst (lb : nat) (k : nat) (x : Var.t) (v t : Λ) : Λ :=
   match t with
@@ -46,70 +66,30 @@ Fixpoint subst (lb : nat) (k : nat) (x : Var.t) (v t : Λ) : Λ :=
 
     | _ => t
   end
-  where "'[' x ':=' v '~' lb '≤' k ']' t" := (subst lb k x v t) (in custom wormholes)
+  where "'[' x ':=' v '~' lb '≤' k ']' t" := (subst lb k x v t) (in custom wh)
 .
 
-Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t) (in custom wormholes at level 66, 
+Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t) (in custom wh at level 66, 
                                                                   right associativity).
-
-(** *** Example
-
-  Suppose the following Womhole's terms:
-<<
-(1) wormhole[rr,rw](i'; rsf[rr] >>> x)
-(2) wormhole[rr1,rw1](i; rsf[rr1])
->>
-
-  Translated in the De Bruijn level representation we have:
-<<
-(1) wormhole(i'; rsf[0] >>> x)
-(2) wormhole(i; rsf[0])
->>
-
-  If we substitute x by (2) in (1) with the classic substitution we have the following result:
-<<
-  [x := (2)] wormhole(i'; rsf[0] >>> x)
-= wormhole([x := (2)] i'; [x := (2)] (rsf[0] >>> x))
-= wormhole([x := (2)] i'; [x := (2)] rsf[0] >>> [x := (2)] x)
-= wormhole([x := (2)] i'; rsf[0] >>> wormhole(i; rsf[0]))
->>
-
-  If we do the opposite translation we expect:
-<<
-wormhole[rr,rw](i'; rsf[rr] >>> wormhole[rr1,rw1](i; rsf[rr1]))
->>
-
-  but found:
-<<
-wormhole[rr,rw](i'; rsf[rr] >>> wormhole[rr1,rw1](i; rsf[rr]))
->>
-
-  With our substitution the result is the expected one, as we can see below.
-
-<<
-  [x := (1) ~ 0 ≤ 0] wormhole(i'; rsf[0] >>> x)
-= wormhole([x := (1) ~ 0 ≤ 0] i'; [x := (1) ~ 0 ≤ 2] (rsf[0] >>> x))
-= wormhole([x := (1) ~ 0 ≤ 0] i'; [x := (1) ~ 0 ≤ 2] rsf[0] >>> [x := (1) ~ 0 ≤ 2] x)
-= wormhole([x := (1) ~ 0 ≤ 0] i'; rsf[0] >>> [>> 0 ≤ 2] wormhole(i; rsf[0]))
-= wormhole([x := (1) ~ 0 ≤ 0] i'; rsf[0] >>> wormhole([>> 0 ≤ 2] i; [>> 0 ≤ 2] rsf[0]))
-= wormhole([x := (1) ~ 0 ≤ 0] i'; rsf[0] >>> wormhole([>> 0 ≤ 2] i; rsf[2]))
->>
-*)
 
 (** ** Evaluation Transition *)
 
-Reserved Notation "k '⊨' t '⟼' t1" (at level 57, t custom wormholes, 
-                                                   t1 custom wormholes, no associativity).
-Reserved Notation "k '⊨' t '⟼⋆' t1" (at level 57, t custom wormholes, 
-                                                    t1 custom wormholes, no associativity).
-Reserved Notation "k '⊨' t '⊢' st '⟶' t1" (at level 57, t custom wormholes, 
-                                                         t1 custom wormholes, no associativity).
+Reserved Notation "k '⊨' t '⟼' t1" (at level 57, t custom wh, 
+                                                   t1 custom wh, no associativity).
+Reserved Notation "k '⊨' t '⟼⋆' t1" (at level 57, t custom wh, 
+                                                    t1 custom wh, no associativity).
+Reserved Notation "k '⊨' t '⊢' st '⟶' t1" (at level 57, t custom wh, 
+                                                         t1 custom wh, no associativity).
 
 (** *** Small-step semantics
 
-  Evaluation transition is defined as we found in an stlc formalization with a slight difference. Indeed, we have an additional element
-  [lb]. This is the current level that are valid. It is required because of the definition of validity of terms and for a well use of the 
-  substitution in the [eT_appv] rule. 
+  The evaluation transition corresponds to a determinis-
+  tic β-reduction. We choose a small step semantics with a call-by-value evaluation
+  strategy (see Figure 6) in order to bypass capture issues for variables (in par-
+  ticular, reduction does not act under λ’s). Modifications on the substitution
+  affect the evaluation transition. [k] being the number of bound resources encountered, 
+  we set it to [0]. But, [lb] is the level of validity of [v], thus, it cannot be deduced. 
+  Consequently, we also need [lb] to be explicit in the evaluation transition.
 *)
 Inductive evaluate : nat -> Λ -> Λ -> Prop :=
   | eT_appv   : forall lb x τ t v,

@@ -1,27 +1,21 @@
 From Coq Require Import Classes.Morphisms Bool.Bool Classical_Prop Classes.RelationClasses.
 From DeBrLevel Require Import LevelInterface.
 From Mecha Require Import Resource Term.
+Import ResourceNotations TermNotations.
 
 (** * Syntax - Cell 
 
-  Resource environment is composed of cells with two possible pattern:
-  - the first one is the input pattern. It represents the value mapped to the resource
-    at the beginning of the instant and means that is not used yet;
-  - the second one is the output pattern. It represents the value mapped to the resource
-    after a resource signal function. It means that the initial value is consumed, the output
-    is stocked for the update done at the end of this instant by the [temporal] transition and
-    the resource is used.
+ A cell can have shape [<t .>] or [<. t>], for a term [t]. The first one is the
+ unused form with a term that can be used during the instant. The second one is
+ the used form which also contains a term but not usable during the instant.
+
 *)
 Module Cell <: IsLvlFullDTWL.
 
-(** *** Definition  *)
+(** ** Definition  *)
 
-(** **** Type *)
+(** *** Type *)
 
-(** 
-  An element in the environment can be used only once. Thus the term is
-  embedded in a type that differs unused and used value.
-*)
 Inductive raw : Type := 
   | inp  : Λ -> raw
   | out : Λ -> raw
@@ -41,10 +35,11 @@ Definition eqb (p p' : t) :=
   end
 .
 
-(** **** Shift function 
+(** *** Shift function 
 
   Cell carries a term then the [shift] function acts like a bind operator
   with the shift function of term.
+
 *)
 Definition shift (lb : Lvl.t) (k : Lvl.t) (c : t) : t := 
   match c with
@@ -78,12 +73,14 @@ Definition used (e : t) :=
 .
 
 
-(** **** Valid function 
+(** *** Valid function 
 
- A cell is valid if the term encapsulated in it is valid.
+ A cell [c] is valid at level [lb] if its inner term is valid.
 *)
 Definition valid (lb : Lvl.t) (c : t) : Prop := lb ⊩ₜₘ (extract c).
 Definition validb (lb : Lvl.t) (c : t) : bool := lb ⊩?ₜₘ (extract c).
+
+(** ** Property *)
 
 (** *** Equality *)
 
@@ -101,12 +98,12 @@ Proof.
   try now transitivity (inp λ0). now transitivity (out λ0). 
 Qed.
 
-#[global] 
+#[export] 
 Hint Resolve eq_refl eq_sym eq_trans : core.
 
-#[global] 
+#[export] 
 Instance eq_rr : RewriteRelation eq := {}.
-#[global] 
+#[export] 
 Instance eq_equiv : Equivalence eq.
           Proof. split; auto. Qed.
 
@@ -120,7 +117,7 @@ Proof.
   intros; split.
   - unfold eq,eqb in *; destruct p,p'; simpl in *; intro; try (now inversion H);
     f_equal; now apply Term.eqb_eq.
-  - unfold eq; intro; subst; apply eqb_refl.
+  - unfold eq; intro; subst. apply eqb_refl.
 Qed.
 
 Lemma eqb_neq : forall p p', eqb p p' = false <-> ~ eq p p'.
@@ -153,7 +150,7 @@ Proof. intros; auto. Qed.
 Lemma shift_refl : forall lb t, eq (shift lb 0 t) t.
 Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_refl. Qed.
 
-#[global]
+#[export]
 Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
 Proof. repeat red; intros; subst. now rewrite H1. Qed.
 
@@ -198,11 +195,11 @@ Proof.
   split; unfold validb, valid; destruct t0; simpl; intros; now apply Term.validb_nvalid.
 Qed.
 
-#[global]
+#[export]
 Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
 Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
 
-#[global]
+#[export]
 Instance validb_eq : Proper (Logic.eq ==> eq ==> Logic.eq) validb.
 Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
 
@@ -242,15 +239,19 @@ Qed.
 
 End Cell.
 
-(** *** Scope and Notations *)
 
+(** * Notation - Cell *)
+Module CellNotations.
+
+(** ** Scope *)
 Declare Scope cell_scope.
 Delimit Scope cell_scope with cl.
+
+(** ** Notations *)
 Definition 𝑣 := Cell.t.
 
-
-Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wormholes, no associativity).
-Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wormholes, no associativity).
+Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wh, no associativity).
+Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wh, no associativity).
 Notation "'[⧐ᵣₓ' lb '≤' k ']' t" := (Cell.shift lb k t) (at level 45, right associativity).
 
 Infix "⊩ᵣₓ" := Cell.valid (at level 20, no associativity). 
@@ -258,3 +259,5 @@ Infix "⊩?ᵣₓ" := Cell.validb (at level 20, no associativity).
 
 Infix "=" := Cell.eq : cell_scope.
 Infix "=?" := Cell.eqb  (at level 70) : cell_scope.
+
+End CellNotations.

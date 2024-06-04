@@ -1,41 +1,49 @@
-From Mecha Require Import Term ET_Definition Resource REnvironment Cell RSample.
+From Mecha Require Import Term ET_Definition Resource REnvironment Cell Sample.
 From Coq Require Import Lia.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 From MMaps Require Import MMaps.
+Import ResourceNotations TermNotations REnvironmentNotations CellNotations.
 
-Module RSamples <: IsLvlET.
-Include MapLvlD.MakeLvlMapWLLVL RSample.
+(** * Environment - I/O Sampling 
+
+TODO
+
+*)
+Module Samples <: IsLvlET.
+Include MapLvlD.MakeLvlMapWLLVL Sample.
 
 Import Raw Ext.
 
-Definition nexts_func x v V := ⌈x ⤆ (Cell.inp (RSample.next v))⌉ᵣᵦ V.
+(** ** Definition *)
 
-Definition nexts_func_1 v := (Cell.inp (RSample.next v)).
+Definition nexts_func x v V := ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ V.
 
-Definition nexts (fl : RSamples.t) : REnvironment.t := 
+Definition nexts_func_1 v := (Cell.inp (Sample.next v)).
+
+Definition nexts (fl : Samples.t) : REnvironment.t := 
   fold nexts_func fl (∅ᵣᵦ).
 
 Definition puts_func V x v fl := 
   match V⌊x⌋ᵣᵦ with 
-    | Some (⩽ … v' ⩾) =>  add x (RSample.put (Some v') v) fl
-    |  _ => add x (RSample.put None v) fl 
+    | Some (⩽ … v' ⩾) =>  add x (Sample.put (Some v') v) fl
+    |  _ => add x (Sample.put None v) fl 
   end.
 
 Definition puts_func_1 V x v :=
   match V⌊x⌋ᵣᵦ with 
-    | Some (⩽ … v' ⩾) =>  (RSample.put (Some v') v)
-    |  _ => (RSample.put None v) 
+    | Some (⩽ … v' ⩾) =>  (Sample.put (Some v') v)
+    |  _ => (Sample.put None v) 
   end.
 
-Definition puts (Vout : REnvironment.t) (fl : RSamples.t) : RSamples.t :=
+Definition puts (Vout : REnvironment.t) (fl : Samples.t) : Samples.t :=
   fold (puts_func Vout) fl empty.
 
-Definition halts (k : nat) (fl : RSamples.t) := forall (r : resource) v, 
- find r fl = Some v -> RSample.halts k v.
+Definition halts (k : nat) (fl : Samples.t) := forall (r : resource) v, 
+ find r fl = Some v -> Sample.halts k v.
 
 Hint Resolve REnvironment.eq_equiv : core.
 
-(** *** Nexts *)
+(** ** Nexts *)
 
 #[export]
 Instance nexts_prop : 
@@ -58,7 +66,7 @@ Qed.
 
 Lemma nexts_Add_spec x v t t' : 
   ~ In x t ->
-  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (RSample.next v))⌉ᵣᵦ (nexts t))%re.
+  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ (nexts t))%re.
 Proof.
   intros. unfold nexts. 
   apply fold_Add with (A := REnvironment.t) (eqA := REnvironment.eq) 
@@ -271,7 +279,7 @@ Proof.
 Qed.
 
 Lemma nexts_Add_spec_1 x v t t' : 
-  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (RSample.next v))⌉ᵣᵦ (nexts t))%re.
+  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ (nexts t))%re.
 Proof.
   intros. destruct (In_dec t x).
   - unfold Add in *. rewrite H.
@@ -324,7 +332,7 @@ Proof.
   - destruct H1. apply find_1 in H1. rewrite H0 in *.
     destruct (Resource.eq_dec r x); subst.
     -- rewrite add_eq_o in H1; auto. inversion H1; subst; clear H1.
-       exists (RSample.next x0); rewrite nexts_Add_spec; eauto.
+       exists (Sample.next x0); rewrite nexts_Add_spec; eauto.
        rewrite REnvironment.OP.P.add_eq_o; auto.
     -- assert (In r fl1). 
        { rewrite add_neq_o in H1; auto. exists x0. now apply find_2. }
@@ -341,12 +349,12 @@ Proof.
     unfold Add in H0. rewrite H0.
     apply (new_key_add_spec fl1 x e) in H as IH.
     rewrite nexts_in_iff in H. 
-    apply (REnvironment.Ext.new_key_add_spec _ x (Cell.inp (RSample.next e))) in H as IH'.
+    apply (REnvironment.Ext.new_key_add_spec _ x (Cell.inp (Sample.next e))) in H as IH'.
     destruct IH as [[Hnk Hle] | [Hnk Hgt]]; 
     destruct IH' as [[Hnk' Hle'] | [Hnk' Hgt']]; try lia.
 Qed.
 
-(** *** Puts *)
+(** ** Puts *)
 
 #[export]
 Instance puts_prop V :
@@ -405,13 +413,13 @@ Proof.
     intros V HEmp; auto.
     unfold Empty in *; intros. intro. destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
     -- destruct r.
-       + apply (HEmp x (RSample.put None e)).
+       + apply (HEmp x (Sample.put None e)).
          apply find_2. rewrite puts_Add_spec; eauto. 
          unfold puts_func. rewrite HfV. now rewrite add_eq_o. 
-       + apply (HEmp x (RSample.put (Some λ) e)).
+       + apply (HEmp x (Sample.put (Some λ) e)).
          apply find_2. rewrite puts_Add_spec; eauto. 
          unfold puts_func. rewrite HfV. now rewrite add_eq_o.
-    -- apply (HEmp x (RSample.put None e)).
+    -- apply (HEmp x (Sample.put None e)).
         apply find_2. rewrite puts_Add_spec; eauto. 
         unfold puts_func. rewrite HfV. now rewrite add_eq_o.
 Qed.
@@ -506,7 +514,7 @@ Proof.
        + rewrite add_neq_o; auto.
 Qed.
 
-(** *** Halts *)
+(** ** Halts *)
 
 #[export]
 Instance halts_eq : Proper (Logic.eq ==> eq ==> iff) halts.
@@ -519,7 +527,7 @@ Proof.
 Qed.
 
 Lemma halts_add_spec : forall m k x v,
-  (RSample.halts k v) /\ halts k m -> halts k (add x v m).
+  (Sample.halts k v) /\ halts k m -> halts k (add x v m).
 Proof.
   intros m k x v. intros [Hltv Hltm]; unfold halts; intros r v' Hfi.
   rewrite OP.P.add_o in Hfi; destruct (Resource.eq_dec x r); subst; inversion Hfi; subst; auto.
@@ -527,7 +535,7 @@ Proof.
 Qed.
 
 Lemma halts_add_spec_1 : forall m k x v,
-  ~ In x m -> halts k (add x v m) -> (RSample.halts k v) /\ halts k m.
+  ~ In x m -> halts k (add x v m) -> (Sample.halts k v) /\ halts k m.
 Proof.
   intros; split.
   - unfold halts in *. apply (H0 x v). now rewrite add_eq_o.
@@ -549,7 +557,7 @@ Proof.
     destruct (Resource.eq_dec x r); subst.
     -- rewrite REnvironment.OP.P.add_eq_o in H1; auto.
        inversion H1; subst; clear H1; simpl.
-       now apply RSample.halts_next.
+       now apply Sample.halts_next.
     -- rewrite REnvironment.OP.P.add_neq_o in H1; auto.
        now apply IH in H1.
 Qed.
@@ -564,39 +572,36 @@ Proof.
     apply (IHt1 V) in Hlt1; auto. unfold puts_func.
     destruct (V⌊x⌋ᵣᵦ) eqn:HfV; auto.
     -- destruct r; apply halts_add_spec; split; auto.
-       + apply RSample.halts_put_None; auto.
-       + apply RSample.halts_put_Some; auto.  
+       + apply Sample.halts_put_None; auto.
+       + apply Sample.halts_put_Some; auto.  
          apply H2 in HfV; now simpl in *.
     -- apply halts_add_spec; split; auto.
-       apply RSample.halts_put_None; auto.
+       apply Sample.halts_put_None; auto.
 Qed.
 
+(** ** Morphism *)
 
-
-
-(** *** Morphism *)
-
-#[global] 
+#[export] 
 Instance in_rsamples : 
-  Proper (Logic.eq ==> RSamples.eq ==> iff) In.
+  Proper (Logic.eq ==> Samples.eq ==> iff) In.
 Proof.
   repeat red; intros; split; intros;
   apply OP.P.Equal_Eqdom in H0; eapply OP.P.In_m in H0; eauto;
   apply H0; eauto. 
 Qed.
 
-#[global] 
-Instance find_rsamples : Proper (Logic.eq ==> RSamples.eq ==> Logic.eq) find.
+#[export] 
+Instance find_rsamples : Proper (Logic.eq ==> Samples.eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[global] 
-Instance Empty_rsamples : Proper (RSamples.eq ==> iff) OP.P.Empty.
+#[export] 
+Instance Empty_rsamples : Proper (Samples.eq ==> iff) OP.P.Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
 #[export] 
 Instance Add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> RSamples.eq ==> RSamples.eq ==> iff) 
-            (@OP.P.Add RSample.t).
+Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq ==> iff) 
+            (@OP.P.Add Sample.t).
 Proof. 
   red; red; red; red; red; intros; subst; rewrite H. 
   split; intros; unfold Add in *.
@@ -604,17 +609,17 @@ Proof.
   - rewrite H1. now rewrite H2.
 Qed.
 
-#[global] 
+#[export] 
 Instance add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> RSamples.eq ==> RSamples.eq) 
-                                                          (@add RSample.t).
+Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq) 
+                                                          (@add Sample.t).
 Proof.
   repeat red; intros; subst; rewrite H1; now rewrite H.
 Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_env : 
-  Proper (RSamples.eq ==> RSamples.eq ==> iff) Submap.
+  Proper (Samples.eq ==> Samples.eq ==> iff) Submap.
 Proof. 
   repeat red; intros; split; intros.
   - rewrite Submap_eq_left_spec in H1; eauto.
@@ -623,81 +628,85 @@ Proof.
     rewrite <- Submap_eq_right_spec in H1; eauto.
 Qed.
 
-End RSamples.
+End Samples.
 
-(** *** Scope and Notations *)
+(** * Notation - I/O Sampling *)
+Module SamplesNotation.
 
+(** ** Scope *)
 Declare Scope rsamples_scope.
 Delimit Scope rsamples_scope with rf.
 
-Definition 𝐒 := RSamples.t.
+(** ** Notations *)
+Definition 𝐒 := Samples.t.
 
-Infix "⊆ᵣₔ" := RSamples.Submap (at level 20, no associativity). 
-Infix "∈ᵣₔ" := RSamples.Raw.In (at level 20, no associativity). 
-Notation "r '∉ᵣₔ' Re" := (~ (RSamples.Raw.In r Re)) (at level 20, 
+Infix "⊆ᵣₔ" := Samples.Submap (at level 20, no associativity). 
+Infix "∈ᵣₔ" := Samples.Raw.In (at level 20, no associativity). 
+Notation "r '∉ᵣₔ' Re" := (~ (Samples.Raw.In r Re)) (at level 20, 
                                                                         no associativity). 
-Notation "∅ᵣₔ" := RSamples.Raw.empty (at level 20, no associativity). 
-Notation "'isEmptyᵣₔ(' Re ')'" := (RSamples.OP.P.Empty Re) (at level 20, no associativity). 
-Notation "'Addᵣₔ'" := (RSamples.OP.P.Add) (at level 20, no associativity). 
-Notation "'maxᵣₔ(' R ')'"  := (RSamples.Ext.max_key R) (at level 15).
-Notation "'newᵣₔ(' R ')'"  := (RSamples.Ext.new_key R) (at level 15).
-Notation "R '⁺ᵣₔ'"  := (RSamples.Ext.new_key R) (at level 15).
-Notation "R '⌊' x '⌋ᵣₔ'"  := (RSamples.Raw.find x R) (at level 15, x constr).
-Notation "⌈ x ⤆ v '⌉ᵣₔ' R"  := (RSamples.Raw.add x v R) (at level 15, 
+Notation "∅ᵣₔ" := Samples.Raw.empty (at level 20, no associativity). 
+Notation "'isEmptyᵣₔ(' Re ')'" := (Samples.OP.P.Empty Re) (at level 20, no associativity). 
+Notation "'Addᵣₔ'" := (Samples.OP.P.Add) (at level 20, no associativity). 
+Notation "'maxᵣₔ(' R ')'"  := (Samples.Ext.max_key R) (at level 15).
+Notation "R '⁺ᵣₔ'"  := (Samples.Ext.new_key R) (at level 15).
+Notation "R '⌊' x '⌋ᵣₔ'"  := (Samples.Raw.find x R) (at level 15, x constr).
+Notation "⌈ x ⤆ v '⌉ᵣₔ' R"  := (Samples.Raw.add x v R) (at level 15, 
                                                                           x constr, v constr).
-Notation "R ⌈ x ⩦ v '⌉ᵣₔ'"  := (RSamples.Raw.find x R = Some v) (at level 15, 
+Notation "R ⌈ x ⩦ v '⌉ᵣₔ'"  := (Samples.Raw.find x R = Some v) (at level 15, 
                                                                                   x constr, 
                                                                                   v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ᵣₔ'"  := (RSamples.Raw.find x R = None) (at level 15, 
+Notation "R ⌈ x ⩦ ⊥ '⌉ᵣₔ'"  := (Samples.Raw.find x R = None) (at level 15, 
                                                                                     x constr).
 
-Infix "=" := RSamples.eq : rsamples_scope.
+Infix "=" := Samples.eq : rsamples_scope.
 
-Notation "'[⧐ᵣₔ' lb '≤' k ']' t" := (RSamples.shift lb k t) (at level 45, right associativity).
-Infix "⊩ᵣₔ" := RSamples.valid (at level 20, no associativity).
+Notation "'[⧐ᵣₔ' lb '≤' k ']' t" := (Samples.shift lb k t) (at level 45, right associativity).
+Infix "⊩ᵣₔ" := Samples.valid (at level 20, no associativity).
 
+(** ** Morphisms *)
+#[export]
+Instance eq_equiv_re : Equivalence Samples.eq.
+Proof. apply Samples.OP.P.Equal_equiv. Qed.
 
-#[global]
-Instance eq_equiv_re : Equivalence RSamples.eq.
-Proof. apply RSamples.OP.P.Equal_equiv. Qed.
+#[export] Instance max_re : Proper (Samples.eq ==> Logic.eq) (Samples.Ext.max_key).
+          Proof. apply Samples.Ext.max_key_eq. Qed.
 
-#[global] Instance max_re : Proper (RSamples.eq ==> Logic.eq) (RSamples.Ext.max_key).
-          Proof. apply RSamples.Ext.max_key_eq. Qed.
-
-#[global] Instance new_re : Proper (RSamples.eq ==> Logic.eq) (RSamples.Ext.new_key).
-          Proof. apply RSamples.Ext.new_key_eq. Qed.
+#[export] Instance new_re : Proper (Samples.eq ==> Logic.eq) (Samples.Ext.new_key).
+          Proof. apply Samples.Ext.new_key_eq. Qed.
           
-#[global] 
+#[export] 
 Instance in_rsamples : 
-  Proper (Logic.eq ==> RSamples.eq ==> iff) (RSamples.Raw.In).
-Proof. apply RSamples.in_rsamples. Qed.
+  Proper (Logic.eq ==> Samples.eq ==> iff) (Samples.Raw.In).
+Proof. apply Samples.in_rsamples. Qed.
 
-#[global] 
-Instance find_rsamples : Proper (Logic.eq ==> RSamples.eq ==> Logic.eq) 
-                                                      (RSamples.Raw.find).
-Proof. apply RSamples.find_rsamples. Qed.
+#[export] 
+Instance find_rsamples : Proper (Logic.eq ==> Samples.eq ==> Logic.eq) 
+                                                      (Samples.Raw.find).
+Proof. apply Samples.find_rsamples. Qed.
 
-#[global] 
-Instance Empty_rsamples : Proper (RSamples.eq ==> iff) (RSamples.OP.P.Empty).
-Proof. apply RSamples.Empty_rsamples. Qed.
+#[export] 
+Instance Empty_rsamples : Proper (Samples.eq ==> iff) (Samples.OP.P.Empty).
+Proof. apply Samples.Empty_rsamples. Qed.
 
-#[global] 
+#[export] 
 Instance Add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> RSamples.eq ==> RSamples.eq ==> iff) 
-                                                  (@RSamples.OP.P.Add RSample.t).
-Proof. apply RSamples.Add_rsamples. Qed. 
+Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq ==> iff) 
+                                                  (@Samples.OP.P.Add Sample.t).
+Proof. apply Samples.Add_rsamples. Qed. 
 
-#[global] 
+#[export] 
 Instance add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> RSamples.eq ==> RSamples.eq) 
-                                                          (@RSamples.Raw.add RSample.t).
-Proof. apply RSamples.add_rsamples. Qed. 
+Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq) 
+                                                          (@Samples.Raw.add Sample.t).
+Proof. apply Samples.add_rsamples. Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_env : 
-  Proper (RSamples.eq ==> RSamples.eq ==> iff) RSamples.Submap.
-Proof. apply RSamples.Submap_env. Qed.
+  Proper (Samples.eq ==> Samples.eq ==> iff) Samples.Submap.
+Proof. apply Samples.Submap_env. Qed.
 
-#[global] 
-Instance Submap_env_po : PreOrder RSamples.Submap.
-Proof. apply RSamples.Submap_po. Qed. 
+#[export] 
+Instance Submap_env_po : PreOrder Samples.Submap.
+Proof. apply Samples.Submap_po. Qed. 
+
+End SamplesNotation.

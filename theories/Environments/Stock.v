@@ -1,14 +1,23 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Resources Term REnvironment Cell ReadStock WriteStock.
+From Mecha Require Import Resource Term REnvironment Cell ReadStock WriteStock.
 From DeBrLevel Require Import LevelInterface MapExt PairLevel.
 From MMaps Require Import MMaps.
+Import ResourceNotations TermNotations CellNotations REnvironmentNotations
+       ReadStockNotations WriteStockNotations.
 
+(** * Environment - Virtual Resource Environment
 
+  W, defined in [Stock.v], is in charge of keeping bound resources
+  and initial terms of each removed wh term. In the original paper,
+  W is a set of triplets, which can be cumbersome to treat. We decide
+  to split W into two data structures: a map and a set. 
+
+*)
 Module Stock <: IsLvlET.
 
 Include IsLvlPairET ReadStock WriteStock.
 
-(** *** Definition *)
+(** ** Definition *)
 
 Definition get_r (t : Stock.t) : 𝐖ᵣ := fst t.
 Definition get_w (t : Stock.t) : 𝐖ₔ := snd t.
@@ -35,7 +44,7 @@ Definition update (W : Stock.t) (V : REnvironment.t) :=
 
 Definition find (r : resource) (W : Stock.t) := (fst W) ⌊r⌋ᵣₖ.
 
-(** *** Initialized *)
+(** ** Initialized *)
 
 Lemma init_virtual_unused : forall sk V,
   REnvironment.For_all (fun _ v => Cell.unused v) V ->
@@ -47,7 +56,7 @@ Proof.
   assumption.
 Qed.
 
-(** *** In *)
+(** ** In *)
 
 Lemma empty_in_spec : forall r, ~ In r empty.
 Proof.
@@ -95,7 +104,7 @@ Proof.
   - destruct H; apply ReadStock.find_1 in H; auto.
 Qed.
 
-(** *** Morphism from RStock to Resources *)
+(** ** Morphism from RStock to Resources *)
 
 Lemma to_RS_empty_spec : to_RS empty = ∅ᵣₛ.
 Proof.
@@ -116,7 +125,7 @@ Proof.
  intros; repeat rewrite <- to_RS_in_spec; now rewrite union_spec.
 Qed.
 
-(** *** Valid *)
+(** ** Valid *)
 
 Lemma valid_empty_spec : forall lb,
   valid lb empty.
@@ -156,7 +165,7 @@ Proof.
   - eapply WriteStock.valid_in_spec; eauto.
 Qed.
 
-(** *** Shift *)
+(** ** Shift *)
 
 Lemma shift_in_spec : forall lb k r W,
   In r W <-> In ([⧐ᵣ lb ≤ k] r) (shift lb k W).
@@ -180,17 +189,21 @@ Qed.
 
 End Stock.
 
+Module StockNotations.
 
-(** *** Scope and Notations *)
-
+(** ** Scope *)
 Declare Scope stock_scope.
 Delimit Scope stock_scope with sk.
 
+(** ** Notations *)
 Definition 𝐖 := Stock.t.
 
 Infix "∈ₛₖ" := Stock.In (at level 20, no associativity).
-Notation "r '∉ₛₖ' W" := (~ (Stock.In r W)) (at level 20, 
-                                                                        no associativity). 
+Infix "=" := Stock.eq : stock_scope.
+Infix "∪" := Stock.union : stock_scope.
+Infix "⊩ₛₖ" := Stock.valid (at level 20, no associativity).
+
+Notation "r '∉ₛₖ' W" := (~ (Stock.In r W)) (at level 20, no associativity). 
                                                                       
 Notation "∅ₛₖ" := Stock.empty (at level 20, no associativity). 
 Notation "R '⌊' x '⌋ₛₖ'"  := (Stock.find x R) (at level 15, x constr).
@@ -198,10 +211,7 @@ Notation "⌈ x ~ x' ⤆ v '⌉ₛₖ' R"  := (Stock.add x x' v R) (at level 15,
                                                                           x constr, v constr).
 Notation "R ⌈ x ⩦ v '⌉ₛₖ'"  := (Stock.find x R = Some v) (at level 15, x constr, v constr).
 Notation "R ⌈ x ⩦ ⊥ '⌉ₛₖ'"  := (Stock.find x R = None) (at level 15, x constr).
-
-Infix "=" := Stock.eq : stock_scope.
-Infix "∪" := Stock.union : stock_scope.
-
 Notation "'[⧐ₛₖ' lb '≤' k ']' t" := (Stock.shift lb k t) (at level 45, 
                                                                       right associativity).
-Infix "⊩ₛₖ" := Stock.valid (at level 20, no associativity).
+
+End StockNotations.

@@ -1,7 +1,8 @@
 From Coq Require Import Lia Program.
-From Mecha Require Import Typ Resource Resources Term Var VContext RContext Typing ET_Definition.
+From Mecha Require Import Typ Resource Term Var VContext RContext Typing ET_Definition.
+Import ResourceNotations TermNotations TypNotations VContextNotations RContextNotations.
 
-(** * Preservation *)
+(** * Transition - Evaluation - Preservation *)
 
 (** *** General proof of preservation of typing through the substitution
 
@@ -39,7 +40,7 @@ Proof.
        eapply IHt; eauto.
   - econstructor; eauto; fold subst.
     eapply IHt2 in Hwv; eauto.
-    -- replace (S (S (newᵣᵪ( Re) - Re1⁺ᵣᵪ))) with ((S (S (newᵣᵪ( Re)))) - Re1⁺ᵣᵪ).
+    -- replace (S (S (Re⁺ᵣᵪ - Re1⁺ᵣᵪ))) with ((S (S (Re⁺ᵣᵪ))) - Re1⁺ᵣᵪ).
       + erewrite <- RContext.new_key_wh_spec; eauto.
       + apply RContext.Ext.new_key_Submap_spec in Hsub; lia.
     -- now apply RContext.Ext.new_key_Submap_spec_1.
@@ -59,7 +60,7 @@ Qed.
   according to Re (modulo a shift). 
 *)
 Corollary subst_preserves_typing : forall Γ Re t v τ τ' x,
-  (* (1) *) newᵣᵪ( Re) ⊩ᵣᵪ Re -> 
+  (* (1) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re -> 
   (* (2) *) ⌈x ⤆ τ'⌉ᵥᵪ Γ ⋅ Re ⊫ t ∈ τ -> 
   (* (3) *) ∅ᵥᵪ ⋅ Re ⊫ v ∈ τ' -> 
 
@@ -83,9 +84,9 @@ Qed.
   We can state that the term t' is well typed. 
 *)
 Theorem evaluate_preserves_typing : forall Re t t' τ,
-  (* (1) *) newᵣᵪ(Re) ⊩ᵣᵪ Re ->
+  (* (1) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re ->
   (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) (newᵣᵪ(Re)) ⊨ t ⟼ t' -> 
+  (* (3) *) Re⁺ᵣᵪ ⊨ t ⟼ t' -> 
 
   ∅ᵥᵪ ⋅ Re ⊫ t' ∈ τ.
 Proof. 
@@ -116,9 +117,9 @@ Qed.
   We can state that the term t' is well typed. 
 *)
 Theorem multi_preserves_typing : forall Re t t' τ,
-  (* (1) *) newᵣᵪ(Re) ⊩ᵣᵪ Re ->
+  (* (1) *) Re⁺ᵣᵪ ⊩ᵣᵪ Re ->
   (* (2) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-  (* (3) *) (newᵣᵪ(Re)) ⊨ t ⟼⋆ t' -> 
+  (* (3) *) Re⁺ᵣᵪ ⊨ t ⟼⋆ t' -> 
   
   ∅ᵥᵪ ⋅ Re ⊫ t' ∈ τ.
 Proof.

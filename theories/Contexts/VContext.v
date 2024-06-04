@@ -2,16 +2,22 @@ From Coq Require Import Structures.Equalities Lists.List Classes.Morphisms Logic
 From Mecha Require Import Resource Typ Var.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel.
 
-(** * Context between variables and types *)
-Module VContext <: IsBdlLvlET.
+(** * Context - Variable Context 
 
+ A Wormholes term is typed by a type defined in [Typ.v] regards of two contexts:
+ the common variable context and the resource context. The former is defined here.
+ It is the usual context, however types carry resources thus it implements one of
+ the interface for level management.
+
+*)
+Module VContext <: IsBdlLvlET.
 
 Include MapD.MakeBdlLvlMapD Var Typ.
 Import Raw Ext.
 
 (** *** Morphism *)
 
-#[global] 
+#[export] 
 Instance in_vctx : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
@@ -20,11 +26,11 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[global] 
+#[export] 
 Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_vctx : Proper (eq ==> iff) Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
@@ -37,7 +43,7 @@ Proof.
   split; intros; auto.
 Qed.
 
-#[global] 
+#[export] 
 Instance add_vctx : 
 Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@add Typ.t).
 Proof. 
@@ -45,7 +51,7 @@ Proof.
  rewrite H1; now rewrite H. 
 Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_vctx : Proper (eq ==> eq ==> iff) Submap.
 Proof. 
   repeat red; intros; split; intros.
@@ -57,11 +63,16 @@ Qed.
 
 End VContext.
 
-(** *** Scope and Notations *)
 
-Definition Γ := VContext.t.
+(** * Notation - Variable Context *)
+Module VContextNotations.
+
+(** ** Scope *)
 Declare Scope vcontext_scope.
 Delimit Scope vcontext_scope with vc.
+
+(** ** Notations *)
+Definition Γ := VContext.t.
 
 Infix "⊆ᵥᵪ" := VContext.Submap (at level 20, no associativity). 
 Infix "∈ᵥᵪ" := VContext.Raw.In (at level 20, no associativity). 
@@ -82,52 +93,53 @@ Infix "=" := VContext.eq : vcontext_scope.
 Notation "'[⧐ᵥᵪ' lb '≤' k ']' t" := (VContext.shift lb k t) (at level 45, right associativity).
 Infix "⊩ᵥᵪ" := VContext.valid (at level 20, no associativity).
 
-(** *** Morphism *)
+(** ** Morphism *)
 
-
-#[global] Instance eq_equiv_vctx : Equivalence VContext.eq.
+#[export] Instance eq_equiv_vctx : Equivalence VContext.eq.
           Proof. apply VContext.Equal_equiv. Qed.
 
-#[global] 
+#[export] 
 Instance in_vctx : 
   Proper (Logic.eq ==> VContext.eq ==> iff) (VContext.Raw.In).
 Proof. apply VContext.in_vctx. Qed.
 
-#[global] 
+#[export] 
 Instance find_vctx : 
   Proper (Logic.eq ==> VContext.eq ==> Logic.eq) (VContext.Raw.find).
 Proof. apply VContext.find_vctx. Qed.
 
-#[global] 
+#[export] 
 Instance Empty_vctx : Proper (VContext.eq ==> iff) (VContext.Empty).
 Proof. apply VContext.Empty_vctx. Qed.
 
-#[global] 
+#[export] 
 Instance Add_vctx : 
 Proper (Var.eq ==> Typ.eq ==> VContext.eq ==> VContext.eq ==> iff) 
                                                   (@VContext.Add Typ.t).
 Proof. apply VContext.Add_vctx. Qed. 
 
-#[global] 
+#[export] 
 Instance add_vctx : 
 Proper (Var.eq ==> Typ.eq ==> VContext.eq ==> VContext.eq) 
                                                           (@VContext.Raw.add Typ.t).
 Proof. apply VContext.add_vctx. Qed. 
 
-#[global] 
+#[export] 
 Instance Submap_vctx : 
   Proper (VContext.eq ==> VContext.eq ==> iff) VContext.Submap.
 Proof. apply VContext.Submap_vctx. Qed.
 
-#[global] 
+#[export] 
 Instance Submap_vctx_po : PreOrder VContext.Submap.
 Proof. apply VContext.Submap_po. Qed. 
 
-#[global] 
+#[export] 
 Instance valid_vctx : Proper (Logic.eq ==> VContext.eq ==> iff) VContext.valid.
 Proof. apply VContext.valid_eq. Qed.
 
-#[global] 
+#[export] 
 Instance shift_vctx : 
   Proper (Logic.eq ==> Logic.eq ==> VContext.eq ==> VContext.eq) VContext.shift.
 Proof. apply VContext.shift_eq. Qed.
+
+End VContextNotations.

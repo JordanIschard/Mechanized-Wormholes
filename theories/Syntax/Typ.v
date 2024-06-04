@@ -1,10 +1,14 @@
 From Coq Require Import Classes.RelationClasses Classes.Morphisms Bool.Bool Classical_Prop.
 From DeBrLevel Require Import LevelInterface PairLevel.
-From Mecha Require Import Resource Resources.
+From Mecha Require Import Resource.
+Import ResourceNotations.
 
 (** * Syntax -  Type
 
-  Here is the definition of types based on the Wormholes language.
+ Based on the arrow-calculus, the set of types is endowed with a new 
+ kind of arrow that represent signal functions. This new arrow carries 
+ a set of resources used by this signal function.
+
 *)
 Module Typ <: IsBdlLvlFullDTWL.
 
@@ -51,6 +55,13 @@ Fixpoint shift (lb : Lvl.t) (k : Lvl.t) (τ : t) : t :=
   end
 .
 
+(** **** Multi shift 
+
+During the functional transition, defined in [FT_Definition], the signal function is updated multiple 
+times with different lower bound and shift value. Thus, we define a [multi_shift] function that applies
+[n] shifts for two lists [lbs] and [ks] of length [n].
+
+*)
 Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
   List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
 
@@ -314,27 +325,30 @@ End Typ.
 *)
 Module PairTyp <: IsBdlLvlFullETWL := IsBdlLvlFullPairETWL Typ Typ.
 
-(** *** Scope and Notations *)
+(** * Notation - Types *)
+Module TypNotations.
+
+(** ** Scope *)
 Declare Scope typ_scope.
 Delimit Scope typ_scope with typ.
+
+(** ** Notations *)
 Definition Τ := Typ.t.
 Definition πΤ := PairTyp.t.
   
-Notation "'𝟙'"       := Typ.ty_unit (in custom wormholes at level 0).
-Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wormholes at level 50, 
+Notation "'𝟙'"       := Typ.ty_unit (in custom wh at level 0).
+Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wh at level 50, 
                                                                   right associativity).
-Notation "X '×' Y"   := (Typ.ty_prod X Y) (in custom wormholes at level 2, 
-                                                        X custom wormholes, 
-                                                        Y custom wormholes at level 0).
-Notation "τ1 '⟿' τ2 '∣' R" := (Typ.ty_reactive τ1 τ2 R) (in custom wormholes at level 50, 
+Notation "X '×' Y"   := (Typ.ty_prod X Y) (in custom wh at level 2, 
+                                                        X custom wh, 
+                                                        Y custom wh at level 0).
+Notation "τ1 '⟿' τ2 '∣' R" := (Typ.ty_reactive τ1 τ2 R) (in custom wh at level 50, 
                                                                   R constr, right associativity).
-
-
-Notation "'[⧐ₜ' lb '≤' k ']' t" := (Typ.shift lb k t) (in custom wormholes at level 45, 
+Notation "'[⧐ₜ' lb '≤' k ']' t" := (Typ.shift lb k t) (in custom wh at level 45, 
 right associativity).
-Notation "'[⧐⧐ₜ' lb '≤' k ']' t" := (Typ.multi_shift lb k t) (in custom wormholes at level 45, 
+Notation "'[⧐⧐ₜ' lb '≤' k ']' t" := (Typ.multi_shift lb k t) (in custom wh at level 45, 
 right associativity).
-Notation "'[⧐ₚₜ' lb '≤' k ']' t" := (PairTyp.shift lb k t) (in custom wormholes at level 45, 
+Notation "'[⧐ₚₜ' lb '≤' k ']' t" := (PairTyp.shift lb k t) (in custom wh at level 45, 
 right associativity).
 
 Infix "⊩ₜ" := Typ.valid (at level 20, no associativity). 
@@ -344,3 +358,5 @@ Infix "⊩?ₚₜ" := PairTyp.validb (at level 20, no associativity).
 
 Infix "=" := Typ.eq : typ_scope.
 Infix "=?" := Typ.eqb  (at level 70) : typ_scope.
+
+End TypNotations.

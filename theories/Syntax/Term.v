@@ -1,10 +1,14 @@
-From Coq Require Import Classical_Prop Classes.RelationClasses MSets Bool.Bool Lia.
+From Coq Require Import Classical_Prop Classes.RelationClasses Classes.Morphisms Bool.Bool Lia.
 From DeBrLevel Require Import LevelInterface OptionLevel.
 From Mecha Require Import Var Resource Typ.
+Import ResourceNotations TypNotations.
 
 (** * Syntax - Term
 
-  Here is the definition of terms based on the Wormholes language.
+  The syntax of Wormholes consists in a typed lambda-calculus
+  with pairs, recursion, arrow primitives and two additional 
+  terms: rsf and wh. It is the first [Type] where levels can be
+  bound.
 *)
 Module Term <: IsLvlFullDTWL.
 
@@ -678,51 +682,55 @@ End Term.
 
 Module OptTerm <: IsLvlETWL := IsLvlOptETWL Term.
 
+(** * Notation - Term *)
+Module TermNotations.
 
-(** *** Scope and Notations *)
+(** ** Scope *)
 Declare Scope term_scope.
 Declare Scope opt_term_scope.
 Delimit Scope term_scope with tm.
 Delimit Scope opt_term_scope with otm.
+
+(** ** Notations *)
 Definition Λ := Term.t.
 Definition Λₒ := OptTerm.t.
 
 Coercion Term.tm_var : variable >-> Term.raw.
 Notation "value( t )" := (Term.value t) (at level 20, no associativity).
 Notation "clₜₘ( t )" := (Term.closed t) (at level 20, no associativity).
-Notation "'isFV(' r ',' t ')'" := (Term.appears_free_in r t) (at level 40, t custom wormholes).
+Notation "'isFV(' r ',' t ')'" := (Term.appears_free_in r t) (at level 40, t custom wh).
 
-Notation "x y"     := (Term.tm_app x y) (in custom wormholes at level 70, left associativity).
-Notation "\ x : t , y" := (Term.tm_abs x t y) (in custom wormholes at level 90, 
-                                                    x at level 99, t custom wormholes at level 99, 
-                                                    y custom wormholes at level 99, 
+Notation "x y"     := (Term.tm_app x y) (in custom wh at level 70, left associativity).
+Notation "\ x : t , y" := (Term.tm_abs x t y) (in custom wh at level 90, 
+                                                    x at level 99, t custom wh at level 99, 
+                                                    y custom wh at level 99, 
                                                     left associativity).
-Notation "'unit'" := (Term.tm_unit) (in custom wormholes at level 0).
-Notation "'Fix'" := (Term.tm_fix) (in custom wormholes at level 0).
-Notation "⟨ x ',' y ⟩" := (Term.tm_pair x y) (in custom wormholes at level 0, 
-                                                      x custom wormholes at level 99, 
-                                                      y custom wormholes at level 99).
-Notation "t '.fst'"  := (Term.tm_fst t) (in custom wormholes at level 0).
-Notation "t '.snd'"  := (Term.tm_snd t) (in custom wormholes at level 0).
-Notation "'arr(' f ')'"    := (Term.tm_arr f) (in custom wormholes at level 0, 
-                                                      f custom wormholes at level 99,
+Notation "'unit'" := (Term.tm_unit) (in custom wh at level 0).
+Notation "'Fix'" := (Term.tm_fix) (in custom wh at level 0).
+Notation "⟨ x ',' y ⟩" := (Term.tm_pair x y) (in custom wh at level 0, 
+                                                      x custom wh at level 99, 
+                                                      y custom wh at level 99).
+Notation "t '.fst'"  := (Term.tm_fst t) (in custom wh at level 0).
+Notation "t '.snd'"  := (Term.tm_snd t) (in custom wh at level 0).
+Notation "'arr(' f ')'"    := (Term.tm_arr f) (in custom wh at level 0, 
+                                                      f custom wh at level 99,
                                                       no associativity).
-Notation "'first(' τ ':' sf ')'" := (Term.tm_first τ sf) (in custom wormholes at level 0).
-Notation " sf1 '>>>' sf2 " := (Term.tm_comp sf1 sf2) (in custom wormholes at level 60, 
+Notation "'first(' τ ':' sf ')'" := (Term.tm_first τ sf) (in custom wh at level 0).
+Notation " sf1 '>>>' sf2 " := (Term.tm_comp sf1 sf2) (in custom wh at level 60, 
                                                                           left associativity).
-Notation "'rsf[' r ']'"    := (Term.tm_rsf r) (in custom wormholes at level 0,  
+Notation "'rsf[' r ']'"    := (Term.tm_rsf r) (in custom wh at level 0,  
                                                       r constr, no associativity).
-Notation "'wormhole(' i ';' sf ')'" :=  (Term.tm_wh i sf ) (in custom wormholes at level 23,
-                                                                  i custom wormholes, 
-                                                                  sf custom wormholes, 
+Notation "'wormhole(' i ';' sf ')'" :=  (Term.tm_wh i sf ) (in custom wh at level 23,
+                                                                  i custom wh, 
+                                                                  sf custom wh, 
                                                                   no associativity).
 
 Notation "'[⧐ₜₘ' lb '≤' k ']' t" := (Term.shift lb k t) 
-  (in custom wormholes at level 65, right associativity).
+  (in custom wh at level 65, right associativity).
 Notation "'[⧐⧐ₜₘ' lb '≤' k ']' t" := (Term.multi_shift lb k t) 
-  (in custom wormholes at level 65, right associativity).
+  (in custom wh at level 65, right associativity).
 Notation "'[⧐ₒₜₘ' lb '≤' k ']' t" := (OptTerm.shift lb k t) 
-  (in custom wormholes at level 65, right associativity).
+  (in custom wh at level 65, right associativity).
 
 Infix "⊩ₜₘ" := Term.valid (at level 20, no associativity).   
 Infix "⊩ₒₜₘ" := OptTerm.valid (at level 20, no associativity).   
@@ -731,3 +739,5 @@ Infix "⊩?ₜₘ" := Term.validb (at level 20, no associativity).
 Infix "=" := Term.eq : term_scope.
 Infix "=?" := Term.eqb  (at level 70) : term_scope.
 Infix "=" := OptTerm.eq : opt_term_scope.
+
+End TermNotations.

@@ -1,9 +1,11 @@
-From Coq Require Import Lia.
+(* From Coq Require Import Lia.
 From DeBrLevel Require Import Level Levels SetLevelInterface.
 
 (** * Syntax - Resources
 
-  Types in Womholes language is composed with basic types of a lambda-calculus with
+  Wormholes types contains a "reactive" arrow that carries a set of resources used
+  by the signal function.
+  Types in Wotmholes language is composed with basic types of a lambda-calculus with
   a new arrow which carries a set of used resources. In order to define this type
   we define a set of resources identifiers.
 *)
@@ -35,21 +37,21 @@ Delimit Scope resources_scope with rs.
 Notation "∅ᵣₛ" := (Resources.empty).
 Notation "'\{{' x '}}'" := (Resources.singleton x).
 Notation "'\{{' x ';' y ';' .. ';' z '}}'" := (Resources.add x (Resources.add y .. (Resources.add z Resources.empty) .. )).
-Infix "∉" := (fun x s => ~ Resources.In x s) (at level 75) : resources_scope.
-Infix "∈" := (Resources.In)  (at level 60, no associativity) : resources_scope.
+Infix "∉"  := (fun x s => ~ Resources.In x s) (at level 75) : resources_scope.
+Infix "∈"  := (Resources.In)  (at level 60, no associativity) : resources_scope.
 Infix "+:" := (Resources.add)  (at level 60, no associativity) : resources_scope.
-Infix "∪" := (Resources.union) (at level 50, left associativity) : resources_scope.
-Infix "∩" := (Resources.inter) (at level 50, left associativity) : resources_scope.
-Infix "\" := (Resources.diff) (at level 50, left associativity) : resources_scope.
-Infix "⊆" := Resources.Subset (at level 60, no associativity) : resources_scope.
-Infix "⊈" := (fun s s' => ~ (Resources.Subset s s')) (at level 60, no associativity) : resources_scope.
+Infix "∪"  := (Resources.union) (at level 50, left associativity) : resources_scope.
+Infix "∩"  := (Resources.inter) (at level 50, left associativity) : resources_scope.
+Infix "\"  := (Resources.diff) (at level 50, left associativity) : resources_scope.
+Infix "⊆"  := Resources.Subset (at level 60, no associativity) : resources_scope.
+Infix "⊈"  := (fun s s' => ~ (Resources.Subset s s')) (at level 60, no associativity) : resources_scope.
 
 Infix "<"  := Resources.lt : resources_scope.
 Infix "<?" := Resources.ltb (at level 70) : resources_scope.
-Infix "=" := Resources.eq : resources_scope.
+Infix "="  := Resources.eq : resources_scope.
 Infix "=?" := Resources.equal (at level 70) : resources_scope.
 
 Infix "⊩ᵣₛ" := Resources.valid (at level 20, no associativity). 
 Infix "⊩?ᵣₛ" := Resources.validb (at level 20, no associativity). 
 Notation "'[⧐ᵣₛ' lb '≤' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity).
-Notation "'[⧐⧐ᵣₛ' lb '≤' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity).
+Notation "'[⧐⧐ᵣₛ' lb '≤' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity). *)

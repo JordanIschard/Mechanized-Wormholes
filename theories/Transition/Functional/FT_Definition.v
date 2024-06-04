@@ -1,23 +1,28 @@
 From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing
                           ET_Definition Cell VContext REnvironment RContext Stock.
+Import ResourceNotations TermNotations TypNotations CellNotations
+       VContextNotations RContextNotations REnvironmentNotations
+       ReadStockNotations WriteStockNotations StockNotations.
 
-(** * Transition - Functional
+(** * Transition - Functional - Definition
 
-Wormholes's semantics are divided in three sub semantics:
-- evaluation transition
-- functional transition <--
-- temporal transition
+Wormholes’s semantics is given by three sets of transition rules: the evaluation
+transition, which extends standard β-reduction; the functional transition which
+performs the logical instant, and the temporal transition which corresponds to
+the reactivity of the program: it initializes the resources values, performs the
+instant via functional transition and updates the system.
 
+In this file, we focus on the functional transition.
 *)
 
-(** ** Functional Transition *)
-
 Reserved Notation "⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st1 ; t1 ; W ⪢" (at level 57, V constr, 
-                                                                V1 constr, st custom wormholes,
-                                                                st1 custom wormholes,
-                                                                t custom wormholes, 
-                                                                t1 custom wormholes, 
+                                                                V1 constr, st custom wh,
+                                                                st1 custom wh,
+                                                                t custom wh, 
+                                                                t1 custom wh, 
                                                                 no associativity).
+
+(** ** Functional Transition *)
 
 Inductive functional : 𝓥 -> Λ -> Λ -> 𝓥 -> Λ -> Λ -> 𝐖 -> Prop :=
 
