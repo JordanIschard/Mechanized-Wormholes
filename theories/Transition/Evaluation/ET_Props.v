@@ -1,4 +1,4 @@
-From Coq Require Import Classical_Prop Bool.Bool Lia Classes.RelationClasses Program.
+From Coq Require Import Classical_Prop Bool.Bool Relations.Relation_Operators Lia Classes.RelationClasses Program.
 From Mecha Require Import Typ Resource Resources Term Var VContext RContext Typing ET_Definition.
 Import ResourceNotations TermNotations TypNotations RContextNotations.
 
@@ -124,104 +124,120 @@ Qed.
 
 (** ** Evaluation Transition *)
 
+Hint Constructors clos_refl_trans_1n : core.
+Hint Resolve rt1n_refl : core.
+
 (** *** Lift semantics rules from evaluation to multi evaluation *)
 
 Lemma multi_var : forall k (x : variable), k ⊨ x ⟼⋆ x.
-Proof. intros k x; apply multi_refl. Qed.
+Proof. intros k x. apply rt1n_refl. Qed.
 
 Lemma multi_appv : forall k x t τ v, 
   value(v) -> k ⊨ ((\x:τ, t) v) ⟼⋆ ([x := v ~ k ≤ 0] t).
 Proof. 
-  intros k x t τ v Hv. apply multi_step with (y := <[[x := v ~ k ≤ 0] t]>); auto.
+  intros k x t τ v Hv. apply rt1n_trans with (y := <[[x := v ~ k ≤ 0] t]>); auto.
 Qed.
 
 Lemma multi_fix : forall k x t τ, 
   k ⊨ (Fix (\x:τ, t)) ⟼⋆ ([x := (Fix (\x:τ, t)) ~ k ≤ 0] t).
 Proof. 
-  intros k x t τ. apply multi_step with (y := <[[x := (Fix (\x:τ, t)) ~ k ≤ 0] t]>); auto.
+  intros k x t τ. apply rt1n_trans with (y := <[[x := (Fix (\x:τ, t)) ~ k ≤ 0] t]>); auto.
 Qed.
 
 Lemma multi_app1 : forall k t t' t2, k ⊨ t ⟼⋆ t' -> k ⊨ (t t2) ⟼⋆ (t' t2).
 Proof. 
   intros k t t' t2 HeT; induction HeT; subst; auto.
-  apply multi_step with <[y t2]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[y t2]>; auto.
 Qed.
 
 Lemma multi_app2 : forall k t t' t1, value(t1) -> k ⊨ t ⟼⋆ t' -> k ⊨ (t1 t) ⟼⋆ (t1 t').
 Proof. 
   intros k t t' t1 Hvt HeT; induction HeT; subst; auto.
-  apply multi_step with <[t1 y]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[t1 y]>; auto.
 Qed.
 
 Lemma multi_pair1 : forall k t t' t2, k ⊨ t ⟼⋆ t' -> k ⊨ ⟨t,t2⟩ ⟼⋆ ⟨t',t2⟩.
 Proof.
   intros k t t' t2 HeT; induction HeT; subst; auto.
-  apply multi_step with <[⟨y,t2⟩]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[⟨y,t2⟩]>; auto. 
 Qed.
 
 Lemma multi_pair2 : forall k t t' t1, value(t1) -> k ⊨ t ⟼⋆ t' -> k ⊨ ⟨t1,t⟩ ⟼⋆ ⟨t1,t'⟩.
 Proof.
   intros k t t' t1 Hvt HeT; induction HeT; subst; auto.
-  apply multi_step with <[⟨t1,y⟩]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[⟨t1,y⟩]>; auto. 
 Qed.
 
 Lemma multi_fstv : forall k t1 t2, value(t1) -> value(t2) -> k ⊨ ⟨t1,t2⟩.fst ⟼⋆ t1.
 Proof.
-  intros k t1 t2 Hvt1 Hvt2; apply multi_step with t1; auto.
+  intros k t1 t2 Hvt1 Hvt2; apply rt1n_trans with t1; auto.
 Qed.
 
 Lemma multi_fst1 : forall k t t', k ⊨ t ⟼⋆ t' -> k ⊨ t.fst ⟼⋆ t'.fst.
 Proof.
   intros k t t' HeT; induction HeT; subst; auto.
-  apply multi_step with <[y.fst]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[y.fst]>; auto. 
 Qed.
 
 Lemma multi_sndv : forall k t1 t2, value(t1) -> value(t2) -> k ⊨ ⟨t1,t2⟩.snd ⟼⋆ t2.
 Proof.
-  intros k t1 t2 Hvt1 Hvt2; apply multi_step with t2; auto.
+  intros k t1 t2 Hvt1 Hvt2; apply rt1n_trans with t2; auto.
 Qed.
 
 Lemma multi_snd1 : forall k t t', k ⊨ t ⟼⋆ t' -> k ⊨ t.snd ⟼⋆ t'.snd.
 Proof.
   intros k t t' HeT; induction HeT; subst; auto.
-  apply multi_step with <[y.snd]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[y.snd]>; auto. 
 Qed.
 
 Lemma multi_arr : forall k t t', k ⊨ t ⟼⋆ t' -> k ⊨ arr(t) ⟼⋆ arr(t').
 Proof.
   intros k t t' HeT; induction HeT; subst; auto.
-  apply multi_step with <[arr(y)]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[arr(y)]>; auto. 
 Qed.
 
 Lemma multi_first : forall k τ t t', k ⊨ t ⟼⋆ t' -> k ⊨ first(τ:t) ⟼⋆ first(τ:t').
 Proof.
   intros k τ t t' HeT; induction HeT; subst; auto.
-  apply multi_step with <[first(τ:y)]>; auto. 
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[first(τ:y)]>; auto. 
 Qed.
 
 Lemma multi_comp1 : forall k t t' t2, k ⊨ t ⟼⋆ t' -> k ⊨ t >>> t2 ⟼⋆ t' >>> t2.
 Proof. 
   intros k t t' t2 HeT; induction HeT; subst; auto.
-  apply multi_step with <[y >>> t2]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[y >>> t2]>; auto.
 Qed.
 
 Lemma multi_comp2 : forall k t t' t1, value(t1) -> k ⊨ t ⟼⋆ t' -> k ⊨ t1 >>> t ⟼⋆ t1 >>> t'.
 Proof. 
   intros k t t' t1 Hvt HeT; induction HeT; subst; auto.
-  apply multi_step with <[t1 >>> y]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[t1 >>> y]>; auto.
 Qed.
 
 Lemma multi_wh1 : forall k t t' t2, k ⊨ t ⟼⋆ t' -> k ⊨ wormhole(t;t2) ⟼⋆ wormhole(t';t2).
 Proof. 
   intros k t t' t2 HeT; induction HeT; subst; auto.
-  apply multi_step with <[wormhole(y;t2)]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[wormhole(y;t2)]>; auto.
 Qed.
 
 Lemma multi_wh2 : forall k t t' t1, 
   value(t1) -> (S (S k)) ⊨ t ⟼⋆ t' -> k ⊨ wormhole(t1;t) ⟼⋆ wormhole(t1;t').
 Proof. 
   intros k t t' t1 Hvt HeT; dependent induction HeT; subst; auto.
-  apply multi_step with <[wormhole(t1;y)]>; auto.
+  - apply rt1n_refl.
+  - apply rt1n_trans with <[wormhole(t1;y)]>; auto.
+    apply (IHHeT k); auto.
 Qed.
 
 (** *** Value regards of evaluation transition *)
@@ -252,7 +268,7 @@ Qed.
 Lemma multi_trans : forall k, Transitive (multi k).
 Proof.
   red; intros k x y z HmeT HmeT'; induction HmeT; try assumption.
-  eapply multi_step; eauto.
+  eapply rt1n_trans; eauto. now apply IHHmeT.
 Qed.
 
 Lemma indexed_trans : forall lb k k' t t' t'',
@@ -280,7 +296,7 @@ Qed.
 Lemma multi_preserves_valid_term : forall k t t',
   k ⊩ₜₘ t -> k ⊨ t ⟼⋆ t' -> k ⊩ₜₘ t'.
 Proof.
-  intros; induction H0; auto; apply IHmulti.
+  intros; induction H0; auto. apply IHclos_refl_trans_1n.
   now apply evaluate_preserves_valid_term with (t := x).
 Qed.
 
@@ -313,8 +329,8 @@ Theorem multi_evaluate_valid_weakening_gen : forall t t' lb lb' k k',
   lb ⊨ t ⟼⋆ t' -> lb' ⊨ ([⧐ₜₘ k ≤ {k' - k}] t) ⟼⋆ ([⧐ₜₘ k ≤ {k' - k}] t').
 Proof.
   intros; induction H4; try now constructor.
-  eapply multi_step with (y := <[[⧐ₜₘ k ≤ {k' - k}] y ]>); auto.
-  eapply evaluate_valid_weakening_gen with (lb := k0); auto.
+  eapply rt1n_trans with (y := <[[⧐ₜₘ k ≤ {k' - k}] y ]>); auto.
+  eapply evaluate_valid_weakening_gen with (lb := lb); auto.
 Qed.
 
 Theorem indexed_evaluate_valid_weakening_gen : forall t t' lb lb' k k' n,
@@ -364,7 +380,7 @@ Qed.
 Lemma value_halts : forall k t, value(t) -> halts k t.
 Proof. 
   intros k t Hv; unfold halts; exists t; split; try assumption.
-  apply multi_refl.
+  apply rt1n_refl.
 Qed.
 
 Lemma evaluate_preserves_halting : forall k t t',
@@ -374,9 +390,9 @@ Proof.
   - destruct HmeT.
     -- exfalso; apply (value_normal k) in Hv; unfold normal_form,not in Hv; apply Hv.
       now exists t'.
-    -- apply (evaluate_deterministic k x t' y HeT) in H as Heq; subst.
+    -- apply (evaluate_deterministic k t t' y HeT) in H as Heq; subst.
       exists z; split; assumption.
-  - exists t''; split; try assumption; now apply multi_step with (y := t').     
+  - exists t''; split; try assumption; now apply rt1n_trans with (y := t').     
 Qed.
 
 Lemma multi_preserves_halting : forall k t t',
@@ -421,8 +437,8 @@ Proof.
   - destruct HA as [t [HmeT Hvt]]. apply Hpair in HmeT as Heq.
     destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
     -- inversion Hvt; subst; split.
-       + exists t1'; split; auto.
-       + exists t2'; split; auto.
+       + exists t1'; split; auto. apply rt1n_refl.
+       + exists t2'; split; auto. apply rt1n_refl.
     -- inversion H; subst.
        + apply IHHmeT with (t1 := t1'0) (t2 := t2) in Hvt; auto.
          destruct Hvt; split; auto; clear H1.
@@ -444,7 +460,7 @@ Lemma halts_first : forall k τ t,
 Proof.
   intros k τ t; split; intros HA.
   - destruct HA as [t' [HmeT Hvt]]; dependent induction HmeT.
-    -- inversion Hvt; subst; exists t; split; auto.
+    -- inversion Hvt; subst; exists t; split; auto.  apply rt1n_refl.
     -- inversion H; subst. apply (IHHmeT τ t') in Hvt; eauto.
        rewrite evaluate_preserves_halting; eauto.
   - destruct HA as [t' [HmeT Hvt']]; exists <[first(τ:t')]>; split; auto.
@@ -465,8 +481,8 @@ Proof.
   - destruct HA as [t [HmeT Hvt]]. apply Hcomp in HmeT as Heq.
     destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
     -- inversion Hvt; subst; split.
-       + exists t1'; split; auto.
-       + exists t2'; split; auto.
+       + exists t1'; split; auto.  apply rt1n_refl.
+       + exists t2'; split; auto. apply rt1n_refl.
     -- inversion H; subst.
        + apply IHHmeT with (t1 := t1'0) (t2 := t2) in Hvt; auto.
          destruct Hvt; split; auto; clear H1.
@@ -497,8 +513,8 @@ Proof.
   - destruct HA as [t [HmeT Hvt]]. apply Hwh in HmeT as Heq.
     destruct Heq as [t1' [t2' Heq]]; subst. dependent induction HmeT.
     -- inversion Hvt; subst; split.
-       + exists t1'; split; auto.
-       + exists t2'; split; auto.
+       + exists t1'; split; auto.  apply rt1n_refl.
+       + exists t2'; split; auto.  apply rt1n_refl.
     -- inversion H; subst.
        + apply IHHmeT with (t1 := i') (t2 := t2) in Hvt; auto.
          destruct Hvt; split; auto; clear H1.
@@ -532,7 +548,7 @@ Lemma multi_indexed : forall lb t t',
 Proof.
   intros. induction H.
   - exists 0. apply index_refl; auto.
-  - destruct IHmulti. exists (S x0). eapply index_step; eauto.
+  - destruct IHclos_refl_trans_1n. exists (S x0). eapply index_step; eauto.
 Qed.
 
 

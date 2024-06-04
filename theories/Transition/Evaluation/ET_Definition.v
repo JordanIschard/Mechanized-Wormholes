@@ -1,3 +1,4 @@
+From Coq Require Import Relations.Relation_Operators.
 From Mecha Require Import Var Resource Term.
 Import ResourceNotations TermNotations.
 
@@ -76,8 +77,6 @@ Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t) (in custom wh at leve
 
 Reserved Notation "k '⊨' t '⟼' t1" (at level 57, t custom wh, 
                                                    t1 custom wh, no associativity).
-Reserved Notation "k '⊨' t '⟼⋆' t1" (at level 57, t custom wh, 
-                                                    t1 custom wh, no associativity).
 Reserved Notation "k '⊨' t '⊢' st '⟶' t1" (at level 57, t custom wh, 
                                                          t1 custom wh, no associativity).
 
@@ -85,8 +84,8 @@ Reserved Notation "k '⊨' t '⊢' st '⟶' t1" (at level 57, t custom wh,
 
   The evaluation transition corresponds to a determinis-
   tic β-reduction. We choose a small step semantics with a call-by-value evaluation
-  strategy (see Figure 6) in order to bypass capture issues for variables (in par-
-  ticular, reduction does not act under λ’s). Modifications on the substitution
+  strategy (see Figure 6) in order to bypass capture issues for variables (in particular, 
+  reduction does not act under λ’s). Modifications on the substitution
   affect the evaluation transition. [k] being the number of bound resources encountered, 
   we set it to [0]. But, [lb] is the level of validity of [v], thus, it cannot be deduced. 
   Consequently, we also need [lb] to be explicit in the evaluation transition.
@@ -183,12 +182,19 @@ where "k '⊨' t '⊢' st '⟶' t1" := (indexed k st t t1)
 .
 
 (** *** Multi transition step *)
+Definition multi (k : nat) :=  clos_refl_trans_1n Λ (evaluate k).
+
+
+Notation "k '⊨' t '⟼⋆' t1" := (multi k t t1) (at level 57, t custom wh, 
+                                                    t1 custom wh, no associativity).
+(*
 Inductive multi : nat -> Λ -> Λ -> Prop :=
   | multi_refl : forall k x, k ⊨ x ⟼⋆ x
   | multi_step : forall k x y z, k ⊨ x ⟼ y -> k ⊨ y ⟼⋆ z -> k ⊨ x ⟼⋆ z
 where "k '⊨' t '⟼⋆' t1" := (multi k t t1).
+*)
 
 Definition halts (k : nat)  (t : Λ) : Prop :=  exists t', k ⊨ t ⟼⋆ t' /\  value(t').
 Definition normal_form (k : nat) (t : Λ) : Prop := ~ (exists t', k ⊨ t ⟼ t').
 
-#[export] Hint Constructors evaluate multi indexed : core.
+#[export] Hint Constructors evaluate clos_refl_trans_1n indexed : core.

@@ -1,5 +1,6 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
-                        Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms.
+                        Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms
+                        Relations.Relation_Operators.
 From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext ET_Definition
                           Cell REnvironment Stock FT_Definition ET_Props ET_Preservation FT_Props.
 Import ResourceNotations TermNotations TypNotations CellNotations
@@ -842,7 +843,7 @@ Proof.
     -- rewrite RC.new_key_wh_spec; replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
        rewrite <- Hnew. apply halts_weakening_1; auto.
     -- rewrite RC.new_key_wh_spec. apply RE.halts_add_spec; split.
-       + simpl; exists <[unit]>; split; auto.
+       + simpl; exists <[unit]>; split; auto. apply rt1n_refl.
        + apply RE.halts_add_spec; split.
          ++ replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
             rewrite <- Hnew. apply halts_weakening_1; auto.

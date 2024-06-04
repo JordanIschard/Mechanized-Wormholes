@@ -1,5 +1,6 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
-                        Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms.
+                        Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms
+                        Relations.Relation_Operators.
 From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
                           FT_Definition FT_Props FT_Preservation.
@@ -54,7 +55,7 @@ Proof.
         apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>).
         ++ rewrite <- (wf_env_fT_new Re V); auto.
         ++ simpl. now constructor.
-      + inversion Hvtv'; subst; exists v1; now split.
+      + inversion Hvtv'; subst; exists v1; split; auto; apply rt1n_refl.
     -- eapply wf_env_fT_valid; eauto.
   
   - rewrite Term.multi_shift_comp in *. inversion Hwsf; subst.
@@ -95,7 +96,8 @@ Proof.
                  { eapply (wf_env_fT_valid Re V); auto. }
             * now apply Term.multi_shift_value_iff.
        + exists <[[⧐⧐ₜₘ m ≤ n] sf1]>; split; auto.
-         now apply Term.multi_shift_value_iff.
+         ++ apply rt1n_refl. 
+         ++ now apply Term.multi_shift_value_iff.
     -- intros. apply Hunsd. rewrite H9.
        rewrite Resources.union_spec; now left.
 
@@ -125,11 +127,12 @@ Proof.
          now apply halts_weakening_1.
        + unfold k; rewrite RC.new_key_wh_spec.
          apply RE.halts_add_spec; split; simpl.
-         ++ exists <[unit]>; now split.
+         ++ exists <[unit]>; split; auto; apply rt1n_refl.
          ++ apply RE.halts_add_spec; split; simpl.
             * exists <[ [⧐ₜₘ {V ⁺ᵣᵦ} ≤ 2] [⧐⧐ₜₘ m ≤ n] sf1 ]>; split; auto.
-              apply Term.shift_value_iff.
-              now apply Term.multi_shift_value_iff.
+              ** apply rt1n_refl.
+              ** apply Term.shift_value_iff.
+                 now apply Term.multi_shift_value_iff.
             * replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
               rewrite (wf_env_fT_new Re V) in *; auto.
               now apply RE.halts_weakening_1.
@@ -228,7 +231,7 @@ Proof.
     -- destruct HfT as [_ [_ [Re1 [R' [_ [_ [Hwf1 [_ [_ [_ [_ [_ [Ht'' [Hltv' HlV']]]]]]]]]]]]]].
        rewrite (wf_env_fT_new Re1 V1) in *; auto.  
        exists V1; exists tv'; exists t''; exists W; repeat split; auto.
-    -- exists t'; now split.
+    -- exists t'; split; auto; apply rt1n_refl.
   (* sf can be reduced at least one time *)
   - inversion HieT; subst.
 
