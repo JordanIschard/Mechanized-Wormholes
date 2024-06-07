@@ -1,6 +1,6 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms.
-From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext 
+From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
                           FT_Definition FT_Props FT_Preservation FT_Progress.
 Import ResourceNotations TermNotations TypNotations CellNotations
@@ -30,7 +30,7 @@ Theorem safety_resources_interaction (Re : ℜ) (V : 𝓥) (t : Λ) (τ τ' : Τ
     exists (R' : resources) (V1 : 𝓥) (tv' t' : Λ) (W: 𝐖), 
       (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢ /\
 
-      (*  (8) *) (R ⊆ R')%rs    /\
+      (*  (9) *) (R ⊆ R')%rs    /\
       (* (10) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> 
                     ([⧐ᵣᵦ (V⁺ᵣᵦ) ≤ ((V1⁺ᵣᵦ) - (V⁺ᵣᵦ))] V) ⌊r⌋ᵣᵦ = V1 ⌊r⌋ᵣᵦ) /\
       (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%rs -> (r ∈ (Stock.to_RS W))%rs /\ (r ∉ᵣᵦ V)) /\ 

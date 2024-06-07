@@ -44,6 +44,8 @@ Definition update (W : Stock.t) (V : REnvironment.t) :=
 
 Definition find (r : resource) (W : Stock.t) := (fst W) ⌊r⌋ᵣₖ.
 
+Definition halts k st := ReadStock.halts k (get_r st).
+
 (** ** Initialized *)
 
 Lemma init_virtual_unused : forall sk V,
@@ -54,6 +56,18 @@ Proof.
   apply ReadStock.init_virtual_Forall_unused.
   apply WriteStock.init_virtual_Forall_unused.
   assumption.
+Qed.
+
+Lemma init_virtual_unused_1 : forall sk V,
+  (forall r v, V ⌈r ⩦ v⌉ᵣᵦ -> Cell.unused v) ->
+  forall r v, (init_virtual sk V) ⌈r ⩦ v⌉ᵣᵦ -> Cell.unused v.
+Proof.
+  intros. 
+  assert ( REnvironment.For_all (fun _ v => Cell.unused v) V ->
+           REnvironment.For_all (fun _ v => Cell.unused v) (init_virtual sk V)).
+  - apply init_virtual_unused.
+  - unfold REnvironment.For_all in *.
+    eapply H1; eauto.
 Qed.
 
 (** ** In *)
@@ -187,6 +201,63 @@ Proof.
     now exists x.
 Qed.
 
+(** ** Halts *)
+
+#[export]
+Instance halts_eq: 
+ Proper (Logic.eq ==> Stock.eq ==> iff) halts.
+Proof.
+  repeat red; intros; subst.
+  destruct x0,y0; unfold halts,eq,RelationPairs.RelProd in *; simpl in *.
+  repeat red in H0; destruct H0. 
+  unfold RelationPairs.RelCompFun in *; simpl in *.
+  split; intros.
+  - now rewrite <- H.
+  - now rewrite H.
+Qed.
+
+Lemma halts_init_virtual : forall k W V,
+  halts k W -> 
+  REnvironment.halts k V ->
+  REnvironment.halts k (init_virtual W V).
+Proof.
+  unfold init_virtual; intros; destruct W. 
+  unfold halts in H; simpl in *.
+  apply ReadStock.halts_init_virtual; auto.
+  apply WriteStock.halts_init_virtual; assumption.
+Qed.
+
+Lemma halts_update : forall k W V,
+  REnvironment.halts k V ->
+  halts k W ->
+  halts k (update W V).
+Proof.
+  intros. unfold halts,update; simpl; destruct W; simpl.
+  apply ReadStock.halts_update; auto.
+Qed.
+
+(* il faut halts_add_spec halts_weakening halts_union_spec *)
+
+Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
+Proof.
+  intros. unfold halts,shift in *; destruct t0; simpl in *.
+  apply ReadStock.halts_weakening; assumption.
+Qed.
+
+Lemma halts_union_spec k s1 s2 :
+  halts k s1 /\ halts k s2 -> halts k (union s1 s2).
+Proof.
+  unfold halts; destruct s1,s2; simpl in *; intros.
+  apply ReadStock.halts_union_spec; assumption.
+Qed.
+
+Lemma halts_add_spec k x x1 v s :
+  (ET_Definition.halts k v) /\ halts k s -> halts k (add x x1 v s).
+Proof.
+  intros []; unfold halts, add in *; destruct s; simpl in *.
+  apply ReadStock.halts_add_spec; now split.
+Qed.
+
 End Stock.
 
 Module StockNotations.
@@ -213,5 +284,12 @@ Notation "R ⌈ x ⩦ v '⌉ₛₖ'"  := (Stock.find x R = Some v) (at level 15,
 Notation "R ⌈ x ⩦ ⊥ '⌉ₛₖ'"  := (Stock.find x R = None) (at level 15, x constr).
 Notation "'[⧐ₛₖ' lb '≤' k ']' t" := (Stock.shift lb k t) (at level 45, 
                                                                       right associativity).
+
+(** ** Morphisms *)
+
+#[export]
+Instance halts_eq: 
+ Proper (Logic.eq ==> Stock.eq ==> iff) Stock.halts.
+Proof. apply Stock.halts_eq. Qed.
 
 End StockNotations.

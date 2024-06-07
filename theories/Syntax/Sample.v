@@ -1,5 +1,5 @@
 From Coq Require Import Lists.List Structures.Equalities Classes.Morphisms.
-From Mecha Require Import Term Typ ET_Definition Resource VContext RContext Typing.
+From Mecha Require Import Term Typ ET_Definition ET_Props Resource VContext RContext Typing.
 From DeBrLevel Require Import LevelInterface PairLevel.
 Import ResourceNotations TermNotations TypNotations VContextNotations RContextNotations.
 
@@ -59,6 +59,20 @@ Definition well_typed (Γ : Γ) (Re : ℜ) (s : t) (α β : Τ) :=
 
 (** *** Halts *)
 
+#[export] 
+Instance halts_eq :
+  Proper (Logic.eq ==> Sample.eq ==> iff) halts.
+Proof.
+  repeat red; intros; subst; destruct x0,y0.
+  unfold eq, RelationPairs.RelProd in H0; repeat red in H0.
+  destruct H0.
+  unfold RelationPairs.RelCompFun in *; simpl in *; subst;
+  destruct o.
+  - destruct o0; subst; auto. contradiction.
+  - destruct o0.
+    -- contradiction.
+    -- split; intros; auto.
+Qed.
 
 Lemma halts_next k t : 
   halts k t -> ET_Definition.halts k (next t).
@@ -76,6 +90,15 @@ Lemma halts_put_None k t :
   halts k t -> halts k (put None t).
 Proof.
   intros; unfold put; destruct t; destruct H; split; simpl in *; auto.
+Qed. 
+
+Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
+Proof.
+  intros. destruct t0; unfold halts, shift in *.
+  destruct H0; split; simpl in *.
+  - apply ET_Props.halts_weakening; assumption.
+  - destruct o; simpl in *; auto.
+    apply ET_Props.halts_weakening; assumption.
 Qed. 
 
 #[export]
@@ -117,5 +140,7 @@ Proof.
   destruct H; split. simpl in *; auto.
   now simpl in *.
 Qed.
+
+
 
 End Sample.

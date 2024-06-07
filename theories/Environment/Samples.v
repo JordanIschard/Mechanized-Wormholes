@@ -514,6 +514,59 @@ Proof.
        + rewrite add_neq_o; auto.
 Qed.
 
+(** *** Shift *)
+
+Lemma shift_new_in_spec : forall r S,
+  In r S ->  r < new_key S.
+Proof.
+  intros r S; revert r; induction S using map_induction; intros.
+  - exfalso; destruct H0; unfold Empty in H; now apply (H r x).
+  - apply new_key_Add_spec in H0 as H0'; eauto. destruct H0' as [[Heq Hlt] | [Heq Hgt]]; subst.
+    -- rewrite Heq. unfold Add in H0; rewrite H0 in *.
+       rewrite add_in_iff in H1; destruct H1; subst; try lia.
+       apply IHS1 in H1; lia.
+    -- rewrite Heq. unfold Add in H0; rewrite H0 in *.
+       rewrite add_in_iff in H1; destruct H1; subst; try lia.
+       apply IHS1 in H1; lia.
+Qed. 
+
+
+Lemma shift_in_e_spec : forall lb k r S,
+  In r (shift lb k S) -> exists r', r =  ([⧐ᵣ lb ≤ k] r').
+Proof.
+  intros lb k r S; revert lb k r; induction S using map_induction; intros.
+  - eapply shift_Empty_iff in H. unfold Empty in *; exfalso.
+    destruct H0; apply (H r x); eauto.
+  - apply shift_Add_spec_1 with (lb := lb) (k := k) in H0 as H0'; auto.
+    unfold Add in H0'. rewrite H0' in H1; clear H0'.
+    rewrite add_in_iff in H1; destruct H1; subst.
+    -- now exists x.
+    -- auto.
+Qed.
+
+Lemma shift_find_spec_3 : forall lb k r S S',
+  lb ⊩ᵣ r -> In r S ->
+  find r S = find r S' -> find r (shift lb k S) = find r (shift lb k S').
+Proof.
+  intros. destruct H0 as [v HfS]; apply find_1 in HfS.
+  apply shift_find_spec with (lb := lb) (k := k) in HfS as HfS1.
+  rewrite H1 in HfS. 
+  apply shift_find_spec with (lb := lb) (k := k) in HfS as HfS2.
+  rewrite Resource.shift_valid_refl in *; auto. now rewrite HfS1, HfS2. 
+Qed.
+
+Lemma shift_find_e_spec_1 : forall lb k r v S,
+  find r (shift lb k S) = Some v -> 
+  (exists r', r = ([⧐ᵣ lb ≤ k] r')) /\ exists v', Sample.eq v (Sample.shift lb k v').
+Proof.
+  intros.
+  assert (In r (shift lb k S)). { now exists v; apply find_2. }
+  split.
+  - now apply shift_in_e_spec in H0.
+  - apply shift_in_e_spec in H0; destruct H0; subst. 
+    eapply shift_find_e_spec; eauto. 
+Qed.
+
 (** ** Halts *)
 
 #[export]
@@ -542,6 +595,16 @@ Proof.
   - unfold halts in *. intros r v' HfV. destruct (Resource.eq_dec x r).
     -- subst. exfalso. apply H. exists v'; now apply find_2.
     -- apply (H0 r). rewrite add_neq_o; auto.
+Qed.
+
+Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
+Proof.
+  intros k k' t Hle Hlt. unfold halts in *; intros r v HfV.
+  apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
+  eapply Sample.halts_eq; eauto.
+  apply Sample.halts_weakening; auto.
+  apply (Hlt r'). apply Sample.eq_leibniz in Heqv'; subst.
+  now apply shift_find_spec in HfV.
 Qed.
 
 Lemma halts_nexts k t : 
@@ -628,10 +691,21 @@ Proof.
     rewrite <- Submap_eq_right_spec in H1; eauto.
 Qed.
 
+#[export]
+Instance halts_samples :
+  Proper (Logic.eq ==> Samples.eq ==> iff) halts. 
+Proof.
+  repeat red; intros; subst; split; intros.
+  - unfold halts; intros. rewrite <- H0 in H1.
+    now apply (H r v).
+  - unfold halts; intros. rewrite H0 in H1.
+    now apply (H r v).
+Qed.
+
 End Samples.
 
 (** * Notation - I/O Sampling *)
-Module SamplesNotation.
+Module SamplesNotations.
 
 (** ** Scope *)
 Declare Scope rsamples_scope.
@@ -709,4 +783,9 @@ Proof. apply Samples.Submap_env. Qed.
 Instance Submap_env_po : PreOrder Samples.Submap.
 Proof. apply Samples.Submap_po. Qed. 
 
-End SamplesNotation.
+#[export]
+Instance halts_samples :
+  Proper (Logic.eq ==> Samples.eq ==> iff) Samples.halts.
+Proof. apply Samples.halts_samples. Qed. 
+
+End SamplesNotations.

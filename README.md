@@ -8,7 +8,7 @@ The formalization depends on the library `MMaps` available on the coq community
 
 It is possible to generate documentation via the command `make coqdoc`. However, it requires to build the project before (`dune build`). The documentation generation uses the `coqdocJs` script available on the coq community [git](https://github.com/coq-community/coqdocjs).
 
-## The capture avoiding issue
+## Resource capture issues
 
 The difficulty to formalize `Wormholes` comes from the naming of resources. Indeed, like in the lambda-calculus the naming of variable can provoke bad behavior in the case of lazy evaluation. In our case, **resources** are evaluated during the functional transition but **never replaced** and can **be moved by a substitution** during a beta-reduction. In order to avoid capture of names during an evaluation we have to cautiously deal with resources.
 ****
@@ -16,7 +16,7 @@ An old representation for dealing with names in lambda calculus uses **De Bruijn
 
 ## De Bruijn level
 
-De Bruijn level is a representation that avoid the capture of variables issue for the lambda-calculus. Like the De Bruijn indices, variables are numbers that are chosen regards of a constraint. For De Bruijn indices, the number associated to the variable is "distance" between the variable and the abstraction. The distance is the number of abstraction between the abstraction and its associated variable. In De Bruijn levels, there is a concept of level or depth in the term, each time we enter an abstraction the depth increase. The best advantage of levels is the simplicity to handle free variables and the fact that all variables are associated to a unique level.
+De-Bruijn level is a representation that avoid the capture of variables issue for the lambda-calculus. Like the De Bruijn indices, variables are numbers that are chosen regards of a constraint. For De-Bruijn indices, the number associated to the variable is "distance" between the variable and the abstraction. The distance is the number of abstraction between the abstraction and its associated variable. In De Bruijn levels, there is a concept of level or depth in the term, each time we enter an abstraction the depth increase. The best advantage of levels is the simplicity to handle free variables and the fact that all variables are associated to a unique level.
 
 <div align="center">
 

@@ -187,14 +187,11 @@ Definition multi (k : nat) :=  clos_refl_trans_1n Λ (evaluate k).
 
 Notation "k '⊨' t '⟼⋆' t1" := (multi k t t1) (at level 57, t custom wh, 
                                                     t1 custom wh, no associativity).
-(*
-Inductive multi : nat -> Λ -> Λ -> Prop :=
-  | multi_refl : forall k x, k ⊨ x ⟼⋆ x
-  | multi_step : forall k x y z, k ⊨ x ⟼ y -> k ⊨ y ⟼⋆ z -> k ⊨ x ⟼⋆ z
-where "k '⊨' t '⟼⋆' t1" := (multi k t t1).
-*)
 
+(** *** Halts *)
 Definition halts (k : nat)  (t : Λ) : Prop :=  exists t', k ⊨ t ⟼⋆ t' /\  value(t').
+
+(** *** Normal form *)
 Definition normal_form (k : nat) (t : Λ) : Prop := ~ (exists t', k ⊨ t ⟼ t').
 
 #[export] Hint Constructors evaluate clos_refl_trans_1n indexed : core.

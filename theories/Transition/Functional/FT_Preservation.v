@@ -1,7 +1,7 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Classes.Morphisms
                         Relations.Relation_Operators.
-From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext ET_Definition
+From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext ET_Definition
                           Cell REnvironment Stock FT_Definition ET_Props ET_Preservation FT_Props.
 Import ResourceNotations TermNotations TypNotations CellNotations
        VContextNotations RContextNotations REnvironmentNotations
@@ -382,7 +382,8 @@ Theorem functional_preserves_typing_gen (Re : ℜ) (V V1 : 𝓥) (W : 𝐖) (sv 
     (* (16) *) ∅ᵥᵪ ⋅ Re1 ⊫ sv' ∈ τ' /\
     (* (17) *) ∅ᵥᵪ ⋅ Re1 ⊫ sf' ∈ (τ ⟿ τ' ∣ R') /\
     
-    (* (18) *) halts (Re1⁺ᵣᵪ) sf' /\ (* (19) *) halts (Re1⁺ᵣᵪ) sv' /\ (* (20) *) RE.halts (Re1⁺ᵣᵪ) V1.
+    (* (18) *) halts (Re1⁺ᵣᵪ) sf' /\ (* (19) *) halts (Re1⁺ᵣᵪ) sv' /\ 
+    (* (20) *) RE.halts (Re1⁺ᵣᵪ) V1 /\ (* (21) *) Stock.halts (Re1⁺ᵣᵪ) W.
 Proof.
   intros Hlsf Hlsv HltV Hwsf Hwsv fT. revert Re R τ τ' Hlsf Hlsv HltV Hwsf Hwsv.
   induction fT; intros Re R α β Hlsf Hlsv HlV Hwsf Hwsv Hwf;
@@ -451,12 +452,13 @@ Proof.
 
     
     destruct IH as [Hunsd [Hlcl [Re' [R' [HSubRe [HSubR [Hwf' 
-                          [HwtW [HInW [Husd [Hwv1' [Hwt' [Hlt' [Hlv1' HlV1]]]]]]]]]]]]]].
+                          [HwtW [HInW [Husd [Hwv1' [Hwt' [Hlt' [Hlv1' [HlV1 HlW]]]]]]]]]]]]]]].
 
     (* clean *)
     move Re' before Re; move R' before R; move Hwv1' before Hwv1; clear Hwv1;
     move Hwt' before Hwt; clear Hwt; move Hwf' before Hwf; move Hunsd before Husd.
-    move Hlt' before Hlsf; move Hlv1' before Hlv1; move HlV1 before HlV; move Hlcl after HSubR.
+    move Hlt' before Hlsf; move Hlv1' before Hlv1; move HlV1 before HlV; 
+    move Hlcl after HSubR; move HlW before HlV1.
     (* clean *)
 
     apply wf_env_fT_new in Hwf' as Hnew'; move Hnew' before Hnew.
@@ -488,26 +490,28 @@ Proof.
     try (intros; apply Hunsd; rewrite Resources.union_spec; now left).
     clear IHfT1; 
     destruct IH1 as [Hunsd1 [Hlcl1 [Re' [R1' [HSubRe [HSubR1 [Hwf' 
-                            [HwtW [HInW [Husd1 [Hwsv' [Hwt1' [Hlt1' [Hlst' HlV1]]]]]]]]]]]]]].
+                    [HwtW [HInW [Husd1 [Hwsv' [Hwt1' [Hlt1' [Hlst' [HlV1 HlW1]]]]]]]]]]]]]]].
 
     (* clean *)
     move Re' before Re; move R1' before R1; move Hwsv' before Hwsv;
     move Hwt1' before Hwt1; move Hunsd1 after HInW; move Hwf' before Hwf;
     move Hlt1' before Hlt1; move Hlst' before Hlsv; move HlV1 before HlV.
+    move HlW1 before HlV1.
     (* clean *)
 
     apply wf_env_fT_new in Hwf' as Hnew'; move Hnew' before Hnew.
     apply IHfT2 with (R := R2) (τ' := β) in Hwsv' as IH2; auto.
 
     -- destruct IH2 as [Hunsd2 [Hlcl2 [Re'' [R2' [HSubRe' [HSubR2 
-                       [Hwf'' [HwtW' [HInW'  [Husd2 [Hwsv'' [Hwt2' [Hlt2' [Hlst'' HlV2]]]]]]]]]]]]]].
+                       [Hwf'' [HwtW' [HInW'  [Husd2 [Hwsv'' [Hwt2' [Hlt2' 
+                       [Hlst'' [HlV2 HlW2]]]]]]]]]]]]]]].
 
        (* clean *)
        move Re'' before Re'; move R2' before R2; move Hwsv'' before Hwsv';
        move Hwt2' before Hwt2; move Hunsd2 before Hunsd1; move Hwf'' before Hwf';
        clear IHfT2; move HSubRe' before HSubRe; move HSubR2 before HSubR1; move HInW' before HInW;
        move Husd2 before Husd1; move Hlcl2 before Hlcl1; move Hlt2' before Hlt2; 
-       move Hlst'' before Hlst'; move HlV2 before HlV1.
+       move Hlst'' before Hlst'; move HlV2 before HlV1; move HlW2 before HlW1.
        (* clean *)
 
        apply well_typed_implies_valid in Hwt1 as Hvt1; auto; destruct Hvt1 as [Hvt1 _].
@@ -658,6 +662,11 @@ Proof.
              apply weakening_ℜ; auto. apply (wf_env_fT_valid Re' V1 Hwf').
           ++ rewrite <- Hnew'. rewrite <- Hnew''. apply halts_comp; split; auto.
              apply halts_weakening; auto. now apply RC.Ext.new_key_Submap_spec.
+          ++ apply Stock.halts_union_spec; split; auto.
+             rewrite <- (wf_env_fT_new Re'' V2); auto.
+             rewrite <- (wf_env_fT_new Re' V1); auto.
+             apply Stock.halts_weakening; auto.
+             now apply RC.Ext.new_key_Submap_spec.
     -- rewrite <- Hnew; rewrite <- Hnew'; apply halts_weakening; auto.
        apply RC.Ext.new_key_Submap_spec in HSubRe; assumption.
     -- rewrite <- Hnew; rewrite <- Hnew'; apply weakening_ℜ; auto.
@@ -722,8 +731,8 @@ Proof.
     apply IHfT with (Re :=  ⌈ S (Re⁺ᵣᵪ) ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ 
                           (⌈ Re⁺ᵣᵪ ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)) (R := R') (τ' := β) in Hwt as IH;
     auto; try (now rewrite <- Hnew); clear IHfT.
-    -- destruct IH as [Hunsd [Hlcl [Re1 [R1 [HSubRe1 [HSubR
-                       [Hwf' [HwtW [HInW  [Husd [Hwst' [Hwt' [Hlt' [Hlst' HlV1]]]]]]]]]]]]]].
+    -- destruct IH as [Hunsd [Hlcl [Re1 [R1 [HSubRe1 [HSubR [Hwf' 
+                      [HwtW [HInW  [Husd [Hwst' [Hwt' [Hlt' [Hlst' [HlV1 HlW]]]]]]]]]]]]]]].
        repeat split.
 
        + intros r HIn; rewrite Heq in HIn. apply Resources.diff_spec in HIn as [HInR' HnIn].
@@ -839,6 +848,23 @@ Proof.
               ** rewrite Hnew in HIn. repeat rewrite Resources.add_spec in HIn;
                  destruct HIn as [Heq' | [Heq' | HIn]]; try (inversion HIn); subst;
                  apply RE.Ext.new_key_notin_spec; auto.
+            * apply Stock.halts_add_spec; split; auto.
+              rewrite <- (wf_env_fT_new Re V); auto.
+              rewrite <- (wf_env_fT_new Re1 V1); auto.
+              apply halts_weakening; auto.
+              apply RC.Ext.new_key_Submap_spec.
+              transitivity (⌈ S (Re ⁺ᵣᵪ) ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ (⌈ Re ⁺ᵣᵪ ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re)).
+              ** apply RC.Ext.Submap_add_spec_1.
+                 { 
+                  apply RC.Ext.new_key_notin_spec.
+                  rewrite RC.Ext.new_key_add_spec_1; auto.
+                  apply RC.Ext.new_key_notin_spec; lia.
+                 }
+                 {
+                  apply RC.Ext.Submap_add_spec_1; try reflexivity.
+                  apply RC.Ext.new_key_notin_spec; lia.
+                 } 
+              ** assumption.
     -- now rewrite RC.new_key_wh_spec.
     -- rewrite RC.new_key_wh_spec; replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
        rewrite <- Hnew. apply halts_weakening_1; auto.
@@ -902,11 +928,13 @@ Corollary functional_preserves_halting (Re : ℜ) (V V1 : 𝓥) (W : 𝐖)
   exists Re1, 
   (* (6) *) halts (Re1⁺ᵣᵪ) sf' /\ 
   (* (7) *) halts (Re1⁺ᵣᵪ) sv' /\ 
-  (* (8) *) RE.halts (Re1⁺ᵣᵪ) V1.
+  (* (8) *) RE.halts (Re1⁺ᵣᵪ) V1 /\
+  (* (9) *) Stock.halts (Re1⁺ᵣᵪ) W.
 Proof.
   intros Hlsf Hlsv HlV Hwf Hwt Hwst HfT.
   eapply functional_preserves_typing_gen in HfT; eauto.
-  destruct HfT as [_ [_ [Re1 [_ [_ [_  [_ [_ [_ [_ [_ [_ [Hlsf' [Hlsv' HlV1]]]]]]]]]]]]]];
+  destruct HfT as [_ [_ [Re1 [_ [_ [_  [_ [_ [_ [_ [_ [_ 
+                  [Hlsf' [Hlsv' [HlV1 HlW]]]]]]]]]]]]]]];
   now exists Re1.
 Qed.
 

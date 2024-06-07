@@ -1,4 +1,4 @@
-From Coq Require Import Classes.Morphisms.
+From Coq Require Import Classes.Morphisms Relations.Relation_Operators.
 From Mecha Require Import Term REnvironment Resource Cell.
 From DeBrLevel Require Import SetLevelInterface SetLevel Level Levels.
 Import ResourceNotations REnvironmentNotations TermNotations CellNotations.
@@ -101,6 +101,26 @@ Proof.
     apply valid_add_spec in Hv as [Hvr Hv]. rewrite add_spec in HIn; destruct HIn; subst.
     -- rewrite Resource.shift_valid_refl; auto; rewrite add_spec; now left.
     -- rewrite add_spec; right. rewrite IHwsk1; eauto.
+Qed.
+
+Lemma halts_init_virtual : forall k W V,
+  REnvironment.halts k V ->
+  REnvironment.halts k (init_virtual W V).
+Proof.
+  intros k W; induction W using set_induction; intros.
+  - unfold init_virtual.
+    apply empty_is_empty_1 in H. apply eq_leibniz in H. 
+    rewrite H. now rewrite fold_empty.
+  - unfold init_virtual in *.
+    apply Add_inv in H0. subst.
+    rewrite fold_add; auto. unfold REnvironment.halts; intros.
+    destruct (Resource.eq_dec x r); subst.
+    -- rewrite REnvironment.add_eq_o in H0; auto.
+       inversion H0; subst; simpl. exists <[unit]>.
+       split; auto. apply rt1n_refl.
+    -- unfold REnvironment.halts in *. 
+       rewrite REnvironment.add_neq_o in H0; auto.
+       apply (IHW1 V) with (r := r); auto.
 Qed.
 
 End WriteStock.

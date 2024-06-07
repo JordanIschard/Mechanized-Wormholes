@@ -1,4 +1,4 @@
-From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing
+From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing
                           ET_Definition Cell VContext REnvironment RContext Stock.
 Import ResourceNotations TermNotations TypNotations CellNotations
        VContextNotations RContextNotations REnvironmentNotations

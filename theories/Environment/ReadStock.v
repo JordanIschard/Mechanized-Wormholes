@@ -35,6 +35,9 @@ Definition map_update (st : ReadStock.t) (V : REnvironment.t) :=
                         | _ => add r v acc
                        end) st empty.
 
+Definition halts (k : Lvl.t) (st : ReadStock.t) := forall (r : resource) (v : Λ), 
+ find r st = Some v -> ET_Definition.halts k v.
+
 (** ** In *)
 
 Lemma map_union_spec : forall W W' r, 
@@ -332,6 +335,139 @@ Proof.
     eapply shift_find_e_spec; eauto. 
 Qed.
 
+(** ** Halts *)
+
+Lemma halts_init_virtual : forall k W V,
+  halts k W -> 
+  REnvironment.halts k V ->
+  REnvironment.halts k (init_virtual W V).
+Proof.
+  intros k W; induction W using map_induction; intros.
+  - unfold init_virtual. rewrite fold_Empty; auto.
+  - unfold init_virtual. unfold REnvironment.halts, halts in *; intros. 
+    rewrite fold_Add in H3; eauto.
+    destruct (Resource.eq_dec x r); subst.
+    -- rewrite REnvironment.OP.P.add_eq_o in H3; auto.
+       inversion H3; subst; simpl.
+       apply (H1 r). unfold Add in H0. rewrite H0.
+       rewrite add_eq_o; reflexivity.
+    -- rewrite REnvironment.OP.P.add_neq_o in H3; auto.
+       apply (IHW1 V) with (r := r); auto.
+       intros. apply (H1 r0).
+       unfold Add in H0. rewrite H0.
+       rewrite add_neq_o; auto. intro; subst.
+       apply H; exists v0. now apply find_2.
+Qed.
+
+Lemma diamond_map_update V:
+  Diamond Equal (fun (r0 : key) (v0 : Λ) (acc : ReadStock.Raw.t Λ) => 
+  match V ⌊ r0 ⌋ᵣᵦ with
+  | Some (⩽ … v' ⩾) => add r0 v' acc
+  | _ => add r0 v0 acc
+  end).
+Proof.
+  repeat red; intros k k' e e' s s1 s2 Hneq Heqs1 Heqs2 x.
+  destruct (V⌊k⌋ᵣᵦ) as [v |] eqn:HfV.
+  - destruct (V⌊k'⌋ᵣᵦ) as [v' |] eqn:HfV'.
+    -- destruct v,v';
+       rewrite <- Heqs1; rewrite <- Heqs2;
+       rewrite add_add_2; auto.
+    -- destruct v;
+       rewrite <- Heqs1; rewrite <- Heqs2;
+       rewrite add_add_2; auto.
+  - destruct (V⌊k'⌋ᵣᵦ) as [v' |] eqn:HfV'.
+    -- destruct v';
+       rewrite <- Heqs1; rewrite <- Heqs2;
+       rewrite add_add_2; auto.
+    -- rewrite <- Heqs1; rewrite <- Heqs2;
+       rewrite add_add_2; auto.
+Qed.
+
+Lemma halts_update : forall k W V,
+  REnvironment.halts k V ->
+  halts k W ->
+  halts k (map_update W V).
+Proof.
+  intros k W V. induction W using map_induction; intros.
+  - unfold map_update. rewrite fold_Empty; auto.
+    unfold halts; intros; inversion H2.
+  - unfold map_update, halts; intros.
+    rewrite fold_Add with (m1 := W1) (k := x) (e := e) in H3; auto.
+    --  destruct (V ⌊ x ⌋ᵣᵦ) eqn:HfV.
+       + destruct r0.
+         ++ destruct (Resource.eq_dec r x); subst.
+            * rewrite add_eq_o in H3; auto.
+              inversion H3; subst.
+              unfold halts in H2. apply (H2 x).
+              unfold Add in H0. rewrite H0.
+              rewrite add_eq_o; auto.
+            * rewrite add_neq_o in H3; auto.
+              unfold halts, map_update in *.
+              apply IHW1 with (r := r); auto.
+              intros r1 v1 HfW1.
+              apply (H2 r1). unfold Add in H0.
+              rewrite H0. rewrite add_neq_o in *; auto.
+              intro. subst.
+              apply H. exists v1. now apply find_2.
+         ++ destruct (Resource.eq_dec r x); subst.
+            * rewrite add_eq_o in H3; auto.
+              inversion H3; subst. 
+              unfold REnvironment.halts in H1.
+              apply (H1 x) in HfV; now simpl in *.
+            * rewrite add_neq_o in H3; auto.
+              unfold halts, map_update in *.
+              apply IHW1 with (r := r); auto.
+              intros r1 v1 HfW1.
+              apply (H2 r1). unfold Add in H0.
+              rewrite H0. rewrite add_neq_o in *; auto.
+              intro. subst.
+              apply H. exists v1. now apply find_2.
+       + destruct (Resource.eq_dec r x); subst.
+         ++ rewrite add_eq_o in H3; auto.
+            inversion H3; subst. unfold halts in H2.
+            apply (H2 x); unfold Add in H0.
+            rewrite H0. rewrite add_eq_o; reflexivity.
+         ++ rewrite add_neq_o in H3; auto.
+            unfold halts, map_update in *.
+            apply IHW1 with (r := r); auto.
+            intros r1 v1 HfW1.
+            apply (H2 r1). unfold Add in H0.
+            rewrite H0. rewrite add_neq_o in *; auto.
+            intro. subst.
+            apply H. exists v1. now apply find_2.
+    -- repeat red; intros; subst. destruct (V⌊y⌋ᵣᵦ) eqn:HfV.
+       + destruct r0; now rewrite H6.
+       + now rewrite H6.
+    -- apply diamond_map_update.
+Qed.
+
+Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
+Proof.
+  intros k k' t Hle Hlt. unfold halts in *; intros r v HfV.
+  apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
+  rewrite Heqv' in *; clear Heqv'; rewrite <- shift_find_spec in HfV.
+  apply Hlt in HfV. apply ET_Props.halts_weakening; auto.
+Qed.
+
+Lemma halts_union_spec k s1 s2 :
+  halts k s1 /\ halts k s2 -> halts k (map_union s1 s2).
+Proof.
+  unfold halts, map_union; intros [] r v Hf.
+  apply find_2 in Hf. 
+  apply extend_mapsto_iff in Hf as [HM | [HM _]];
+  apply find_1 in HM.
+  - now apply (H0 r).
+  - now apply (H r).
+Qed.
+
+Lemma halts_add_spec k x v s :
+  (ET_Definition.halts k v) /\ halts k s -> halts k (add x v s).
+Proof.
+  intros [Hltv Hlts]; unfold halts; intros r v' Hfi.
+  rewrite add_o in Hfi; destruct (Resource.eq_dec x r); subst; inversion Hfi; subst; auto.
+  apply Hlts in Hfi; auto.
+Qed.
+
 (** ** Morphism *)
 
 #[export] 
@@ -377,6 +513,16 @@ Proof.
     rewrite ReadStock.Submap_eq_right_spec in H1; eauto.
   - rewrite <- ReadStock.Submap_eq_left_spec in H1; eauto.
     rewrite <- ReadStock.Submap_eq_right_spec in H1; eauto.
+Qed.
+
+#[export]
+Instance halts_eq: 
+ Proper (Logic.eq ==> ReadStock.eq ==> iff) halts.
+Proof.
+  repeat red; intros; subst; unfold halts in *. 
+  split; intros; apply (H r).
+  - now rewrite H0.
+  - now rewrite <- H0.
 Qed.
 
 End ReadStock.
@@ -465,5 +611,10 @@ Proof. apply ReadStock.valid_eq. Qed.
 Instance shift_rk : 
   Proper (Logic.eq ==> Logic.eq ==> ReadStock.eq ==> ReadStock.eq) ReadStock.shift.
 Proof. apply ReadStock.shift_eq. Qed.
+
+#[export]
+Instance halts_rk: 
+ Proper (Logic.eq ==> ReadStock.eq ==> iff) ReadStock.halts.
+Proof. apply ReadStock.halts_eq. Qed.
 
 End ReadStockNotations.

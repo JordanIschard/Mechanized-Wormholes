@@ -1,5 +1,5 @@
 From Coq Require Import Classical_Prop Bool.Bool Relations.Relation_Operators Lia Classes.RelationClasses Program.
-From Mecha Require Import Typ Resource Resources Term Var VContext RContext Typing ET_Definition.
+From Mecha Require Import Typ Resource Term Var VContext RContext Typing ET_Definition.
 Import ResourceNotations TermNotations TypNotations RContextNotations.
 
 (** * Transition - Evaluation - Properties *)

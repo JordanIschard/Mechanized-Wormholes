@@ -1,7 +1,7 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms
                         Relations.Relation_Operators.
-From Mecha Require Import Resource Resources Term Typ Var ReadStock WriteStock Typing VContext RContext 
+From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
                           FT_Definition FT_Props FT_Preservation.
 Import ResourceNotations TermNotations TypNotations CellNotations
@@ -64,7 +64,8 @@ Proof.
        apply functional_preserves_typing_gen
        with (Re := Re) (τ := τ1) (τ' := τ) (R := R1) in fT1 as Hfpt; auto.
        + destruct Hfpt as 
-         [Hunsd1 [HeqVV1 [Re1 [R1' [Hsub1 [HsubR1 [Hwf1 [HW1 [HW1' [Husd1 [Hwtv' [Hwsf1' [Hlsf1' [Hltv' HlV1]]]]]]]]]]]]]].
+         [Hunsd1 [HeqVV1 [Re1 [R1' [Hsub1 [HsubR1 [Hwf1 
+        [HW1 [HW1' [Husd1 [Hwtv' [Hwsf1' [Hlsf1' [Hltv' [HlV1 HlW]]]]]]]]]]]]]]].
          apply weakening_ℜ with (Re1 := Re1) in H10 as Hwsf2bis; 
          auto; try (eapply (wf_env_fT_valid Re V); now auto).
          rewrite <- Term.multi_shift_cons in Hwsf2bis.
@@ -228,7 +229,8 @@ Proof.
     apply (progress_of_functional_value _ _ tv t' τ τ' R) in Hwf as HfT; try assumption.
     destruct HfT as [V1 [tv' [t'' [W fT]]]].
     eapply functional_preserves_typing_gen in fT as HfT; eauto.
-    -- destruct HfT as [_ [_ [Re1 [R' [_ [_ [Hwf1 [_ [_ [_ [_ [_ [Ht'' [Hltv' HlV']]]]]]]]]]]]]].
+    -- destruct HfT as [_ [_ [Re1 [R' [_ [_ [Hwf1 [_ [_ [_ [_ 
+                       [_ [Ht'' [Hltv' [HlV' HlW]]]]]]]]]]]]]]].
        rewrite (wf_env_fT_new Re1 V1) in *; auto.  
        exists V1; exists tv'; exists t''; exists W; repeat split; auto.
     -- exists t'; split; auto; apply rt1n_refl.

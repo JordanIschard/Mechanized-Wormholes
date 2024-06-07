@@ -394,6 +394,26 @@ Proof.
     rewrite <- REnvironment.Submap_eq_right_spec in H1; eauto.
 Qed.
 
+#[export] 
+Instance unused_renv :
+  Proper (Logic.eq ==> REnvironment.eq ==> iff) REnvironment.unused.
+Proof. 
+  repeat red; intros; subst; split; intros.
+  - destruct H. exists x. now rewrite <- H0.
+  - destruct H. exists x. now rewrite H0.
+Qed.
+
+#[export]
+Instance halts_renv :
+  Proper (Logic.eq ==> REnvironment.eq ==> iff) halts. 
+Proof.
+  repeat red; intros; subst; split; intros.
+  - unfold halts; intros. rewrite <- H0 in H1.
+    now apply (H r v).
+  - unfold halts; intros. rewrite H0 in H1.
+    now apply (H r v).
+Qed.
+
 End REnvironment.
 
 (** * Notation - Resource Environment *)
@@ -487,5 +507,15 @@ Proof. apply REnvironment.valid_eq. Qed.
 Instance shift_renv : 
   Proper (Logic.eq ==> Logic.eq ==> REnvironment.eq ==> REnvironment.eq) REnvironment.shift.
 Proof. apply REnvironment.shift_eq. Qed.
+
+#[export]
+Instance halts_renv :
+  Proper (Logic.eq ==> REnvironment.eq ==> iff) REnvironment.halts. 
+Proof. apply REnvironment.halts_renv. Qed.
+
+#[export] 
+Instance unused_renv :
+  Proper (Logic.eq ==> REnvironment.eq ==> iff) REnvironment.unused.
+Proof. apply REnvironment.unused_renv. Qed.
 
 End REnvironmentNotations.
