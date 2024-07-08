@@ -13,8 +13,9 @@ Import ResourceNotations TypNotations.
 *)
 Module RContext <: IsBdlLvlET.
 
-Include MapLvlD.MakeBdlLvlMapWLLVL PairTyp.
+Include MapLvlD.MakeBdlLvlMapLVLD PairTyp.
 Import Raw Ext.
+Open Scope ptyp_scope.
 
 (** ** Wormholes specification *)
 
@@ -43,7 +44,7 @@ Proof.
 Qed.
 
 Lemma valid_wh_spec : forall m v v',
-  valid (new_key m) m -> (new_key m) ⊩ₚₜ v -> (new_key m) ⊩ₚₜ v' -> 
+  valid (new_key m) m -> (new_key m) ⊩ v -> (new_key m) ⊩ v' -> 
   valid (S (S (new_key m))) (add (S (new_key m)) v 
                                         (add (new_key m) v' m)).
 Proof.
@@ -122,80 +123,44 @@ Delimit Scope rcontext_scope with rc.
 (** ** Notations *)
 Definition ℜ := RContext.t.
 
-Infix "⊆ᵣᵪ" := RContext.Submap (at level 20, no associativity). 
-Infix "∈ᵣᵪ" := RContext.Raw.In (at level 20, no associativity). 
-Notation "r '∉ᵣᵪ' Re" := (~ (RContext.Raw.In r Re)) (at level 20, no associativity). 
-Notation "∅ᵣᵪ" := RContext.Raw.empty (at level 20, no associativity). 
-Notation "'isEmptyᵣᵪ(' Re ')'" := (RContext.Empty Re) (at level 20, no associativity). 
-Notation "'Addᵣᵪ'" := (RContext.Add) (at level 20, no associativity). 
-Notation "R '⌊' x '⌋ᵣᵪ'"  := (RContext.Raw.find x R) (at level 15, x constr).
-Notation "'maxᵣᵪ(' R ')'"  := (RContext.Ext.max_key R) (at level 15).
-Notation "⌈ x ⤆ v '⌉ᵣᵪ' R"  := (RContext.Raw.add x v R) (at level 15, x constr, 
-                                                                                v constr).
-Notation "R ⌈ x ⩦ v '⌉ᵣᵪ'"  := (RContext.Raw.find x R = Some v) (at level 15, 
-                                                                          x constr, v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ᵣᵪ'"  := (RContext.Raw.find x R = None) (at level 15, 
-                                                                                x constr).
-Notation "R '⁺ᵣᵪ'" := (RContext.Ext.new_key R) (at level 16).
+Infix "⊆" := RContext.Submap (at level 60, no associativity) : rcontext_scope. 
+Infix "∈" := RContext.Raw.In (at level 60, no associativity) : rcontext_scope. 
+Notation "r '∉' Re" := (~ (RContext.Raw.In r Re)) (at level 75, no associativity) : rcontext_scope. 
+Notation "∅" := RContext.Raw.empty (at level 0, no associativity) : rcontext_scope. 
+Notation "'isEmpty(' Re ')'" := (RContext.Empty Re) (at level 20, no associativity) : rcontext_scope. 
+Notation "'Add'" := (RContext.Add) (at level 20, no associativity) : rcontext_scope. 
+Notation "R '⌊' x '⌋'"  := (RContext.Raw.find x R) (at level 15, x constr) : rcontext_scope.
+Notation "'max(' R ')'"  := (RContext.Ext.max_key R) (at level 15) : rcontext_scope.
+Notation "⌈ x ⤆ v '⌉' R"  := (RContext.Raw.add x v R) (at level 15, x constr, 
+                                                                                v constr) : rcontext_scope.
+(* Notation "R ⌈ x ⩦ v '⌉'"  := (RContext.Raw.find x R = Some v) (at level 15, 
+                                                                          x constr, v constr) : rcontext_scope.
+Notation "R ⌈ x ⩦ ⊥ '⌉'"  := (RContext.Raw.find x R = None) (at level 15, 
+                                                                                x constr) : rcontext_scope. *)
+Notation "R '⁺'" := (RContext.Ext.new_key R) (at level 16) : rcontext_scope.
 
 Infix "=" := RContext.eq : rcontext_scope.
 
-Notation "'[⧐ᵣᵪ' lb '≤' k ']' t" := (RContext.shift lb k t) (at level 45, right associativity).
-Infix "⊩ᵣᵪ" := RContext.valid (at level 20, no associativity).
+Notation "'[⧐' lb '–' k ']' t" := (RContext.shift lb k t) (at level 65, right associativity) : rcontext_scope.
+Infix "⊩" := RContext.valid (at level 20, no associativity) : rcontext_scope.
 
 (** ** Morphisms *)
 
-#[export] Instance eq_equiv : Equivalence RContext.eq.
-          Proof. apply RContext.Equal_equiv. Qed.
+Import RContext.
 
-#[export] Instance max_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.max_key).
-          Proof. apply RContext.Ext.max_key_eq. Qed.
-
-#[export] Instance new_rctx : Proper (RContext.eq ==> Logic.eq) (RContext.Ext.new_key).
-          Proof. apply RContext.Ext.new_key_eq. Qed.
-
-#[export] 
-Instance in_rctx : 
-  Proper (Logic.eq ==> RContext.eq ==> iff) (RContext.Raw.In).
-Proof. apply RContext.in_rctx. Qed.
-
-#[export] 
-Instance find_rctx : Proper (Logic.eq ==> RContext.eq ==> Logic.eq) 
-                                                      (RContext.Raw.find).
-Proof. apply RContext.find_rctx. Qed.
-
-#[export] 
-Instance Empty_rctx : Proper (RContext.eq ==> iff) (RContext.Empty).
-Proof. apply RContext.Empty_rctx. Qed.
-
-#[export] 
-Instance Add_rctx : 
-Proper (Resource.eq ==> PairTyp.eq ==> RContext.eq ==> RContext.eq ==> iff) 
-                                                  (@RContext.Add PairTyp.t).
-Proof. apply RContext.Add_rctx. Qed. 
-
-#[export] 
-Instance add_rctx : 
-Proper (Resource.eq ==> PairTyp.eq ==> RContext.eq ==> RContext.eq) 
-                                                          (@RContext.Raw.add PairTyp.t).
-Proof. apply RContext.add_rctx. Qed. 
-
-#[export] 
-Instance Submap_rctx : 
-  Proper (RContext.eq ==> RContext.eq ==> iff) RContext.Submap.
-Proof. apply RContext.Submap_rctx. Qed.
-
-#[export] 
-Instance Submap_po : PreOrder RContext.Submap.
-Proof. apply RContext.Submap_po. Qed. 
-
-#[export] 
-Instance valid_eq : Proper (Logic.eq ==> RContext.eq ==> iff) RContext.valid.
-Proof. apply RContext.valid_eq. Qed.
-
-#[export] 
-Instance shift_eq : 
-  Proper (Logic.eq ==> Logic.eq ==> RContext.eq ==> RContext.eq) RContext.shift.
-Proof. apply RContext.shift_eq. Qed.
+#[export] Instance eq_equiv : Equivalence RContext.eq := Equal_equiv.
+#[export] Instance max_rctx : Proper (eq ==> Logic.eq) (RContext.Ext.max_key) := Ext.max_key_eq.
+#[export] Instance new_rctx : Proper (eq ==> Logic.eq) (Ext.new_key) := Ext.new_key_eq.
+#[export] Instance in_rctx : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
+#[export] Instance find_rctx : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
+#[export] Instance Empty_rctx : Proper (eq ==> iff) (Empty) := _.
+#[export] Instance Add_rctx : 
+  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@RContext.Add PairTyp.t) := _.
+#[export] Instance add_rctx : 
+  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@Raw.add PairTyp.t) := _.
+#[export] Instance Submap_rctx : Proper (eq ==> eq ==> iff) Submap := _.
+#[export] Instance Submap_po : PreOrder Submap := Submap_po.
+#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid := _.
+#[export] Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
 
 End RContextNotations.

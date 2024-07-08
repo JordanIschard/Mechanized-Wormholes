@@ -74,72 +74,41 @@ Delimit Scope vcontext_scope with vc.
 (** ** Notations *)
 Definition Γ := VContext.t.
 
-Infix "⊆ᵥᵪ" := VContext.Submap (at level 20, no associativity). 
-Infix "∈ᵥᵪ" := VContext.Raw.In (at level 20, no associativity). 
-Notation "r '∉ᵥᵪ' Re" := (~ (VContext.Raw.In r Re)) (at level 20, no associativity). 
-Notation "∅ᵥᵪ" := VContext.Raw.empty (at level 20, no associativity). 
-Notation "'isEmptyᵥᵪ(' Re ')'" := (VContext.Empty Re) (at level 20, no associativity). 
-Notation "'Addᵥᵪ'" := (VContext.Add) (at level 20, no associativity). 
-Notation "R '⌊' x '⌋ᵥᵪ'"  := (VContext.Raw.find x R) (at level 15, x constr).
-Notation "⌈ x ⤆ v '⌉ᵥᵪ' R"  := (VContext.Raw.add x v R) (at level 15, x constr, 
-                                                                                v constr).
-Notation "R ⌈ x ⩦ v '⌉ᵥᵪ'"  := (VContext.Raw.find x R = Some v) (at level 15, 
+Infix "⊆" := VContext.Submap (at level 60, no associativity) : vcontext_scope. 
+Infix "∈" := VContext.Raw.In (at level 60, no associativity) : vcontext_scope. 
+Notation "r '∉' Re" := (~ (VContext.Raw.In r Re)) (at level 75, no associativity) : vcontext_scope. 
+Notation "∅" := VContext.Raw.empty (at level 0, no associativity) : vcontext_scope. 
+Notation "'isEmpty(' Re ')'" := (VContext.Empty Re) (at level 20, no associativity) : vcontext_scope. 
+Notation "'Add'" := (VContext.Add) (at level 20, no associativity) : vcontext_scope. 
+Notation "R '⌊' x '⌋'"  := (VContext.Raw.find x R) (at level 15, x constr) : vcontext_scope.
+Notation "⌈ x ⤆ v '⌉' R"  := (VContext.Raw.add x v R) (at level 15, x constr, 
+                                                                                v constr) : vcontext_scope.
+                                                                                (*
+Notation "R ⌈ x ⩦ v '⌉'"  := (VContext.Raw.find x R = Some v) (at level 15, 
                                                                           x constr, v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ᵥᵪ'"  := (VContext.Raw.find x R = None) (at level 15, 
+Notation "R ⌈ x ⩦ ⊥ '⌉'"  := (VContext.Raw.find x R = None) (at level 15, 
                                                                                 x constr).
-
+*)
 Infix "=" := VContext.eq : vcontext_scope.
 
-Notation "'[⧐ᵥᵪ' lb '≤' k ']' t" := (VContext.shift lb k t) (at level 45, right associativity).
-Infix "⊩ᵥᵪ" := VContext.valid (at level 20, no associativity).
+Notation "'[⧐' lb '–' k ']' t" := (VContext.shift lb k t) (at level 65, right associativity) : vcontext_scope.
+Infix "⊩" := VContext.valid (at level 20, no associativity) : vcontext_scope.
 
 (** ** Morphism *)
 
-#[export] Instance eq_equiv_vctx : Equivalence VContext.eq.
-          Proof. apply VContext.Equal_equiv. Qed.
+Import VContext.
 
-#[export] 
-Instance in_vctx : 
-  Proper (Logic.eq ==> VContext.eq ==> iff) (VContext.Raw.In).
-Proof. apply VContext.in_vctx. Qed.
-
-#[export] 
-Instance find_vctx : 
-  Proper (Logic.eq ==> VContext.eq ==> Logic.eq) (VContext.Raw.find).
-Proof. apply VContext.find_vctx. Qed.
-
-#[export] 
-Instance Empty_vctx : Proper (VContext.eq ==> iff) (VContext.Empty).
-Proof. apply VContext.Empty_vctx. Qed.
-
-#[export] 
-Instance Add_vctx : 
-Proper (Var.eq ==> Typ.eq ==> VContext.eq ==> VContext.eq ==> iff) 
-                                                  (@VContext.Add Typ.t).
-Proof. apply VContext.Add_vctx. Qed. 
-
-#[export] 
-Instance add_vctx : 
-Proper (Var.eq ==> Typ.eq ==> VContext.eq ==> VContext.eq) 
-                                                          (@VContext.Raw.add Typ.t).
-Proof. apply VContext.add_vctx. Qed. 
-
-#[export] 
-Instance Submap_vctx : 
-  Proper (VContext.eq ==> VContext.eq ==> iff) VContext.Submap.
-Proof. apply VContext.Submap_vctx. Qed.
-
-#[export] 
-Instance Submap_vctx_po : PreOrder VContext.Submap.
-Proof. apply VContext.Submap_po. Qed. 
-
-#[export] 
-Instance valid_vctx : Proper (Logic.eq ==> VContext.eq ==> iff) VContext.valid.
-Proof. apply VContext.valid_eq. Qed.
-
-#[export] 
-Instance shift_vctx : 
-  Proper (Logic.eq ==> Logic.eq ==> VContext.eq ==> VContext.eq) VContext.shift.
-Proof. apply VContext.shift_eq. Qed.
+#[export] Instance eq_equiv_vctx : Equivalence eq := _.
+#[export] Instance in_vctx : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
+#[export] Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
+#[export] Instance Empty_vctx : Proper (eq ==> iff) (Empty) := _.
+#[export] Instance Add_vctx : 
+  Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@VContext.Add Typ.t) := _.
+#[export] Instance add_vctx : Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@Raw.add Typ.t) := _.
+#[export] Instance Submap_vctx : Proper (eq ==> eq ==> iff) Submap := _.
+#[export] Instance valid_vctx : Proper (Logic.eq ==> eq ==> iff) valid := _.
+#[export] Instance shift_vctx : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
+#[export] Instance Submap_vctx_po : PreOrder Submap.
+Proof. apply Submap_po. Qed. 
 
 End VContextNotations.

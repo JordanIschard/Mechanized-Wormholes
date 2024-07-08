@@ -1,9 +1,9 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
-From Mecha Require Import Resource Term REnvironment Cell ReadStock WriteStock.
+From Mecha Require Import Resource Resources Term REnvironment Cell ReadStock.
 From DeBrLevel Require Import LevelInterface MapExt PairLevel.
 From MMaps Require Import MMaps.
 Import ResourceNotations TermNotations CellNotations REnvironmentNotations
-       ReadStockNotations WriteStockNotations.
+       ReadStockNotations ResourcesNotations SetNotations.
 
 (** * Environment - Virtual Resource Environment
 
@@ -15,62 +15,86 @@ Import ResourceNotations TermNotations CellNotations REnvironmentNotations
 *)
 Module Stock <: IsLvlET.
 
-Include IsLvlPairET ReadStock WriteStock.
+Include IsLvlPairET ReadStock Resources.
+Open Scope resources_scope.
+Open Scope set_scope.
 
 (** ** Definition *)
 
 Definition get_r (t : Stock.t) : 𝐖ᵣ := fst t.
-Definition get_w (t : Stock.t) : 𝐖ₔ := snd t.
+Definition get_w (t : Stock.t) : resources := snd t.
 
-Definition empty : Stock.t := (∅ᵣₖ,∅ₔₖ). 
+Definition empty : Stock.t := (∅%rk,∅). 
 
-Definition to_RS (st : Stock.t) : resources :=
-  ReadStock.to_RS (get_r st) (get_w st).
+(* Definition to_RS (st : Stock.t) : resources :=
+  ReadStock.to_RS (get_r st) (get_w st). *)
 
-Definition init_virtual (st : Stock.t) (V : REnvironment.t) :=
-  ReadStock.init_virtual (get_r st) (WriteStock.init_virtual (get_w st)  V).
+Definition env_from_stock (st : Stock.t) (V : 𝐕) : 𝐕 :=
+  ReadStock.env_to_renv (get_r st) (REnvironment.init_env_from_set (get_w st)  V).
 
 Definition add (r r' : resource) (v : Λ) (W : Stock.t) : Stock.t :=
-  (⌈ r ⤆ v ⌉ᵣₖ (get_r W),(r' +: (get_w W))%wk).
+  (⌈ r ⤆ v ⌉ (get_r W),r' +: (get_w W))%rk.
 
 Definition union (W W' : Stock.t) :=
-  (((get_r W) ∪ (get_r W'))%rk, ((get_w W) ∪ (get_w W'))%wk).
+  (((get_r W) ∪ (get_r W'))%rk, (get_w W) ∪ (get_w W')).
 
 Definition In (r : resource) (W : Stock.t) :=
-  (r ∈ᵣₖ (get_r W)) \/ (r ∈ (get_w W))%wk.
+  (r ∈ (get_r W))%rk \/ (r ∈ (get_w W)).
 
-Definition update (W : Stock.t) (V : REnvironment.t) :=
-  (ReadStock.map_update (get_r W) V,get_w W).
+Definition update (W : Stock.t) (V : 𝐕) :=
+  (ReadStock.env_from_renv (get_r W) V,get_w W).
 
-Definition find (r : resource) (W : Stock.t) := (fst W) ⌊r⌋ᵣₖ.
+Definition find (r : resource) (W : Stock.t) := (fst W) ⌊r⌋%rk.
 
 Definition halts k st := ReadStock.halts k (get_r st).
 
-(** ** Initialized *)
+(** ** [env_from_stock] property *)
 
-Lemma init_virtual_unused : forall sk V,
+Lemma env_from_stock_unused : forall sk V,
   REnvironment.For_all (fun _ v => Cell.unused v) V ->
-  REnvironment.For_all (fun _ v => Cell.unused v) (init_virtual sk V).
+  REnvironment.For_all (fun _ v => Cell.unused v) (env_from_stock sk V).
 Proof.
-  intros; unfold init_virtual; 
-  apply ReadStock.init_virtual_Forall_unused.
-  apply WriteStock.init_virtual_Forall_unused.
-  assumption.
+  intros; unfold env_from_stock.
+  apply ReadStock.env_to_renv_Forall_unused.
+  now apply REnvironment.init_env_from_set_Forall_unused.
 Qed.
 
-Lemma init_virtual_unused_1 : forall sk V,
-  (forall r v, V ⌈r ⩦ v⌉ᵣᵦ -> Cell.unused v) ->
-  forall r v, (init_virtual sk V) ⌈r ⩦ v⌉ᵣᵦ -> Cell.unused v.
+Lemma env_from_stock_unused_1 : forall sk V,
+  (forall r v, V⌊r⌋%re = Some v -> Cell.unused v) ->
+  forall r v, (env_from_stock sk V)⌊r⌋%re = Some v -> Cell.unused v.
 Proof.
   intros. 
-  assert ( REnvironment.For_all (fun _ v => Cell.unused v) V ->
-           REnvironment.For_all (fun _ v => Cell.unused v) (init_virtual sk V)).
-  - apply init_virtual_unused.
+  assert (REnvironment.For_all (fun _ v => Cell.unused v) V ->
+          REnvironment.For_all (fun _ v => Cell.unused v) (env_from_stock sk V)).
+  - apply env_from_stock_unused.
   - unfold REnvironment.For_all in *.
     eapply H1; eauto.
 Qed.
 
-(** ** In *)
+Lemma env_from_stock_in_iff : forall r sk V,
+  (r ∈ (env_from_stock sk V))%re <-> In r sk \/ (r ∈ V)%re.
+Proof.
+  intros. split; unfold env_from_stock, In.
+  - destruct sk; simpl; intro HIn.
+    apply ReadStock.env_to_renv_in_iff in HIn as [HIn | HIn]; auto.
+    apply REnvironment.init_env_from_set_in_iff in HIn as [HIn | HIn]; auto.
+  - destruct sk; simpl; intros [[HIn | HIn] | HIn].
+    -- apply ReadStock.env_to_renv_in_iff; now left.
+    -- apply ReadStock.env_to_renv_in_iff; right.
+       apply REnvironment.init_env_from_set_in_iff; now left.
+    -- apply ReadStock.env_to_renv_in_iff; right.
+       apply REnvironment.init_env_from_set_in_iff; now right.
+Qed.
+
+Lemma env_from_stock_find_spec : forall r v sk V,
+ (env_from_stock sk V)⌊r⌋%re = Some v -> In r sk \/ V⌊r⌋%re = Some v.
+Proof.
+  intros; unfold env_from_stock, In in *; destruct sk; simpl in *.
+  apply ReadStock.env_to_renv_find_spec in H as [| H]; auto.
+  apply REnvironment.init_env_from_set_find_spec in H as [|]; auto.
+Qed.
+    
+(** ** [In] property  *)
 
 Lemma empty_in_spec : forall r, ~ In r empty.
 Proof.
@@ -87,14 +111,14 @@ Proof.
     -- destruct (Resource.eq_dec x r); subst. 
        + now left.
        + rewrite ReadStock.add_neq_in_iff in H; auto.
-    -- rewrite WriteStock.add_spec in H; destruct H; auto.
+    -- rewrite Resources.St.add_spec in H; destruct H; auto.
   - destruct H; subst.
     -- left. apply ReadStock.add_in_iff; now left.
     -- destruct H; subst.
-       + right; rewrite WriteStock.add_spec; now left.
+       + right; rewrite Resources.St.add_spec; now left.
        + destruct H.
          ++ left; rewrite ReadStock.add_in_iff; now right.
-         ++ right; rewrite WriteStock.add_spec; now right.
+         ++ right; rewrite Resources.St.add_spec; now right.
 Qed.
 
 Lemma union_spec : forall r W W', 
@@ -103,10 +127,13 @@ Proof.
   intros; unfold In,union in *; destruct W,W'; simpl in *; split; intros.
   - destruct H.
     -- apply ReadStock.map_union_spec in H; destruct H; auto.
-    -- apply WriteStock.union_spec in H; destruct H; auto.
+    -- apply Resources.St.union_spec in H; destruct H; auto.
   - destruct H as [[H | H] | [H | H]]; rewrite ReadStock.map_union_spec;
-    rewrite WriteStock.union_spec; auto.
+    rewrite Resources.St.union_spec; auto.
 Qed.
+
+
+(** ** [find] property *)
 
 Lemma union_find_spec : forall r v W W',
   find r (union W W') = Some v -> find r W = Some v \/ find r W' = Some v.
@@ -118,6 +145,7 @@ Proof.
   - destruct H; apply ReadStock.find_1 in H; auto.
 Qed.
 
+(* 
 (** ** Morphism from RStock to Resources *)
 
 Lemma to_RS_empty_spec : to_RS empty = ∅ᵣₛ.
@@ -137,28 +165,25 @@ Lemma to_RS_union_spec : forall W W' r,
   (r ∈ (to_RS (union W W')))%rs <-> (r ∈ (to_RS W))%rs \/ (r ∈ (to_RS W'))%rs.
 Proof.
  intros; repeat rewrite <- to_RS_in_spec; now rewrite union_spec.
-Qed.
+Qed. *)
 
-(** ** Valid *)
+(** ** [valid] poperty *)
 
-Lemma valid_empty_spec : forall lb,
-  valid lb empty.
+Lemma valid_empty_spec : forall lb, valid lb empty.
 Proof.
   intros; split; simpl.
   - apply ReadStock.valid_Empty_spec; apply ReadStock.empty_1.
-  - apply WriteStock.valid_empty_spec.
+  - apply Resources.valid_empty_spec.
 Qed.
 
 Lemma valid_add_spec : forall lb r r' v W,
-  lb ⊩ᵣ r -> lb ⊩ᵣ r' -> lb ⊩ₜₘ v -> valid lb W ->
-  valid lb (add r r' v W).
+  (lb ⊩ r)%r -> (lb ⊩ r')%r -> (lb ⊩ v)%tm -> valid lb W -> valid lb (add r r' v W).
 Proof.
   intros lb r r' v W Hvr Hvr' Hvv HvW.
   unfold valid in *; destruct W; simpl in *. destruct HvW. split.
   - apply ReadStock.valid_add_spec; auto.
-  - apply WriteStock.valid_unfold. intro.
-    intros; rewrite WriteStock.add_spec in H1; destruct H1; subst; auto.
-    apply WriteStock.valid_unfold in H0. now apply H0.
+  - apply Resources.valid_unfold. intro.
+    intros; rewrite Resources.St.add_spec in H1; destruct H1; subst; auto.
 Qed.
 
 Lemma valid_union_spec : forall lb W W',
@@ -167,45 +192,45 @@ Proof.
   intros lb W W' [HvW HvW']; destruct W,W'; unfold valid in *; simpl in *.
   destruct HvW,HvW'. split.
   - apply ReadStock.valid_map_union_spec; auto.
-  - rewrite WriteStock.valid_union_spec; split; auto.
+  - apply Resources.valid_union_iff; split; auto.
 Qed.
 
 Lemma valid_in_spec : forall lb r W,
-  In r W -> valid lb W -> lb ⊩ᵣ r.
+  In r W -> valid lb W -> (lb ⊩ r)%r.
 Proof.
   intros; unfold In,valid in *; destruct W; simpl in *.
   destruct H,H0.
   - eapply ReadStock.valid_in_spec in H; eauto.
-  - eapply WriteStock.valid_in_spec; eauto.
+  - eapply Resources.valid_in_spec; eauto.
 Qed.
 
-(** ** Shift *)
 
-Lemma shift_in_spec : forall lb k r W,
-  In r W <-> In ([⧐ᵣ lb ≤ k] r) (shift lb k W).
+(** ** [shift] property *)
+
+Lemma shift_in_iff : forall lb k r W,
+  In r W <-> In ([⧐ lb – k] r)%r (shift lb k W).
 Proof.
   split; intros; unfold In,shift in *; destruct W; 
   simpl in *; destruct H.
-  - left. now apply ReadStock.shift_in_spec.
-  - right; now apply WriteStock.shift_in_spec.
-  - left. rewrite ReadStock.shift_in_spec; eauto.
-  - right; rewrite WriteStock.shift_in_spec; eauto.
+  - left. now apply ReadStock.shift_in_iff.
+  - right; now apply Resources.shift_in_iff.
+  - left. rewrite ReadStock.shift_in_iff; eauto.
+  - right; rewrite Resources.shift_in_iff; eauto.
 Qed.
 
 Lemma shift_in_e_spec : forall lb k r W,
-  In r (shift lb k W) -> exists r', r =  ([⧐ᵣ lb ≤ k] r').
+  In r (shift lb k W) -> exists r', (r =  ([⧐ lb – k] r')%r)%type.
 Proof.
   unfold In,shift; destruct W; simpl; intros; destruct H.
   - apply ReadStock.shift_in_e_spec in H; auto.
-  - apply WriteStock.shift_in_e_spec in H; destruct H as [x [H _]].
+  - apply Resources.shift_in_e_spec in H; destruct H as [x [H _]].
     now exists x.
 Qed.
 
-(** ** Halts *)
 
-#[export]
-Instance halts_eq: 
- Proper (Logic.eq ==> Stock.eq ==> iff) halts.
+(** ** [halts] property *)
+
+#[export] Instance halts_eq: Proper (Logic.eq ==> Stock.eq ==> iff) halts.
 Proof.
   repeat red; intros; subst.
   destruct x0,y0; unfold halts,eq,RelationPairs.RelProd in *; simpl in *.
@@ -216,27 +241,22 @@ Proof.
   - now rewrite H.
 Qed.
 
-Lemma halts_init_virtual : forall k W V,
+Lemma halts_env_from_stock : forall k W V,
   halts k W -> 
-  REnvironment.halts k V ->
-  REnvironment.halts k (init_virtual W V).
+  REnvironment.halts k V -> REnvironment.halts k (env_from_stock W V).
 Proof.
-  unfold init_virtual; intros; destruct W. 
+  unfold env_from_stock; intros; destruct W. 
   unfold halts in H; simpl in *.
-  apply ReadStock.halts_init_virtual; auto.
-  apply WriteStock.halts_init_virtual; assumption.
+  apply ReadStock.halts_env_to_renv; auto.
+  now apply REnvironment.halts_init_env_from_set.
 Qed.
 
 Lemma halts_update : forall k W V,
-  REnvironment.halts k V ->
-  halts k W ->
-  halts k (update W V).
+  REnvironment.halts k V -> halts k W -> halts k (update W V).
 Proof.
   intros. unfold halts,update; simpl; destruct W; simpl.
-  apply ReadStock.halts_update; auto.
+  apply ReadStock.halts_env_from_renv; auto.
 Qed.
-
-(* il faut halts_add_spec halts_weakening halts_union_spec *)
 
 Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
 Proof.
@@ -258,6 +278,39 @@ Proof.
   apply ReadStock.halts_add_spec; now split.
 Qed.
 
+
+(** ** Morphism *)
+
+#[export] Instance in_stk : Proper (Logic.eq ==> eq ==> iff) In.
+Proof.
+  repeat red; intros; subst; split; destruct x0,y0; repeat red in H0; 
+  unfold RelationPairs.RelCompFun, In in *; simpl in *; destruct H0;
+  intros [|].
+  - left; now rewrite <- H.
+  - right; now rewrite <- H0.
+  - left; now rewrite H.
+  - right; now rewrite H0.
+Qed.
+
+#[export] Instance find_stk : Proper (Logic.eq ==> eq ==> Logic.eq) find.
+Proof.
+  repeat red; intros; subst; destruct x0,y0.
+  repeat red in H0; unfold find,RelationPairs.RelCompFun in *.
+  destruct H0; simpl in *. now rewrite H.
+Qed.
+
+#[export] Instance add_stk : 
+Proper (Resource.eq ==> Resource.eq ==> Term.eq ==> eq ==> eq) add.
+Proof.
+  do 5 red; intros; subst; apply Term.eq_leibniz in H1; 
+  unfold Resource.eq in *; subst.
+  destruct x2,y2; repeat red in H2; repeat red;
+  unfold eq, RelationPairs.RelCompFun in *;
+  simpl in *; destruct H2; split.
+  - now rewrite H.
+  - now rewrite H0.
+Qed. 
+
 End Stock.
 
 Module StockNotations.
@@ -269,27 +322,28 @@ Delimit Scope stock_scope with sk.
 (** ** Notations *)
 Definition 𝐖 := Stock.t.
 
-Infix "∈ₛₖ" := Stock.In (at level 20, no associativity).
+Infix "∈" := Stock.In (at level 60, no associativity) : stock_scope. 
+Notation "r '∉' Re" := (~ (Stock.In r Re)) (at level 75, no associativity) : stock_scope. 
+Notation "∅" := Stock.empty (at level 0, no associativity) : stock_scope. 
+Notation "R '⌊' x '⌋'"  := (Stock.find x R) (at level 15, x constr) : stock_scope.
+Notation "⌈ x '~' x1 ⤆ v '⌉' R"  := (Stock.add x x1 v R) (at level 15, 
+                                                            x constr, v constr) : stock_scope.
+
 Infix "=" := Stock.eq : stock_scope.
 Infix "∪" := Stock.union : stock_scope.
-Infix "⊩ₛₖ" := Stock.valid (at level 20, no associativity).
 
-Notation "r '∉ₛₖ' W" := (~ (Stock.In r W)) (at level 20, no associativity). 
-                                                                      
-Notation "∅ₛₖ" := Stock.empty (at level 20, no associativity). 
-Notation "R '⌊' x '⌋ₛₖ'"  := (Stock.find x R) (at level 15, x constr).
-Notation "⌈ x ~ x' ⤆ v '⌉ₛₖ' R"  := (Stock.add x x' v R) (at level 15, 
-                                                                          x constr, v constr).
-Notation "R ⌈ x ⩦ v '⌉ₛₖ'"  := (Stock.find x R = Some v) (at level 15, x constr, v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ₛₖ'"  := (Stock.find x R = None) (at level 15, x constr).
-Notation "'[⧐ₛₖ' lb '≤' k ']' t" := (Stock.shift lb k t) (at level 45, 
-                                                                      right associativity).
+Notation "'[⧐' lb '–' k ']' t" := (Stock.shift lb k t) (at level 65, 
+                                                                right associativity) : stock_scope.
+Infix "⊩" := Stock.valid (at level 20, no associativity) : stock_scope.
 
 (** ** Morphisms *)
 
-#[export]
-Instance halts_eq: 
- Proper (Logic.eq ==> Stock.eq ==> iff) Stock.halts.
-Proof. apply Stock.halts_eq. Qed.
+Import Stock.
+
+#[export] Instance halts_eq: Proper (Logic.eq ==> eq ==> iff) halts := _.
+#[export] Instance in_stk : Proper (Logic.eq ==> eq ==> iff) In := _.
+#[export] Instance find_stk : Proper (Logic.eq ==> eq ==> Logic.eq) find := _.
+#[export] Instance add_stk : 
+  Proper (Resource.eq ==> Resource.eq ==> Term.eq ==> eq ==> eq) add := _.
 
 End StockNotations.

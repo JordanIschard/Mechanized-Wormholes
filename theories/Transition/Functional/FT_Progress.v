@@ -1,12 +1,12 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms
                         Relations.Relation_Operators.
-From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext 
+From Mecha Require Import Resource Term Typ Var ReadStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
-                          FT_Definition FT_Props FT_Preservation.
+                          FT_Definition FT_Props FT_Preservation Resources.
 Import ResourceNotations TermNotations TypNotations CellNotations
        VContextNotations RContextNotations REnvironmentNotations
-       ReadStockNotations WriteStockNotations StockNotations.
+       ReadStockNotations ResourcesNotations SetNotations StockNotations.
        
 Module RC := RContext.
 Module RE := REnvironment.
@@ -15,22 +15,24 @@ Module RE := REnvironment.
 
 Section progress.
 
+Open Scope renvironment_scope.
+
 Hypothesis all_arrow_halting : forall Re t α β,
-  ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts (Re⁺ᵣᵪ) <[t v]>.
+  ∅%vc ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊫ v ∈ α -> halts (Re⁺)%rc <[t v]>.
 
-Hint Resolve VContext.valid_empty_spec Stock.valid_empty_spec WriteStock.valid_empty_spec : core.
+Hint Resolve VContext.valid_empty_spec Stock.valid_empty_spec Resources.valid_empty_spec : core.
 
 
-Theorem progress_of_functional_value_gen (Re : ℜ) (m n : list nat) (V : 𝓥) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
-  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
+Theorem progress_of_functional_value_gen (Re : ℜ) (m n : list nat) (V : 𝐕) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
+  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺)%rc tv -> (* (3) *) RE.halts (Re⁺)%rc V -> 
 
-  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ [⧐⧐ₜₘ m ≤ n] sf ∈ (τ ⟿ τ' ∣ R) ->
-  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+  (* (4) *) ∅%vc ⋅ Re ⊫ [⧐⧐ m – n] sf ∈ (τ ⟿ τ' ∣ R) ->
+  (* (5) *) ∅%vc ⋅ Re ⊫ tv ∈ τ ->
   (* (6) *) Wfᵣₜ(Re,V) ->
-  (* (7) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (7) *)(forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
 
-  exists (V1 : 𝓥) (tv' sf' : Λ) (W : 𝐖),
-    ⪡ V ; tv ; [⧐⧐ₜₘ m ≤ n] sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
+  exists (V1 : 𝐕) (tv' sf' : Λ) (W : 𝐖),
+    ⪡ V ; tv ; [⧐⧐ m – n] sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
 Proof.
   revert Re m n V tv τ τ' R; induction sf;
   intros Re m n V tv τ1 τ1' R Hvalsf Hltv HlV Hwsf Hwtv Hwf Hunsd;
@@ -40,18 +42,18 @@ Proof.
   - rewrite Term.multi_shift_pair in *. inversion Hwsf; subst.
  
   - rewrite Term.multi_shift_arr in *. inversion Hwsf; subst.
-    exists V; exists <[([⧐⧐ₜₘ m ≤ n] sf) tv]>; 
-    exists <[arr([⧐⧐ₜₘ m ≤ n] sf)]>; exists (∅ₛₖ).
+    exists V; exists <[([⧐⧐ m – n] sf) tv]>; 
+    exists <[arr([⧐⧐ m – n] sf)]>; exists (∅%sk).
     simpl. now constructor.
  
   - rewrite Term.multi_shift_first in *. inversion Hwsf; subst.
     destruct Hltv as [tv' [HmeT Hvtv']].
     apply multi_preserves_typing with (t' := tv') in Hwtv as Hwtv'; auto.
     -- inversion Hvtv'; subst; inversion Hwtv'; subst.
-      apply (IHsf Re m n V v1 _ τ2 R) in H9 as HfT; auto.
+      apply (IHsf Re m n V v1 _ β R) in H9 as HfT; auto.
       + destruct HfT as [V1 [v1' [sf1 [W fT]]]].
-        exists V1; exists <[⟨v1',[⧐ₜₘ {V⁺ᵣᵦ} ≤ {V1⁺ᵣᵦ - V⁺ᵣᵦ}] v2⟩]>; 
-        exists <[first([⧐⧐ₜ m ≤ n] τ:sf1)]>; exists W.
+        exists V1; exists <[⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩]>; 
+        exists (Term.tm_first <[[⧐⧐ m – n] τ]>%ty sf1); exists W.
         apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>).
         ++ rewrite <- (wf_env_fT_new Re V); auto.
         ++ simpl. now constructor.
@@ -70,11 +72,11 @@ Proof.
          auto; try (eapply (wf_env_fT_valid Re V); now auto).
          rewrite <- Term.multi_shift_cons in Hwsf2bis.
 
-         apply (IHsf2 Re1 (Re⁺ᵣᵪ :: m) ((Re1⁺ᵣᵪ - Re⁺ᵣᵪ) :: n) V1 tv' τ τ1' R2) in Hwtv' as HfT; auto.
+         apply (IHsf2 Re1 (Re⁺ :: m)%rc ((Re1⁺ - Re⁺) :: n)%rc V1 tv' τ τ1' R2) in Hwtv' as HfT; auto.
          ++ destruct HfT as [V2 [tv'' [sf2' [W2 fT2]]]].
             exists V2; exists tv'';
-            exists <[([⧐ₜₘ {V1⁺ᵣᵦ} ≤ {V2⁺ᵣᵦ - V1⁺ᵣᵦ}] sf1') >>> sf2']>;
-            exists (([⧐ₛₖ V1⁺ᵣᵦ ≤ (V2⁺ᵣᵦ - V1⁺ᵣᵦ)] W1) ∪ W2)%sk.
+            exists <[([⧐ {V1⁺} – {V2⁺ - V1⁺}] sf1') >>> sf2']>;
+            exists (([⧐ V1⁺ – (V2⁺ - V1⁺)] W1) ∪ W2)%sk.
             eapply fT_comp; eauto.
             rewrite <- (wf_env_fT_new Re1 V1); auto.
             rewrite <- (wf_env_fT_new Re V); auto.
@@ -82,59 +84,60 @@ Proof.
             clear all_arrow_halting IHsf2.
             apply typing_Re_R with (r := r) in H10 as HInRe1; auto.
             * rewrite (wf_env_fT_in Re V) in HInRe1; auto.
-              assert (r ∉ ∅ᵣₛ)%rs. { intro c. inversion c. }
-              assert (r ∉ R1)%rs. 
-              { intro HInR1. apply H0. rewrite H11. rewrite Resources.inter_spec; now split. }
+              assert (r ∉ ∅)%s. { intro c. inversion c. }
+              assert (r ∉ R1)%s. 
+              { intro HInR1. apply H0. rewrite H11. rewrite Resources.St.inter_spec; now split. }
               destruct (Hunsd r).
-              ** rewrite H9. rewrite Resources.union_spec; now right.
-              ** apply RE.valid_in_spec with (lb := V⁺ᵣᵦ) in HInRe1 as HvV.
+              ** rewrite H9. rewrite Resources.St.union_spec; now right.
+              ** apply RE.valid_in_spec with (lb := V⁺) in HInRe1 as HvV.
                  { 
-                  rewrite (RE.shift_find_spec (V⁺ᵣᵦ) (V1⁺ᵣᵦ - V⁺ᵣᵦ)) in H4. 
+                  rewrite (RE.shift_find_iff (V⁺) (V1⁺ - V⁺)) in H4. 
                   rewrite Resource.shift_valid_refl in H4; auto.
                   rewrite HeqVV1 in H4; try now split. 
-                  simpl in *. now exists <[[⧐ₜₘ {V⁺ᵣᵦ} ≤ {V1⁺ᵣᵦ - V⁺ᵣᵦ}] x]>.
+                  simpl in *. now exists <[[⧐ {V⁺} – {V1⁺ - V⁺}] x]>.
                  }
                  { eapply (wf_env_fT_valid Re V); auto. }
             * now apply Term.multi_shift_value_iff.
-       + exists <[[⧐⧐ₜₘ m ≤ n] sf1]>; split; auto.
+       + exists <[[⧐⧐ m – n] sf1]>; split; auto.
          ++ apply rt1n_refl. 
          ++ now apply Term.multi_shift_value_iff.
     -- intros. apply Hunsd. rewrite H9.
-       rewrite Resources.union_spec; now left.
+       rewrite Resources.St.union_spec; now left.
 
   - rewrite Term.multi_shift_rsf in *; inversion Hwsf; subst.
-    destruct (Hunsd ([⧐⧐ᵣ m ≤ n] r)) as [tr HfV].
-    -- now apply Resources.singleton_spec.
-    -- exists (⌈ ([⧐⧐ᵣ m ≤ n] r) ⤆ ⩽ … tv ⩾ ⌉ᵣᵦ V); exists tr; exists <[rsf[[⧐⧐ᵣ m ≤ n] r]]>; exists (∅ₛₖ).
+    destruct (Hunsd ([⧐⧐ m – n] r)%r) as [tr HfV].
+    -- now apply Resources.St.singleton_spec.
+    -- exists (⌈([⧐⧐ m – n] r)%r ⤆ ⩽ … tv ⩾ ⌉ V); exists tr; 
+       exists <[rsf[([⧐⧐ m – n] r)%r]]>; exists ∅%sk.
        now constructor.
 
   - clear IHsf1. rewrite Term.multi_shift_wh in *; inversion Hwsf; subst. 
     apply weakening_ℜ_bis 
-      with (Re1 := (⌈ S k ⤆ (τ, <[ 𝟙 ]>) ⌉ᵣᵪ (⌈ k ⤆ (<[ 𝟙 ]>, τ) ⌉ᵣᵪ Re))) 
-      (k := Re⁺ᵣᵪ) (k' := 2) in Hwtv as Hwtv'; auto.
+      with (Re1 := (⌈ S k ⤆ (τ, <[ 𝟙 ]>) ⌉ (⌈ k ⤆ (<[ 𝟙 ]>, τ) ⌉ Re))%rc) 
+      (k := (Re⁺)%rc) (k' := 2) in Hwtv as Hwtv'; auto.
     -- apply (IHsf2 _ 
                     m n
-                    (⌈S (V⁺ᵣᵦ) ⤆ ⩽ <[unit]> … ⩾⌉ᵣᵦ (⌈V⁺ᵣᵦ ⤆ [⧐ᵣₓ V⁺ᵣᵦ ≤ 2] ⩽ ([⧐⧐ₜₘ m ≤ n] sf1) … ⩾⌉ᵣᵦ ([⧐ᵣᵦ V⁺ᵣᵦ ≤ 2] V))))
+                    (⌈S (V⁺) ⤆ ⩽ <[unit]> … ⩾⌉ (⌈V⁺ ⤆ ([⧐ V⁺ – 2] ⩽ ([⧐⧐ m – n] sf1) … ⩾)%cl⌉ ([⧐ V⁺ – 2] V))))
        with (τ' := τ1') (R := R')
        in Hwtv' as HfT; auto.
        + destruct HfT as [V1 [tv' [sf' [W fT]]]].
          clear IHsf2.
          exists V1; exists tv'; exists sf'; 
-         exists (⌈V⁺ᵣᵦ ~ S (V⁺ᵣᵦ) ⤆ <[[⧐ₜₘ {V⁺ᵣᵦ} ≤ {V1⁺ᵣᵦ - V⁺ᵣᵦ}] ([⧐⧐ₜₘ m ≤ n] sf1)]>⌉ₛₖ W).
+         exists (⌈V⁺ ~ S (V⁺) ⤆ <[[⧐ {V⁺} – {V1⁺ - V⁺}] ([⧐⧐ m – n] sf1)]>⌉ W)%sk.
          apply fT_wh. 
          rewrite (wf_env_fT_new Re V) in fT; auto.
        + unfold k in *; rewrite RC.new_key_wh_spec.
-         replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
+         replace (S (S (Re⁺)%rc)) with ((Re⁺)%rc + 2) by lia.
          now apply halts_weakening_1.
        + unfold k; rewrite RC.new_key_wh_spec.
          apply RE.halts_add_spec; split; simpl.
          ++ exists <[unit]>; split; auto; apply rt1n_refl.
          ++ apply RE.halts_add_spec; split; simpl.
-            * exists <[ [⧐ₜₘ {V ⁺ᵣᵦ} ≤ 2] [⧐⧐ₜₘ m ≤ n] sf1 ]>; split; auto.
+            * exists <[ [⧐ {V⁺} – 2] [⧐⧐ m – n] sf1 ]>; split; auto.
               ** apply rt1n_refl.
               ** apply Term.shift_value_iff.
                  now apply Term.multi_shift_value_iff.
-            * replace (S (S (Re ⁺ᵣᵪ))) with ((Re ⁺ᵣᵪ) + 2) by lia.
+            * replace (S (S (Re⁺)%rc)) with ((Re⁺)%rc + 2) by lia.
               rewrite (wf_env_fT_new Re V) in *; auto.
               now apply RE.halts_weakening_1.
        + apply well_typed_implies_valid in H8 as Hv; auto.
@@ -142,7 +145,7 @@ Proof.
             apply wfFT_env_wh; auto.
          ++ eapply (wf_env_fT_valid Re V); auto.
        + intros. 
-         assert (r ∈ R \/ r = (S k) \/ r = k)%rs.
+         assert (r ∈ R \/ r = (S k) \/ r = k)%s.
          {
           apply Classical_Prop.NNPP. intro c.
           apply Classical_Prop.not_or_and in c.
@@ -150,19 +153,19 @@ Proof.
           apply Classical_Prop.not_or_and in H3.
           destruct H3.
           apply H0. rewrite H9.
-          apply Resources.diff_spec; split; auto.
-          apply Resources.add_notin_spec; split; auto.
-          apply Resources.add_notin_spec; split; auto.
+          apply Resources.St.diff_spec; split; auto.
+          apply Resources.St.add_notin_spec; split; auto.
+          apply Resources.St.add_notin_spec; split; auto.
           intro c; inversion c. 
          }
          destruct H0 as [HIn | [Heq | Heq]]; subst; unfold k in *.
          ++ apply typing_Re_R with (r := r) in Hwsf; auto.
             * apply Hunsd in HIn; destruct HIn.
-              apply (RE.shift_find_spec (V⁺ᵣᵦ) 2) in H0.
-              apply RC.valid_in_spec with (lb := Re⁺ᵣᵪ) in Hwsf as Hvr.
+              apply (RE.shift_find_iff (V⁺) 2) in H0.
+              apply RC.valid_in_spec with (lb := (Re⁺)%rc) in Hwsf as Hvr.
               ** rewrite (wf_env_fT_new Re V) in Hvr; auto.
                  rewrite Resource.shift_valid_refl in H0; auto. simpl in *.
-                 exists <[[⧐ₜₘ{V ⁺ᵣᵦ} ≤ 2] x]>.
+                 exists <[[⧐ {V ⁺} – 2] x]>.
                  rewrite RE.OP.P.add_neq_o.
                  { 
                   rewrite RE.OP.P.add_neq_o; auto.
@@ -173,7 +176,7 @@ Proof.
             * constructor; now apply Term.multi_shift_value_iff.
          ++ exists <[unit]>. rewrite RE.OP.P.add_eq_o; auto.
             now rewrite (wf_env_fT_new Re V).
-         ++ simpl. exists <[[⧐ₜₘ{V ⁺ᵣᵦ} ≤ 2] [⧐⧐ₜₘ m ≤ n] sf1]>.
+         ++ simpl. exists <[[⧐ {V⁺} – 2] [⧐⧐ m – n] sf1]>.
             rewrite RE.OP.P.add_neq_o.
             * rewrite RE.OP.P.add_eq_o; auto.
               now rewrite (wf_env_fT_new Re V).
@@ -190,15 +193,15 @@ Proof.
   - rewrite Term.multi_shift_fix in *; inversion Hwsf.
 Qed.
 
-Theorem progress_of_functional_value (Re : ℜ) (V : 𝓥) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
-  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V -> 
+Theorem progress_of_functional_value (Re : ℜ) (V : 𝐕) (tv sf : Λ) (τ τ' : Τ) (R : resources) :
+  (* (1) *) value(sf) -> (* (2) *) halts (Re⁺)%rc tv -> (* (3) *) RE.halts (Re⁺)%rc V -> 
 
-  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
-  (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+  (* (4) *) ∅%vc ⋅ Re ⊫ sf ∈ (τ ⟿ τ' ∣ R) ->
+  (* (5) *) ∅%vc ⋅ Re ⊫ tv ∈ τ ->
   (* (6) *) Wfᵣₜ(Re,V) ->
-  (* (7) *)(forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (7) *)(forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
 
-  exists (V1 : 𝓥) (tv' sf' : Λ) (W : 𝐖),
+  exists (V1 : 𝐕) (tv' sf' : Λ) (W : 𝐖),
     ⪡ V ; tv ; sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
 Proof.
   intros. rewrite <- (Term.multi_shift_nil sf) in H2.
@@ -208,18 +211,18 @@ Proof.
   now exists V1; exists tv'; exists sf'; exists W.
 Qed.
 
-Theorem progress_of_functional(Re : ℜ) (V : 𝓥) (tv t : Λ) (τ τ' : Τ) (R : resources) :
+Theorem progress_of_functional(Re : ℜ) (V : 𝐕) (tv t : Λ) (τ τ' : Τ) (R : resources) :
 
-  (* (1) *) halts (Re⁺ᵣᵪ)  t -> (* (2) *) halts (Re⁺ᵣᵪ) tv -> (* (3) *) RE.halts (Re⁺ᵣᵪ) V ->
+  (* (1) *) halts (Re⁺)%rc  t -> (* (2) *) halts (Re⁺)%rc tv -> (* (3) *) RE.halts (Re⁺)%rc V ->
 
-  (* (4) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ ->
+  (* (4) *) ∅%vc ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> (* (5) *) ∅%vc ⋅ Re ⊫ tv ∈ τ ->
 
-  (* (6) *) Wfᵣₜ(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+  (* (6) *) Wfᵣₜ(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
 
   (*-------------------------------------------------------------------------------------------------*)
-    (exists (V1 : 𝓥) (tv' t' : Λ) (W : 𝐖), 
+    (exists (V1 : 𝐕) (tv' t' : Λ) (W : 𝐖), 
         (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢ /\
-        (*  (9) *) halts (V1⁺ᵣᵦ) t' /\ (* (10) *) halts (V1⁺ᵣᵦ) tv'/\ (* (11) *) RE.halts (V1⁺ᵣᵦ) V1).
+        (*  (9) *) halts (V1⁺) t' /\ (* (10) *) halts (V1⁺) tv'/\ (* (11) *) RE.halts (V1⁺) V1).
 Proof. 
   intros Hlt; destruct Hlt as [t' [HmeT Hvt']]. apply multi_indexed in HmeT as [k HieT].
   revert Re V tv t τ τ' R t' HieT Hvt'. induction k; 

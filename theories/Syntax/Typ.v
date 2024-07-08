@@ -1,7 +1,7 @@
 From Coq Require Import Classes.RelationClasses Classes.Morphisms Bool.Bool Classical_Prop.
 From DeBrLevel Require Import LevelInterface PairLevel.
-From Mecha Require Import Resource.
-Import ResourceNotations.
+From Mecha Require Import Resource Resources.
+Import ResourceNotations ResourcesNotations SetNotations.
 
 (** * Syntax -  Type
 
@@ -11,6 +11,10 @@ Import ResourceNotations.
 
 *)
 Module Typ <: IsBdlLvlFullDTWL.
+
+Open Scope resource_scope.
+Open Scope set_scope.
+Open Scope resources_scope.
 
 Module RS := Resources.
 
@@ -35,7 +39,7 @@ Fixpoint eqb' (τ τ' : t) : bool :=
     | (ty_prod τ1 τ2,ty_prod τ1' τ2')              => (eqb' τ1 τ1') && (eqb' τ2 τ2')
     | (ty_arrow τ1 τ2,ty_arrow τ1' τ2')            => (eqb' τ1 τ1') && (eqb' τ2 τ2')
     | (ty_reactive τ1 τ2 R,ty_reactive τ1' τ2' R') => (eqb' τ1 τ1') && (eqb' τ2 τ2') && 
-                                                      (R =? R')%rs
+                                                      (R =? R')
     | _ => false
   end
 .
@@ -50,7 +54,7 @@ Fixpoint shift (lb : Lvl.t) (k : Lvl.t) (τ : t) : t :=
   match τ with
     | ty_arrow t1 t2 => ty_arrow (shift lb k t1) (shift lb k t2)    
     | ty_prod t1 t2 => ty_prod (shift lb k t1) (shift lb k t2)    
-    | ty_reactive t1 t2 R => ty_reactive (shift lb k t1) (shift lb k t2) ([⧐ᵣₛ lb ≤ k] R)
+    | ty_reactive t1 t2 R => ty_reactive (shift lb k t1) (shift lb k t2) ([⧐ lb – k] R)
     | _ => τ
   end
 .
@@ -75,7 +79,7 @@ Inductive valid' : Lvl.t -> t -> Prop :=
   | vΤ_unit : forall k, valid' k ty_unit
   | vΤ_prod : forall k τ1 τ2, valid' k τ1 -> valid' k τ2 -> valid' k (ty_prod τ1 τ2)
   | vΤ_func : forall k τ1 τ2, valid' k τ1 -> valid' k τ2 -> valid' k (ty_arrow τ1 τ2)
-  | vΤ_reac : forall k τ1 τ2 R, valid' k τ1 -> valid' k τ2 -> k ⊩ᵣₛ R -> valid' k (ty_reactive τ1 τ2 R)
+  | vΤ_reac : forall k τ1 τ2 R, valid' k τ1 -> valid' k τ2 -> k ⊩ R -> valid' k (ty_reactive τ1 τ2 R)
 .
 
 Fixpoint validb' (k : Lvl.t) (τ : t) :=
@@ -83,39 +87,32 @@ Fixpoint validb' (k : Lvl.t) (τ : t) :=
     | ty_unit => true
     | ty_arrow t1 t2 =>  (validb' k t1) && (validb' k t2)   
     | ty_prod t1 t2 =>  (validb' k t1) && (validb' k t2)   
-    | ty_reactive t1 t2 R =>  (validb' k t1) && (validb' k t2) && (k ⊩?ᵣₛ R)
+    | ty_reactive t1 t2 R =>  (validb' k t1) && (validb' k t2) && (k ⊩? R)
   end
 .
 
 Definition valid := valid'.
 Definition validb := validb'.
 
-#[global]
+#[export]
 Hint Constructors valid' : core.
 
 (** *** Equality *)
 
-Lemma eq_refl : Reflexive eq.
-Proof. unfold Reflexive, eq; now reflexivity. Qed.
+#[export] Instance eq_refl : Reflexive eq := _.
+#[export] Instance eq_sym : Symmetric eq := _.
+#[export] Instance eq_trans : Transitive eq := _.
 
-Lemma eq_sym : Symmetric eq.
-Proof. unfold Symmetric,eq; now symmetry. Qed.
-
-Lemma eq_trans : Transitive eq.
-Proof. unfold Transitive,eq; intros; now transitivity y. Qed.
-
-#[global] 
+#[export] 
 Hint Resolve eq_refl eq_sym eq_trans : core.
 
-#[global] 
-Instance eq_rr : RewriteRelation eq := {}.
-#[global] 
-Instance eq_equiv : Equivalence eq. Proof. split; auto. Qed.
+#[export] Instance eq_rr : RewriteRelation eq := {}.
+#[export] Instance eq_equiv : Equivalence eq := _.
 
 Lemma eqb_refl : forall τ, eqb τ τ = true.
 Proof.
   induction τ; simpl; auto; try (rewrite andb_true_iff; split; now auto).
-  repeat (rewrite andb_true_iff; split); auto. apply RS.eqb_refl.
+  repeat (rewrite andb_true_iff; split); auto. apply RS.St.eqb_refl.
 Qed.
 
 Lemma eqb_eq : forall τ1 τ2, eqb τ1 τ2 = true <-> eq τ1 τ2.
@@ -126,7 +123,7 @@ Proof.
     -- apply andb_true_iff in H1 as [H1 H1']; f_equal; auto.
     -- apply andb_true_iff in H1 as [H1 H1'']; 
         apply andb_true_iff in H1 as [H1 H1']; f_equal; auto.
-        apply RS.equal_spec in H1''; now apply RS.eq_leibniz.
+        apply RS.St.equal_spec in H1''; now apply RS.eq_leibniz.
   - intros; rewrite H; apply eqb_refl.
 Qed.
 
@@ -164,11 +161,11 @@ Lemma eq_leibniz : forall x y, eq x y -> x = y. Proof. auto. Qed.
 
 (** *** Shift *)
 
-Lemma shift_refl : forall (lb : Lvl.t) (τ : t),
+Lemma shift_zero_refl : forall (lb : Lvl.t) (τ : t),
   (shift lb 0 τ) = τ.
 Proof.
   intros lb τ; induction τ; simpl; f_equal; auto.
-  apply RS.eq_leibniz; apply RS.shift_refl.
+  apply RS.eq_leibniz; apply RS.shift_zero_refl.
 Qed.
 
 Lemma shift_valid_refl : forall lb k τ,
@@ -178,9 +175,8 @@ Proof.
   apply RS.eq_leibniz; now apply RS.shift_valid_refl.
 Qed.
 
-#[global]
-Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
-Proof. repeat red; intros; subst; apply eq_leibniz; now rewrite H1. Qed.
+#[export] Instance shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
 
 Lemma shift_eq_iff : forall lb k τ τ1,
   τ = τ1 <-> (shift lb k τ) = (shift lb k τ1).
@@ -228,8 +224,8 @@ Proof.
   - rewrite IHt1; rewrite IHt2; reflexivity.
   - rewrite IHt1; rewrite IHt2; reflexivity.
   - rewrite IHt1; rewrite IHt2. 
-    assert ([⧐ᵣₛ lb ≤ k + k'] r = [⧐ᵣₛ lb + k ≤ k'] [⧐ᵣₛ lb ≤ k] r)%rs by apply Resources.shift_unfold.
-    apply Resources.eq_leibniz in H; rewrite H; reflexivity.
+    assert ([⧐ lb – k + k'] r = [⧐ lb + k – k'] [⧐ lb – k] r)%rs by apply Resources.shift_unfold.
+    apply RS.eq_leibniz in H; rewrite H; reflexivity.
 Qed.
 
 Lemma shift_unfold_1 : forall k k' k'' t,
@@ -239,13 +235,12 @@ Proof.
   - rewrite IHt1; auto; rewrite IHt2; auto; reflexivity.
   - rewrite IHt1; auto; rewrite IHt2; auto; reflexivity.
   - rewrite IHt1; auto; rewrite IHt2; auto. 
-    assert ([⧐ᵣₛ k' ≤ k'' - k'] [⧐ᵣₛ k ≤ k' - k] r = [⧐ᵣₛ k ≤ k'' - k] r )%rs.
-    -- apply Resources.shift_unfold_1; auto.
-    -- apply Resources.eq_leibniz in H1; rewrite H1; reflexivity.
+    assert ([⧐ k' – k'' - k'] [⧐ k – k' - k] r = [⧐ k – k'' - k] r )%rs.
+    -- apply RS.shift_unfold_1; auto.
+    -- apply RS.eq_leibniz in H1; rewrite H1; reflexivity.
 Qed.
 
 (** *** Valid *)
-
 
 Lemma validb_valid : forall k t, validb k t = true <-> valid k t.
 Proof.
@@ -272,13 +267,11 @@ Proof.
   - apply H; now rewrite <- validb_valid.
 Qed.
 
-#[global]
-Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
-Proof. repeat red; intros; apply eq_leibniz in H0; subst; auto. Qed.
+#[export] Instance valid_eq : 
+  Proper (Logic.eq ==> eq ==> iff) valid := _.
 
-#[global]
-Instance validb_eq : Proper (Logic.eq ==> eq ==> Logic.eq) validb.
-Proof. repeat red; intros; apply eq_leibniz in H0; subst; auto. Qed.
+#[export] Instance validb_eq : 
+  Proper (Logic.eq ==> eq ==> Logic.eq) validb := _.
 
 Lemma valid_weakening: forall k k' τ,
   (k <= k') -> valid k τ -> valid k' τ.
@@ -299,21 +292,21 @@ Theorem shift_preserves_valid : forall k k' τ,
   valid k τ -> valid (k + k') (shift k k' τ).
 Proof. intros; now apply shift_preserves_valid_1. Qed.
 
-Lemma shift_preserves_valid_4 : forall k t, valid k t -> valid k (shift k 0 t).
+Lemma shift_preserves_valid_zero : forall k t, valid k t -> valid k (shift k 0 t).
 Proof. intros; replace k with (k + 0); auto; now apply shift_preserves_valid_1. Qed.
 
-Lemma shift_preserves_valid_2 : forall lb lb' k k' t,
+Lemma shift_preserves_valid_gen : forall lb lb' k k' t,
   k <= k' -> lb <= lb' -> k <= lb -> k' <= lb' -> k' - k = lb' - lb -> 
   valid lb t -> valid lb' (shift k (k' - k) t).
 Proof.
   intros lb lb' k k' t; induction t; intros; simpl; inversion H4; subst; 
   constructor; eauto; try (apply IHt1; now auto); try (apply IHt2; now auto).
-  apply RS.shift_preserves_valid_2 with lb; auto.
+  apply RS.shift_preserves_valid_gen with lb; auto.
 Qed.
 
-Lemma shift_preserves_valid_3 : forall lb lb' t,
+Lemma shift_preserves_valid_2 : forall lb lb' t,
   lb <= lb' -> valid lb t -> valid lb' (shift lb (lb' - lb) t).
-Proof. intros. eapply shift_preserves_valid_2; eauto. Qed.
+Proof. intros. eapply shift_preserves_valid_gen; eauto. Qed.
 
 End Typ.
 
@@ -330,33 +323,33 @@ Module TypNotations.
 
 (** ** Scope *)
 Declare Scope typ_scope.
-Delimit Scope typ_scope with typ.
+Declare Scope ptyp_scope.
+Delimit Scope typ_scope with ty.
+Delimit Scope ptyp_scope with pty.
 
 (** ** Notations *)
 Definition Τ := Typ.t.
 Definition πΤ := PairTyp.t.
   
 Notation "'𝟙'"       := Typ.ty_unit (in custom wh at level 0).
-Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wh at level 50, 
-                                                                  right associativity).
-Notation "X '×' Y"   := (Typ.ty_prod X Y) (in custom wh at level 2, 
-                                                        X custom wh, 
-                                                        Y custom wh at level 0).
+Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wh at level 50, right associativity).
+Notation "X '×' Y"   := (Typ.ty_prod X Y) (in custom wh at level 2, X custom wh, 
+                                              Y custom wh at level 0).
 Notation "τ1 '⟿' τ2 '∣' R" := (Typ.ty_reactive τ1 τ2 R) (in custom wh at level 50, 
-                                                                  R constr, right associativity).
-Notation "'[⧐ₜ' lb '≤' k ']' t" := (Typ.shift lb k t) (in custom wh at level 45, 
-right associativity).
-Notation "'[⧐⧐ₜ' lb '≤' k ']' t" := (Typ.multi_shift lb k t) (in custom wh at level 45, 
-right associativity).
-Notation "'[⧐ₚₜ' lb '≤' k ']' t" := (PairTyp.shift lb k t) (in custom wh at level 45, 
-right associativity).
+                                                             R constr, right associativity).
+Notation "'[⧐' lb '–' k ']' t" := (Typ.shift lb k t) (in custom wh at level 45, 
+                                                           right associativity) : typ_scope.
+Notation "'[⧐⧐' lb '–' k ']' t" := (Typ.multi_shift lb k t) (in custom wh at level 45, 
+right associativity) : typ_scope.
+Notation "'[⧐' lb '–' k ']' t" := (PairTyp.shift lb k t) (in custom wh at level 45, 
+right associativity) : ptyp_scope.
 
-Infix "⊩ₜ" := Typ.valid (at level 20, no associativity). 
-Infix "⊩?ₜ" := Typ.validb (at level 20, no associativity). 
-Infix "⊩ₚₜ" := PairTyp.valid (at level 20, no associativity). 
-Infix "⊩?ₚₜ" := PairTyp.validb (at level 20, no associativity). 
+Infix "⊩"   := Typ.valid (at level 20, no associativity): typ_scope. 
+Infix "⊩?"  := Typ.validb (at level 20, no associativity) : typ_scope. 
+Infix "⊩"  := PairTyp.valid (at level 20, no associativity) : ptyp_scope. 
+Infix "⊩?" := PairTyp.validb (at level 20, no associativity) : ptyp_scope. 
 
-Infix "=" := Typ.eq : typ_scope.
+Infix "="  := Typ.eq : typ_scope.
 Infix "=?" := Typ.eqb  (at level 70) : typ_scope.
 
 End TypNotations.

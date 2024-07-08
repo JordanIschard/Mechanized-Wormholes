@@ -1,30 +1,31 @@
 From Coq Require Import Relations.Relation_Operators.
-From Mecha Require Import Resource Term ReadStock WriteStock Stock REnvironment
+From Mecha Require Import Resource Term ReadStock Stock REnvironment
                           Sample Samples RContext VContext Typing Typ
                           ET_Definition ET_Preservation FT_Definition FT_Props 
-                          FT_Preservation TT_Definition TT_Props.
+                          FT_Preservation TT_Definition TT_Props Resources.
 Import ResourceNotations TermNotations StockNotations REnvironmentNotations
-       SamplesNotations RContextNotations VContextNotations TypNotations.
+       SamplesNotations RContextNotations VContextNotations TypNotations
+       ResourcesNotations SetNotations.
 
 Section preservation.
 
 Hypothesis all_arrow_halting : forall Re t α β,
-  ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts (Re⁺ᵣᵪ) <[t v]>.
+  ∅%vc ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊫ v ∈ α -> halts (Re⁺)%rc <[t v]>.
 
 Theorem temporal_preserves_typing (Re : ℜ) (Sa Sa' : 𝐒) (W W' : 𝐖) (P P' : Λ) (R : resources) :
 
-    (* (1) *) halts (Re⁺ᵣᵪ) P -> (* (2) *) Samples.halts (Re⁺ᵣᵪ) Sa -> Stock.halts (Re⁺ᵣᵪ) W ->
+    (* (1) *) halts (Re⁺)%rc P -> (* (2) *) Samples.halts (Re⁺)%rc Sa -> Stock.halts (Re⁺)%rc W ->
               Wfₜₜ(Re,Sa,W) ->
 
-    (* (1) *) ∅ᵥᵪ ⋅ Re ⊫ P ∈ (𝟙 ⟿ 𝟙 ∣ R) ->
+    (* (1) *) ∅%vc ⋅ Re ⊫ P ∈ (𝟙 ⟿ 𝟙 ∣ R) ->
     (* (3) *) ⟦ Sa ; W ; P ⟧ ⟾ ⟦ Sa' ; W' ; P' ⟧ ->
 
 (*----------------------------------------------------*)
    exists Re1 R1,
-    (R ⊆ R1)%rs /\ Re ⊆ᵣᵪ Re1 /\
-    ∅ᵥᵪ ⋅ Re1 ⊫ P' ∈ (𝟙 ⟿ 𝟙 ∣ R1) /\ 
+    (R ⊆ R1)%s /\ (Re ⊆ Re1)%rc /\
+    ∅%vc ⋅ Re1 ⊫ P' ∈ (𝟙 ⟿ 𝟙 ∣ R1) /\ 
     Wfₜₜ(Re1,Sa',W') /\ 
-    (* (7) *) halts (Re1⁺ᵣᵪ) P' /\ (* (8) *) Samples.halts (Re1⁺ᵣᵪ) Sa' /\ Stock.halts (Re1⁺ᵣᵪ) W'.
+    (* (7) *) halts (Re1⁺)%rc P' /\ (* (8) *) Samples.halts (Re1⁺)%rc Sa' /\ Stock.halts (Re1⁺)%rc W'.
 Proof.
   intros HlP HlSa HlW HwfTT HwP HTT.
   destruct HTT as [Vin [Vout [Wnew [_tv [HeqVin [fT [HeqSa' HeqW']]]]]]].
@@ -45,7 +46,8 @@ Proof.
     exists Re1; exists R1.
     split; auto; split; auto; split; auto.
     split.
-    -- admit.
+    -- rewrite HeqW'; rewrite HeqSa'. 
+       admit.
     -- split; auto; split.
        + rewrite HeqSa'. apply Samples.halts_puts; auto.
          rewrite <- (wf_env_fT_new Re Vin HwfFT).
@@ -54,9 +56,8 @@ Proof.
          apply RContext.Ext.new_key_Submap_spec; assumption.
        + rewrite HeqW'. apply Stock.halts_update; auto.
   - exists <[unit]>; split; auto; apply rt1n_refl.
-  - rewrite HeqVin. apply Stock.halts_init_virtual; auto.
+  - rewrite HeqVin. apply Stock.halts_env_from_stock; auto.
     now apply Samples.halts_nexts.
-  - constructor.
 Admitted.
 
 End preservation.

@@ -110,6 +110,8 @@ Proof.
     -- rewrite <- H1; rewrite <- H2; rewrite <- H; now rewrite <- H0.
     -- eapply SampleO.wt_eq; try symmetry; eauto.
        destruct H1. unfold RelationPairs.RelCompFun in *; auto.
+       destruct y1,x1; simpl in *; subst.
+       destruct o,o0; simpl in *; subst; auto. reflexivity.
   - split.
     -- rewrite H1; rewrite H2; rewrite H; now rewrite H0.
     -- eapply SampleO.wt_eq; eauto.
@@ -140,7 +142,5 @@ Proof.
   destruct H; split. simpl in *; auto.
   now simpl in *.
 Qed.
-
-
 
 End Sample.

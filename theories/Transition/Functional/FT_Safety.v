@@ -1,40 +1,42 @@
 From Coq Require Import Program Lia Relations.Relation_Definitions Classes.RelationClasses PeanoNat
                         Classical_Prop Classical_Pred_Type Bool.Bool Lists.List Classes.Morphisms.
-From Mecha Require Import Resource Term Typ Var ReadStock WriteStock Typing VContext RContext 
+From Mecha Require Import Resource Resources Term Typ Var ReadStock Typing VContext RContext 
                           Cell REnvironment Stock ET_Definition ET_Props ET_Preservation 
                           FT_Definition FT_Props FT_Preservation FT_Progress.
 Import ResourceNotations TermNotations TypNotations CellNotations
        VContextNotations RContextNotations REnvironmentNotations
-       ReadStockNotations WriteStockNotations StockNotations.
+       ReadStockNotations ResourcesNotations SetNotations StockNotations.
        
 (** * Transition - Functional - Safety *)
 
 Section safety.
 
+Open Scope renvironment_scope.
+
 Hypothesis all_arrow_halting : forall Re t α β,
-  ∅ᵥᵪ ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅ᵣₛ) -> forall v, ∅ᵥᵪ ⋅ Re ⊫ v ∈ α -> halts (Re⁺ᵣᵪ) <[t v]>.
+  ∅%vc ⋅ Re ⊫ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊫ v ∈ α -> halts (Re⁺)%rc <[t v]>.
 
 (** * Proof of Resource safety *)
 
-Theorem safety_resources_interaction (Re : ℜ) (V : 𝓥) (t : Λ) (τ τ' : Τ) (R : resources) :
+Theorem safety_resources_interaction (Re : ℜ) (V : 𝐕) (t : Λ) (τ τ' : Τ) (R : resources) :
 
-    (* (1) *) halts (Re⁺ᵣᵪ) t -> (* (2) *) RE.halts (Re⁺ᵣᵪ) V ->
+    (* (1) *) halts (Re⁺)%rc t -> (* (2) *) RE.halts (Re⁺)%rc V ->
 
-    (* (3) *) Wfᵣₜ(Re,V) -> (* (4) *) (forall (r : resource), (r ∈ R)%rs -> RE.unused r V) ->
+    (* (3) *) Wfᵣₜ(Re,V) -> (* (4) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
 
-    (* (5) *) ∅ᵥᵪ ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
+    (* (5) *) ∅%vc ⋅ Re ⊫ t ∈ (τ ⟿ τ' ∣ R) -> 
 
   (*-----------------------------------------------------------------------------------------------*)
-    forall (tv : Λ), (* (6) *) halts (Re⁺ᵣᵪ) tv -> (* (7) *) ∅ᵥᵪ ⋅ Re ⊫ tv ∈ τ -> 
+    forall (tv : Λ), (* (6) *) halts (Re⁺)%rc tv -> (* (7) *) ∅%vc ⋅ Re ⊫ tv ∈ τ -> 
 
-    exists (R' : resources) (V1 : 𝓥) (tv' t' : Λ) (W: 𝐖), 
+    exists (R' : resources) (V1 : 𝐕) (tv' t' : Λ) (W: 𝐖), 
       (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢ /\
 
-      (*  (9) *) (R ⊆ R')%rs    /\
-      (* (10) *)(forall (r : resource), (r ∉ R)%rs /\ (r ∈ᵣᵦ V) -> 
-                    ([⧐ᵣᵦ (V⁺ᵣᵦ) ≤ ((V1⁺ᵣᵦ) - (V⁺ᵣᵦ))] V) ⌊r⌋ᵣᵦ = V1 ⌊r⌋ᵣᵦ) /\
-      (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%rs -> (r ∈ (Stock.to_RS W))%rs /\ (r ∉ᵣᵦ V)) /\ 
-      (* (12) *) (forall (r : resource), (r ∈ R)%rs -> RE.used r V1).
+      (*  (9) *) (R ⊆ R')%s    /\
+      (* (10) *)(forall (r : resource), (r ∉ R)%s /\ (r ∈ V) -> 
+                    ([⧐ (V⁺) – ((V1⁺) - (V⁺))] V) ⌊r⌋ = V1 ⌊r⌋) /\
+      (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%s -> (r ∈ W)%sk /\ (r ∉ V)) /\ 
+      (* (12) *) (forall (r : resource), (r ∈ R)%s -> RE.used r V1).
 Proof.
   intros Hlt HltV Hwf Hunsd Hwt tv Hltv Hwtv.
   apply (progress_of_functional all_arrow_halting Re V tv t _ τ' R) in Hwtv as prog; auto.

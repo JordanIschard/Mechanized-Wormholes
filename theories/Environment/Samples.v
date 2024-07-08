@@ -10,27 +10,28 @@ TODO
 
 *)
 Module Samples <: IsLvlET.
-Include MapLvlD.MakeLvlMapWLLVL Sample.
+Include MapLvlD.MakeLvlMapLVLD Sample.
 
 Import Raw Ext.
+Open Scope renvironment_scope.
 
 (** ** Definition *)
 
-Definition nexts_func x v V := ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ V.
+Definition nexts_func x v V := ⌈x ⤆ (Cell.inp (Sample.next v))⌉ V.
 
 Definition nexts_func_1 v := (Cell.inp (Sample.next v)).
 
 Definition nexts (fl : Samples.t) : REnvironment.t := 
-  fold nexts_func fl (∅ᵣᵦ).
+  fold nexts_func fl ∅.
 
 Definition puts_func V x v fl := 
-  match V⌊x⌋ᵣᵦ with 
+  match V⌊x⌋ with 
     | Some (⩽ … v' ⩾) =>  add x (Sample.put (Some v') v) fl
     |  _ => add x (Sample.put None v) fl 
   end.
 
 Definition puts_func_1 V x v :=
-  match V⌊x⌋ᵣᵦ with 
+  match V⌊x⌋ with 
     | Some (⩽ … v' ⩾) =>  (Sample.put (Some v') v)
     |  _ => (Sample.put None v) 
   end.
@@ -43,38 +44,43 @@ Definition halts (k : nat) (fl : Samples.t) := forall (r : resource) v,
 
 Hint Resolve REnvironment.eq_equiv : core.
 
-(** ** Nexts *)
+(** ** [nexts] property *)
 
 #[export]
 Instance nexts_prop : 
   Proper (Logic.eq ==> Logic.eq ==> REnvironment.eq ==> REnvironment.eq) nexts_func.
 Proof.
-  repeat red; intros; subst. unfold nexts_func; now rewrite H1.
+  repeat red; intros; subst. unfold nexts_func.
+  destruct (Resource.eq_dec y y2); subst.
+  - rewrite REnvironment.add_eq_o; auto.
+    rewrite REnvironment.add_eq_o; auto.
+  - rewrite REnvironment.add_neq_o; auto.
+    rewrite REnvironment.add_neq_o; auto.
 Qed.
 
 Lemma nexts_diamond : Diamond REnvironment.eq nexts_func.
+Proof.
  repeat red; intros. rewrite <- H0. rewrite <- H1.
  unfold nexts_func. rewrite REnvironment.OP.P.add_add_2; auto.
 Qed.
 
-Hint Resolve nexts_prop nexts_diamond : core.
+#[export] Hint Resolve nexts_prop nexts_diamond : core.
 
-Lemma nexts_Empty t : Empty t -> ((nexts t) = ∅ᵣᵦ)%re.
+Lemma nexts_Empty t : Empty t -> ((nexts t) = ∅).
 Proof. 
-  intros; unfold nexts. rewrite fold_Empty; auto. reflexivity. 
+  intros; unfold nexts. rewrite fold_Empty; auto.
 Qed.
 
 Lemma nexts_Add_spec x v t t' : 
   ~ In x t ->
-  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ (nexts t))%re.
+  Samples.Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ (nexts t))%re.
 Proof.
   intros. unfold nexts. 
   apply fold_Add with (A := REnvironment.t) (eqA := REnvironment.eq) 
-                      (f := nexts_func) (i := ∅ᵣᵦ) in H0; auto.
+                      (f := nexts_func) (i := ∅) in H0; auto.
 Qed.
 
-#[export]
-Instance nexts_eq : Proper (eq ==> REnvironment.eq) nexts.
+#[export] Instance nexts_eq : Proper (eq ==> REnvironment.eq) nexts.
 Proof.
   repeat red; intros; revert y0 y H. induction x using map_induction; intros.
   - assert (Empty y). { now rewrite H0 in *. }
@@ -87,10 +93,10 @@ Proof.
        { 
         apply mapsto_fun with (x := x3) (m := x2). 
         - rewrite H1. apply add_mapsto_new; auto.
-        - unfold Add in H0. rewrite H0. apply add_mapsto_new; auto.
+        - unfold Samples.Add in H0. rewrite H0. apply add_mapsto_new; auto.
        }
-       subst. assert (Add x3 e (remove x3 y) y).
-       { unfold Add. now rewrite H2. }
+       subst. assert (Samples.Add x3 e (remove x3 y) y).
+       { unfold Samples.Add. now rewrite H2. }
        rewrite (nexts_Add_spec x3 e x1 x2); auto.
        rewrite (nexts_Add_spec x3 e (remove x3 y) y); auto.
        destruct (Resource.eq_dec x3 y0); subst.
@@ -104,17 +110,18 @@ Proof.
             * exfalso; apply H3. now exists e0.
          ++ split; intros.
             * rewrite <- add_neq_mapsto_iff; eauto.
-              rewrite <- H1. unfold Add in H0. rewrite H0.
+              rewrite <- H1. unfold Samples.Add in H0. rewrite H0.
               rewrite add_neq_mapsto_iff; auto.
             * rewrite <- add_neq_mapsto_iff; eauto.
-              unfold Add in H0. rewrite <- H0. rewrite H1.
+              unfold Samples.Add in H0. rewrite <- H0. rewrite H1.
               rewrite add_neq_mapsto_iff; auto.
-    -- assert (Add x3 e x1 y). { unfold Add in *; rewrite <- H1; assumption. }
+    -- assert (Samples.Add x3 e x1 y). 
+       { unfold Samples.Add in *; rewrite <- H1; assumption. }
        rewrite (nexts_Add_spec x3 e x1 x2); auto.
        rewrite (nexts_Add_spec x3 e x1 y); auto. 
 Qed.
 
-Lemma nexts_in_iff r fl : In r fl <-> r ∈ᵣᵦ (nexts fl).
+Lemma nexts_in_iff r fl : In r fl <-> r ∈ (nexts fl).
 Proof.
   revert r; induction fl using map_induction; split; intros.
   - exfalso. destruct H0. now apply (H r x).
@@ -124,13 +131,13 @@ Proof.
        rewrite REnvironment.OP.P.add_in_iff; now left.
     -- rewrite nexts_Add_spec; eauto.
        rewrite REnvironment.OP.P.add_in_iff; right.
-       unfold Add in *. rewrite H0 in *.
+       unfold Samples.Add in *. rewrite H0 in *.
        rewrite add_in_iff in H1; destruct H1; try (contradiction).
        now rewrite <- IHfl1.
   - destruct (Resource.eq_dec x r); subst.
-    -- unfold Add in *; rewrite H0. rewrite add_in_iff; now left.
+    -- unfold Samples.Add in *; rewrite H0. rewrite add_in_iff; now left.
     -- rewrite nexts_Add_spec in *; eauto.
-       unfold Add in *. rewrite H0 in *.
+       unfold Samples.Add in *. rewrite H0 in *.
        rewrite add_in_iff; right. 
        rewrite REnvironment.OP.P.add_in_iff in H1; 
        destruct H1; try (contradiction).
@@ -167,8 +174,8 @@ Proof.
       destruct (Resource.eq_dec k x); subst.
       + rewrite REnvironment.OP.P.add_eq_o in HM; auto.
         inversion HM; subst; clear HM.
-        assert (Add x e (remove x0 t1) (remove x0 t2)).
-        { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+        assert (Samples.Add x e (remove x0 t1) (remove x0 t2)).
+        { unfold Samples.Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
         {
          apply REnvironment.OP.P.find_2.
          rewrite fold_Add with (m1 := remove x0 t1); eauto.
@@ -182,7 +189,7 @@ Proof.
         ++ assert (nexts (remove x0 t2) = nexts t1)%re. 
            { 
             eapply nexts_eq.
-            unfold Add,eq in *. rewrite H0.
+            unfold Samples.Add,eq in *. rewrite H0.
             rewrite remove_add_1. 
             now erewrite (remove_id t1 x0).
            }
@@ -195,7 +202,7 @@ Proof.
            assert (nexts (remove x0 t2) = nexts (add x e (remove x0 t1)))%re. 
            { 
             eapply nexts_eq.
-            unfold Add,eq in *. rewrite H0.
+            unfold Samples.Add,eq in *. rewrite H0.
             rewrite remove_add_2; auto; reflexivity.
            }
            assert (k = k) by reflexivity.
@@ -205,14 +212,14 @@ Proof.
            rewrite (nexts_Add_spec x e (remove x0 t1)); eauto.
            * rewrite REnvironment.OP.P.add_neq_o; eauto.
            * intro. apply remove_in_iff in H4 as [_ H4]. contradiction.
-           * unfold Add; reflexivity.
+           * unfold Samples.Add; reflexivity.
   -- destruct (Resource.eq_dec x0 k); subst.
      + exfalso.
        destruct (Resource.eq_dec k x); subst.
        ++ assert ((nexts t1) = (nexts (remove x t2)))%re.
           {
             eapply nexts_eq. 
-            unfold Add in *; rewrite H0.
+            unfold Samples.Add in *; rewrite H0.
             rewrite remove_add_1; auto.
             symmetry; unfold eq.
             now rewrite remove_id.
@@ -222,8 +229,8 @@ Proof.
           eapply (REnvironment.OP.P.MapsTo_m H3 H4 H2) in H1; eauto.
           rewrite nexts_in_iff in H.
           apply H. now exists e0.
-       ++ assert (Add x e (remove k t1) (remove k t2)).
-          { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+       ++ assert (Samples.Add x e (remove k t1) (remove k t2)).
+          { unfold Samples.Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
           apply REnvironment.OP.P.find_1 in H1.
           apply (nexts_Add_spec x e) in H2.
           * rewrite H2 in H1.
@@ -237,8 +244,8 @@ Proof.
        rewrite (nexts_Add_spec x e t1 t2); auto.
        destruct (Resource.eq_dec k x); subst.
        ++ rewrite REnvironment.OP.P.add_eq_o; auto; f_equal. 
-          assert (Add x e (remove x0 t1) (remove x0 t2)).
-          { unfold Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
+          assert (Samples.Add x e (remove x0 t1) (remove x0 t2)).
+          { unfold Samples.Add in *; rewrite H0. rewrite remove_add_2; auto. reflexivity. }
           {
           apply REnvironment.OP.P.find_1 in H1.
           rewrite fold_Add with (m1 := remove x0 t1) in H1; eauto.
@@ -252,7 +259,7 @@ Proof.
           * assert (nexts (remove x0 t2) = nexts t1)%re. 
             { 
               eapply nexts_eq.
-              unfold Add,eq in *. rewrite H0.
+              unfold Samples.Add,eq in *. rewrite H0.
               rewrite remove_add_1. 
               now erewrite (remove_id t1 x0).
             }
@@ -265,7 +272,7 @@ Proof.
             assert (nexts (remove x0 t2) = nexts (add x e (remove x0 t1)))%re. 
             { 
               eapply nexts_eq.
-              unfold Add,eq in *. rewrite H0.
+              unfold Samples.Add,eq in *. rewrite H0.
               rewrite remove_add_2; auto; reflexivity.
             }
             assert (k = k) by reflexivity.
@@ -275,27 +282,39 @@ Proof.
             rewrite (nexts_Add_spec x e (remove x0 t1)) in H1; eauto.
             ** rewrite REnvironment.OP.P.add_neq_o in H1; eauto.
             ** intro. apply remove_in_iff in H5 as [_ H5]. contradiction.
-            ** unfold Add; reflexivity.       
+            ** unfold Samples.Add; reflexivity.       
 Qed.
 
 Lemma nexts_Add_spec_1 x v t t' : 
-  Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ᵣᵦ (nexts t))%re.
+  Samples.Add x v t t' -> ((nexts t') = ⌈x ⤆ (Cell.inp (Sample.next v))⌉ (nexts t))%re.
 Proof.
   intros. destruct (In_dec t x).
-  - unfold Add in *. rewrite H.
+  - unfold Samples.Add in *. rewrite H.
     transitivity (nexts (add x v (remove x t))).
     -- now rewrite add_remove_1.
     -- unfold nexts. rewrite fold_Add with (m1 := (remove x t)) (k := x) (e := v); eauto.
-       + unfold nexts_func; fold nexts_func; simpl.
-         rewrite <- (nexts_remove_spec x t).
+       + unfold nexts_func; fold nexts_func; simpl. intro.
+         assert (fold nexts_func (remove x t) ∅ = 
+                  REnvironment.Raw.remove x (fold nexts_func t ∅))%re.
+         { now rewrite <- (nexts_remove_spec x t). }
+
+         assert 
+         (forall d, 
+          (⌈ x ⤆ d ⌉ fold nexts_func (remove x t) ∅ = 
+           ⌈ x ⤆ d ⌉ REnvironment.Raw.remove x (fold nexts_func t ∅))%re).
+         { 
+          intros. apply add_renv; eauto; try reflexivity.
+          unfold Cell.eq; destruct d; reflexivity. 
+         }
+         rewrite H1.
          now rewrite REnvironment.OP.P.add_remove_1.
        + intro. apply remove_in_iff in H0 as [H0 _]. now apply H0.
-       + unfold Add; reflexivity. 
+       + unfold Samples.Add; reflexivity. 
   - now apply nexts_Add_spec.
 Qed.
 
 Lemma nexts_find_e_spec Fl r v :
-  (nexts Fl) ⌈r ⩦ v⌉ᵣᵦ -> exists rf, v = nexts_func_1 rf.
+  (nexts Fl)⌊r⌋ = Some v -> exists rf, (v = nexts_func_1 rf)%type.
 Proof.
   revert r v; induction Fl using map_induction; intros.
   - apply nexts_Empty_eq in H.
@@ -311,13 +330,13 @@ Proof.
 Qed.
 
 Lemma nexts_find_spec Fl r rf :
-  find r Fl = Some rf -> (nexts Fl) ⌈r ⩦ (nexts_func_1 rf)⌉ᵣᵦ.
+  find r Fl = Some rf -> (nexts Fl)⌊r⌋ = Some (nexts_func_1 rf).
 Proof.
   revert r rf; induction Fl using map_induction; intros.
   - exfalso; apply (H r rf).
     now apply find_2.
   - rewrite nexts_Add_spec in *; eauto.
-    unfold Add in *. rewrite H0 in *.
+    unfold Samples.Add in *. rewrite H0 in *.
     destruct (Resource.eq_dec r x); subst.
     -- rewrite add_eq_o in H1; auto; inversion H1; subst; clear H1.
        rewrite REnvironment.OP.P.add_eq_o; auto.
@@ -346,7 +365,7 @@ Proof.
   induction fl using map_induction.
   - rewrite Ext.new_key_Empty_spec; auto. rewrite nexts_Empty; auto.
   - rewrite (nexts_Add_spec x e fl1 fl2); auto.
-    unfold Add in H0. rewrite H0.
+    unfold Samples.Add in H0. rewrite H0.
     apply (new_key_add_spec fl1 x e) in H as IH.
     rewrite nexts_in_iff in H. 
     apply (REnvironment.Ext.new_key_add_spec _ x (Cell.inp (Sample.next e))) in H as IH'.
@@ -354,13 +373,12 @@ Proof.
     destruct IH' as [[Hnk' Hle'] | [Hnk' Hgt']]; try lia.
 Qed.
 
-(** ** Puts *)
+(** ** [puts] property *)
 
 #[export]
-Instance puts_prop V :
-  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) (puts_func V).
+Instance puts_prop V : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) (puts_func V).
 Proof.
-  repeat red; intros; subst; unfold puts_func. destruct (V⌊y⌋ᵣᵦ); auto.
+  repeat red; intros; subst; unfold puts_func. destruct (V⌊y⌋); auto.
   - destruct r; auto; now rewrite H1.
   - now rewrite H1.
 Qed.
@@ -368,7 +386,7 @@ Qed.
 Lemma puts_diamond V : Diamond Equal (puts_func V).
 Proof. 
   repeat red; intros; unfold puts_func. 
-  destruct (V⌊k⌋ᵣᵦ) eqn:HfV; destruct (V⌊k'⌋ᵣᵦ) eqn:HfV'.
+  destruct (V⌊k⌋) eqn:HfV; destruct (V⌊k'⌋) eqn:HfV'.
   - destruct r,r0;
     rewrite <- H1; rewrite <- H0; unfold puts_func; 
     rewrite HfV,HfV'; now rewrite add_add_2.
@@ -390,28 +408,27 @@ Proof.
 Qed.
 
 Lemma puts_Add_spec r v V fl fl' : 
-  ~ In r fl -> Add r v fl fl' -> eq (puts V fl') ((puts_func V) r v (puts V fl)).
-Proof.
-  intros. unfold puts, eq. now rewrite fold_Add; eauto.
-Qed.
+  ~ In r fl -> Samples.Add r v fl fl' -> eq (puts V fl') ((puts_func V) r v (puts V fl)).
+Proof. intros. unfold puts, eq. now rewrite fold_Add; eauto. Qed.
 
 Lemma puts_Add_spec_1 r v V fl fl' : 
-  ~ In r fl -> Add r v fl fl' -> Add r (puts_func_1 V r v) (puts V fl) (puts V fl').
+  ~ In r fl -> 
+  Samples.Add r v fl fl' -> Samples.Add r (puts_func_1 V r v) (puts V fl) (puts V fl').
 Proof.
   intros. apply puts_Add_spec with (V := V) in H0; auto.
-  unfold Add. rewrite H0. unfold puts_func,puts_func_1; destruct (V⌊r⌋ᵣᵦ);
+  unfold Samples.Add. rewrite H0. unfold puts_func,puts_func_1; destruct (V⌊r⌋);
   try reflexivity.
   destruct r0; reflexivity.
 Qed.
 
-Lemma puts_Empty_eq V fl : Empty fl <-> Empty (puts V fl).
+Lemma puts_Empty_iff V fl : Empty fl <-> Empty (puts V fl).
 Proof.
   split; intros HEmp.
   - apply puts_Empty with (V := V) in HEmp; rewrite HEmp.
     apply empty_1.
   - revert V HEmp; induction fl using map_induction; 
     intros V HEmp; auto.
-    unfold Empty in *; intros. intro. destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+    unfold Empty in *; intros. intro. destruct (V⌊x⌋) eqn:HfV.
     -- destruct r.
        + apply (HEmp x (Sample.put None e)).
          apply find_2. rewrite puts_Add_spec; eauto. 
@@ -428,33 +445,33 @@ Lemma puts_is_empty_eq V fl : is_empty fl = is_empty (puts V fl).
 Proof.
   destruct (is_empty fl) eqn:H.
   - symmetry. apply is_empty_2 in H. apply is_empty_1. 
-    now apply puts_Empty_eq.
+    now apply puts_Empty_iff.
   - symmetry. apply not_true_is_false. intro.
-    apply is_empty_2 in H0. rewrite <- puts_Empty_eq in H0.
+    apply is_empty_2 in H0. rewrite <- puts_Empty_iff in H0.
     revert H. apply eq_true_false_abs. now apply is_empty_1.
 Qed.
 
-Lemma puts_In_spec r V fl : In r fl <-> In r (puts V fl).
+Lemma puts_In_iff r V fl : In r fl <-> In r (puts V fl).
 Proof.
   revert r V; induction fl using map_induction; intros r V.
   - split; intro HIn.
     -- exfalso. destruct HIn as [v HMap]. now apply (H r v).
     -- exfalso. destruct HIn as [v HMap].
-       rewrite puts_Empty_eq with (V := V) in H.
+       rewrite puts_Empty_iff with (V := V) in H.
        now apply (H r v).
   - split; intro HIn.
     -- rewrite puts_Add_spec; eauto.
-       unfold Add in H0. rewrite H0 in *. rewrite add_in_iff in HIn.
+       unfold Samples.Add in H0. rewrite H0 in *. rewrite add_in_iff in HIn.
        destruct HIn as [Heq | HIn]; subst.
-       + unfold puts_func; destruct(V⌊r⌋ᵣᵦ).
+       + unfold puts_func; destruct(V⌊r⌋).
          ++ destruct r0; rewrite add_in_iff; now left.
          ++ rewrite add_in_iff; now left.
-       + unfold puts_func; destruct(V⌊x⌋ᵣᵦ).
+       + unfold puts_func; destruct(V⌊x⌋).
          ++ destruct r0; rewrite add_in_iff; right; now rewrite <- IHfl1.
          ++ rewrite add_in_iff; right; now rewrite <- IHfl1.
     -- rewrite puts_Add_spec in HIn; eauto.
-       unfold Add in *; rewrite H0. rewrite add_in_iff.
-       unfold puts_func in *. destruct(V⌊x⌋ᵣᵦ).
+       unfold Samples.Add in *; rewrite H0. rewrite add_in_iff.
+       unfold puts_func in *. destruct(V⌊x⌋).
        ++ destruct r0; 
           apply add_in_iff in HIn as [Heq | HIn]; subst; auto;
           right; now rewrite (IHfl1 r V).
@@ -466,25 +483,25 @@ Lemma puts_max_spec V fl : max_key fl = max_key (puts V fl).
 Proof.
   revert V. induction fl using map_induction; intro V.
   - apply max_key_Empty_spec in H as Hmax; rewrite Hmax.
-    symmetry. rewrite puts_Empty_eq with (V := V) in H.
+    symmetry. rewrite puts_Empty_iff with (V := V) in H.
     apply max_key_Empty_spec in H; now rewrite H.
   - apply max_key_Add_spec in H0 as HI; auto.
     destruct HI as [[Heq Hle] | [Heq Hgt]]; subst.
     -- rewrite puts_Add_spec; eauto. unfold puts_func.
-       destruct (V⌊max_key fl2⌋ᵣᵦ) eqn:HfV.
+       destruct (V⌊max_key fl2⌋) eqn:HfV.
        + destruct r; rewrite max_key_add_spec_1; auto;
          try (now rewrite <- IHfl1);
-         now rewrite <- puts_In_spec.
+         now rewrite <- puts_In_iff.
        + rewrite max_key_add_spec_1; auto.
-         ++ now rewrite <- puts_In_spec.
+         ++ now rewrite <- puts_In_iff.
          ++ now rewrite <- IHfl1.
     -- rewrite puts_Add_spec; eauto. unfold puts_func.
-       destruct (V⌊x⌋ᵣᵦ) eqn:HfV; rewrite Heq.
+       destruct (V⌊x⌋) eqn:HfV; rewrite Heq.
        + destruct r; rewrite max_key_add_spec_2; auto;
          try (now rewrite <- IHfl1);
-         now rewrite <- puts_In_spec.
+         now rewrite <- puts_In_iff.
        + rewrite max_key_add_spec_2; auto.
-         ++ now rewrite <- puts_In_spec.
+         ++ now rewrite <- puts_In_iff.
          ++ now rewrite <- IHfl1.
 Qed.
 
@@ -502,62 +519,64 @@ Lemma puts_find_spec V fl r v :
 Proof.
   revert r v; induction fl using map_induction; intros r v HfFl.
   - exfalso; apply (H r v); now apply find_2.
-  - rewrite puts_Add_spec; eauto. unfold Add in H0; rewrite H0 in *.
+  - rewrite puts_Add_spec; eauto. unfold Samples.Add in H0; rewrite H0 in *.
     destruct (Resource.eq_dec r x); subst.
     -- rewrite add_eq_o in HfFl; auto; inversion HfFl; subst; clear HfFl.
-       unfold puts_func,puts_func_1; destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+       unfold puts_func,puts_func_1; destruct (V⌊x⌋) eqn:HfV.
        + destruct r; rewrite add_eq_o; auto.
        + rewrite add_eq_o; auto.
     -- rewrite add_neq_o in *; auto. 
-       unfold puts_func; destruct (V⌊x⌋ᵣᵦ) eqn:HfV.
+       unfold puts_func; destruct (V⌊x⌋) eqn:HfV.
        + destruct r0; rewrite add_neq_o; auto.
        + rewrite add_neq_o; auto.
 Qed.
 
-(** *** Shift *)
+
+(** ** [shift] property *)
 
 Lemma shift_new_in_spec : forall r S,
-  In r S ->  r < new_key S.
+  In r S -> r < new_key S.
 Proof.
   intros r S; revert r; induction S using map_induction; intros.
   - exfalso; destruct H0; unfold Empty in H; now apply (H r x).
-  - apply new_key_Add_spec in H0 as H0'; eauto. destruct H0' as [[Heq Hlt] | [Heq Hgt]]; subst.
-    -- rewrite Heq. unfold Add in H0; rewrite H0 in *.
+  - apply new_key_Add_spec in H0 as H0'; eauto. 
+    destruct H0' as [[Heq Hlt] | [Heq Hgt]]; subst.
+    -- rewrite Heq. unfold Samples.Add in H0; rewrite H0 in *.
        rewrite add_in_iff in H1; destruct H1; subst; try lia.
        apply IHS1 in H1; lia.
-    -- rewrite Heq. unfold Add in H0; rewrite H0 in *.
+    -- rewrite Heq. unfold Samples.Add in H0; rewrite H0 in *.
        rewrite add_in_iff in H1; destruct H1; subst; try lia.
        apply IHS1 in H1; lia.
 Qed. 
 
-
 Lemma shift_in_e_spec : forall lb k r S,
-  In r (shift lb k S) -> exists r', r =  ([⧐ᵣ lb ≤ k] r').
+  In r (shift lb k S) -> exists r', (r =  ([⧐ lb – k] r')%r)%type.
 Proof.
   intros lb k r S; revert lb k r; induction S using map_induction; intros.
   - eapply shift_Empty_iff in H. unfold Empty in *; exfalso.
     destruct H0; apply (H r x); eauto.
   - apply shift_Add_spec_1 with (lb := lb) (k := k) in H0 as H0'; auto.
-    unfold Add in H0'. rewrite H0' in H1; clear H0'.
+    unfold Samples.Add in H0'. rewrite H0' in H1; clear H0'.
     rewrite add_in_iff in H1; destruct H1; subst.
     -- now exists x.
     -- auto.
 Qed.
 
 Lemma shift_find_spec_3 : forall lb k r S S',
-  lb ⊩ᵣ r -> In r S ->
+  (lb ⊩ r)%r -> In r S ->
   find r S = find r S' -> find r (shift lb k S) = find r (shift lb k S').
 Proof.
   intros. destruct H0 as [v HfS]; apply find_1 in HfS.
-  apply shift_find_spec with (lb := lb) (k := k) in HfS as HfS1.
+  apply shift_find_iff with (lb := lb) (k := k) in HfS as HfS1.
   rewrite H1 in HfS. 
-  apply shift_find_spec with (lb := lb) (k := k) in HfS as HfS2.
+  apply shift_find_iff with (lb := lb) (k := k) in HfS as HfS2.
   rewrite Resource.shift_valid_refl in *; auto. now rewrite HfS1, HfS2. 
 Qed.
 
 Lemma shift_find_e_spec_1 : forall lb k r v S,
   find r (shift lb k S) = Some v -> 
-  (exists r', r = ([⧐ᵣ lb ≤ k] r')) /\ exists v', Sample.eq v (Sample.shift lb k v').
+  (exists r', (r = ([⧐ lb – k] r')%r)%type) /\ 
+   exists v', Sample.eq v (Sample.shift lb k v').
 Proof.
   intros.
   assert (In r (shift lb k S)). { now exists v; apply find_2. }
@@ -567,10 +586,9 @@ Proof.
     eapply shift_find_e_spec; eauto. 
 Qed.
 
-(** ** Halts *)
+(** ** [halts] property *)
 
-#[export]
-Instance halts_eq : Proper (Logic.eq ==> eq ==> iff) halts.
+#[export] Instance halts_eq : Proper (Logic.eq ==> eq ==> iff) halts.
 Proof.
   repeat red; intros; split; intros; subst.
   - unfold eq,halts in *; intros. rewrite <- H0 in *.
@@ -582,8 +600,10 @@ Qed.
 Lemma halts_add_spec : forall m k x v,
   (Sample.halts k v) /\ halts k m -> halts k (add x v m).
 Proof.
-  intros m k x v. intros [Hltv Hltm]; unfold halts; intros r v' Hfi.
-  rewrite OP.P.add_o in Hfi; destruct (Resource.eq_dec x r); subst; inversion Hfi; subst; auto.
+  intros m k x v. intros [Hltv Hltm]; 
+  unfold halts; intros r v' Hfi.
+  rewrite OP.P.add_o in Hfi; destruct (Resource.eq_dec x r); 
+  subst; inversion Hfi; subst; auto.
   apply Hltm in Hfi; auto.
 Qed.
 
@@ -597,14 +617,15 @@ Proof.
     -- apply (H0 r). rewrite add_neq_o; auto.
 Qed.
 
-Lemma halts_weakening : forall k k' t, k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
+Lemma halts_weakening : forall k k' t, 
+  k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
 Proof.
   intros k k' t Hle Hlt. unfold halts in *; intros r v HfV.
   apply shift_find_e_spec_1 in HfV as HI. destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
   eapply Sample.halts_eq; eauto.
   apply Sample.halts_weakening; auto.
   apply (Hlt r'). apply Sample.eq_leibniz in Heqv'; subst.
-  now apply shift_find_spec in HfV.
+  now apply shift_find_iff in HfV.
 Qed.
 
 Lemma halts_nexts k t : 
@@ -614,7 +635,7 @@ Proof.
   - unfold nexts in *. rewrite fold_Empty in H0; auto.
    inversion H0.
   - rewrite nexts_Add_spec in H1; eauto. 
-    unfold Add in H0; rewrite H0 in *. 
+    unfold Samples.Add in H0; rewrite H0 in *. 
     apply halts_add_spec_1 in Hlt0 as [Hle Hlt1]; auto.
     apply IHt1 in Hlt1 as IH; clear IHt1.
     destruct (Resource.eq_dec x r); subst.
@@ -630,10 +651,10 @@ Lemma halts_puts k t V :
 Proof.
   revert V. induction t using map_induction; intros.
   - rewrite puts_Empty; auto; unfold halts; intros; inversion H2.
-  - rewrite puts_Add_spec; eauto. unfold Add in H0; rewrite H0 in *.
+  - rewrite puts_Add_spec; eauto. unfold Samples.Add in H0; rewrite H0 in *.
     apply halts_add_spec_1 in H1 as [Hle Hlt1]; auto.
     apply (IHt1 V) in Hlt1; auto. unfold puts_func.
-    destruct (V⌊x⌋ᵣᵦ) eqn:HfV; auto.
+    destruct (V⌊x⌋) eqn:HfV; auto.
     -- destruct r; apply halts_add_spec; split; auto.
        + apply Sample.halts_put_None; auto.
        + apply Sample.halts_put_Some; auto.  
@@ -653,36 +674,26 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[export] 
-Instance find_rsamples : Proper (Logic.eq ==> Samples.eq ==> Logic.eq) find.
+#[export] Instance find_rsamples : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[export] 
-Instance Empty_rsamples : Proper (Samples.eq ==> iff) OP.P.Empty.
+#[export] Instance Empty_rsamples : Proper (Samples.eq ==> iff) OP.P.Empty.
 Proof. red; red; intros; now apply Empty_eq_spec. Qed.
 
-#[export] 
-Instance Add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq ==> iff) 
-            (@OP.P.Add Sample.t).
-Proof. 
-  red; red; red; red; red; intros; subst; rewrite H. 
-  split; intros; unfold Add in *.
+#[export] Instance Add_rsamples : 
+  Proper (Resource.eq ==> Logic.eq ==> eq ==> eq ==> iff) (@OP.P.Add Sample.t).
+Proof.
+  do 5 red; intros; subst; rewrite H. 
+  split; intros; unfold Samples.Add in *.
   - rewrite <- H2; rewrite H0. now rewrite H1.
   - rewrite H1. now rewrite H2.
 Qed.
 
-#[export] 
-Instance add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq) 
-                                                          (@add Sample.t).
-Proof.
-  repeat red; intros; subst; rewrite H1; now rewrite H.
-Qed. 
+#[export] Instance add_rsamples : 
+  Proper (Resource.eq ==> Logic.eq ==> eq ==> eq) (@add Sample.t).
+Proof. repeat red; intros; subst; rewrite H1; now rewrite H. Qed. 
 
-#[export] 
-Instance Submap_env : 
-  Proper (Samples.eq ==> Samples.eq ==> iff) Submap.
+#[export] Instance Submap_env : Proper (eq ==> eq ==> iff) Submap.
 Proof. 
   repeat red; intros; split; intros.
   - rewrite Submap_eq_left_spec in H1; eauto.
@@ -691,9 +702,7 @@ Proof.
     rewrite <- Submap_eq_right_spec in H1; eauto.
 Qed.
 
-#[export]
-Instance halts_samples :
-  Proper (Logic.eq ==> Samples.eq ==> iff) halts. 
+#[export] Instance halts_samples : Proper (Logic.eq ==> eq ==> iff) halts. 
 Proof.
   repeat red; intros; subst; split; intros.
   - unfold halts; intros. rewrite <- H0 in H1.
@@ -708,84 +717,48 @@ End Samples.
 Module SamplesNotations.
 
 (** ** Scope *)
-Declare Scope rsamples_scope.
-Delimit Scope rsamples_scope with rf.
+Declare Scope samples_scope.
+Delimit Scope samples_scope with rf.
 
 (** ** Notations *)
 Definition 𝐒 := Samples.t.
 
-Infix "⊆ᵣₔ" := Samples.Submap (at level 20, no associativity). 
-Infix "∈ᵣₔ" := Samples.Raw.In (at level 20, no associativity). 
-Notation "r '∉ᵣₔ' Re" := (~ (Samples.Raw.In r Re)) (at level 20, 
-                                                                        no associativity). 
-Notation "∅ᵣₔ" := Samples.Raw.empty (at level 20, no associativity). 
-Notation "'isEmptyᵣₔ(' Re ')'" := (Samples.OP.P.Empty Re) (at level 20, no associativity). 
-Notation "'Addᵣₔ'" := (Samples.OP.P.Add) (at level 20, no associativity). 
-Notation "'maxᵣₔ(' R ')'"  := (Samples.Ext.max_key R) (at level 15).
-Notation "R '⁺ᵣₔ'"  := (Samples.Ext.new_key R) (at level 15).
-Notation "R '⌊' x '⌋ᵣₔ'"  := (Samples.Raw.find x R) (at level 15, x constr).
-Notation "⌈ x ⤆ v '⌉ᵣₔ' R"  := (Samples.Raw.add x v R) (at level 15, 
-                                                                          x constr, v constr).
-Notation "R ⌈ x ⩦ v '⌉ᵣₔ'"  := (Samples.Raw.find x R = Some v) (at level 15, 
-                                                                                  x constr, 
-                                                                                  v constr).
-Notation "R ⌈ x ⩦ ⊥ '⌉ᵣₔ'"  := (Samples.Raw.find x R = None) (at level 15, 
-                                                                                    x constr).
+Infix "⊆" := Samples.Submap (at level 60, no associativity) : samples_scope. 
+Infix "∈" := Samples.Raw.In (at level 60, no associativity) : samples_scope. 
+Notation "r '∉' Re" := (~ (Samples.Raw.In r Re)) (at level 75, 
+                                                      no associativity) : samples_scope. 
+Notation "∅" := Samples.Raw.empty (at level 0, no associativity) : samples_scope. 
+Notation "'isEmpty(' Re ')'" := (Samples.Empty Re) (at level 20, no associativity) : samples_scope. 
+Notation "'Add'" := (Samples.Add) (at level 20, no associativity) : samples_scope. 
+Notation "R '⌊' x '⌋'"  := (Samples.Raw.find x R) (at level 15, x constr) : samples_scope.
+Notation "'max(' R ')'"  := (Samples.Ext.max_key R) (at level 15) : samples_scope.
+Notation "⌈ x ⤆ v '⌉' R"  := (Samples.Raw.add x v R) (at level 15, 
+                                                            x constr, v constr) : samples_scope.
 
-Infix "=" := Samples.eq : rsamples_scope.
+Infix "=" := Samples.eq : samples_scope.
 
-Notation "'[⧐ᵣₔ' lb '≤' k ']' t" := (Samples.shift lb k t) (at level 45, right associativity).
-Infix "⊩ᵣₔ" := Samples.valid (at level 20, no associativity).
+Notation "V '⁺'" := (Samples.Ext.new_key V) (at level 16) : samples_scope.
+
+Notation "'[⧐' lb '–' k ']' t" := (Samples.shift lb k t) (at level 65, 
+                                                                right associativity) : samples_scope.
+Infix "⊩" := Samples.valid (at level 20, no associativity) : samples_scope.
 
 (** ** Morphisms *)
-#[export]
-Instance eq_equiv_re : Equivalence Samples.eq.
-Proof. apply Samples.OP.P.Equal_equiv. Qed.
 
-#[export] Instance max_re : Proper (Samples.eq ==> Logic.eq) (Samples.Ext.max_key).
-          Proof. apply Samples.Ext.max_key_eq. Qed.
+Import Samples.
 
-#[export] Instance new_re : Proper (Samples.eq ==> Logic.eq) (Samples.Ext.new_key).
-          Proof. apply Samples.Ext.new_key_eq. Qed.
-          
-#[export] 
-Instance in_rsamples : 
-  Proper (Logic.eq ==> Samples.eq ==> iff) (Samples.Raw.In).
-Proof. apply Samples.in_rsamples. Qed.
-
-#[export] 
-Instance find_rsamples : Proper (Logic.eq ==> Samples.eq ==> Logic.eq) 
-                                                      (Samples.Raw.find).
-Proof. apply Samples.find_rsamples. Qed.
-
-#[export] 
-Instance Empty_rsamples : Proper (Samples.eq ==> iff) (Samples.OP.P.Empty).
-Proof. apply Samples.Empty_rsamples. Qed.
-
-#[export] 
-Instance Add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq ==> iff) 
-                                                  (@Samples.OP.P.Add Sample.t).
-Proof. apply Samples.Add_rsamples. Qed. 
-
-#[export] 
-Instance add_rsamples : 
-Proper (Resource.eq ==> Logic.eq ==> Samples.eq ==> Samples.eq) 
-                                                          (@Samples.Raw.add Sample.t).
-Proof. apply Samples.add_rsamples. Qed. 
-
-#[export] 
-Instance Submap_env : 
-  Proper (Samples.eq ==> Samples.eq ==> iff) Samples.Submap.
-Proof. apply Samples.Submap_env. Qed.
-
-#[export] 
-Instance Submap_env_po : PreOrder Samples.Submap.
-Proof. apply Samples.Submap_po. Qed. 
-
-#[export]
-Instance halts_samples :
-  Proper (Logic.eq ==> Samples.eq ==> iff) Samples.halts.
-Proof. apply Samples.halts_samples. Qed. 
+#[export] Instance eq_equiv_samples : Equivalence Samples.eq := _.
+#[export] Instance max_samples : Proper (eq ==> Logic.eq) (Ext.max_key) := Ext.max_key_eq.
+#[export] Instance new_samples : Proper (eq ==> Logic.eq) (Ext.new_key) := Ext.new_key_eq.
+#[export] Instance in_samples : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
+#[export] Instance find_samples : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
+#[export] Instance Empty_samples : Proper (eq ==> iff) (OP.P.Empty) := _.
+#[export] Instance Add_samples : 
+  Proper (Resource.eq ==> Logic.eq ==> eq ==> eq ==> iff) (@OP.P.Add Sample.t) := _.
+#[export] Instance add_rsamples : 
+  Proper (Resource.eq ==> Logic.eq ==> eq ==> eq) (@Raw.add Sample.t) := _.
+#[export] Instance Submap_samples : Proper (eq ==> eq ==> iff) Submap := _.
+#[export] Instance Submap_samples_po : PreOrder Samples.Submap := Submap_po.
+#[export] Instance halts_samples : Proper (Logic.eq ==> eq ==> iff) halts := _.
 
 End SamplesNotations.

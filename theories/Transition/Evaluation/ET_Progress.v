@@ -2,6 +2,9 @@ From Coq Require Import Lia.
 From Mecha Require Import Typ Resource Term Var VContext RContext Typing ET_Definition.
 Import ResourceNotations TypNotations TermNotations VContextNotations RContextNotations.
 
+Open Scope term_scope.
+Open Scope rcontext_scope.
+
 (** * Transition - Evaluation - Progress *)
 
 (** ** Proof of progress of the evaluation transtion
@@ -12,21 +15,21 @@ Import ResourceNotations TypNotations TermNotations VContextNotations RContextNo
 
 *)
 Theorem progress_of_evaluate : forall t Re τ,
-                         ∅ᵥᵪ ⋅ Re ⊫ t ∈ τ -> 
-(*-----------------------------------------------------------------------*)
-     (* (1) *) value(t) \/ (* (2) *) exists t', Re⁺ᵣᵪ ⊨ t ⟼ t'.
+                      (∅)%vc ⋅ Re ⊫ t ∈ τ -> 
+(*-------------------------------------------------------------------*)
+     (* (1) *) value(t) \/ (* (2) *) exists t', Re⁺ ⊨ t ⟼ t'.
 Proof.
   intro t; induction t; intros Re τ' Hwt; inversion Hwt; subst; 
   try (now left); try (apply IHt1 in H3 as H3'; apply IHt2 in H5 as H5').
   - destruct H3',H5'; right. 
-    -- inversion H; subst; inversion H3; subst. exists <[[x:= t2 ~ {Re⁺ᵣᵪ} ≤ 0] t]>.
+    -- inversion H; subst; inversion H3; subst. exists <[[x:= t2 ~ {Re⁺} – 0] t]>.
       now constructor.
     -- destruct H0; exists <[t1 x]>; now constructor.
     -- destruct H; exists <[x t2]>; now constructor.
     -- destruct H; exists <[x t2]>; now constructor.
   - right; apply IHt2 in H4 as H4'; destruct H4'.
     -- destruct t2; inversion H4; subst; inversion H; subst.
-        exists <[[v := Fix (\ v : τ', t2) ~ {Re⁺ᵣᵪ} ≤ 0] t2]>; constructor.
+        exists <[[v := Fix (\ v : τ', t2) ~ {Re⁺} – 0] t2]>; constructor.
     -- destruct H; exists <[Fix x]>; constructor; auto.
   - destruct H3',H5'; auto.
     -- right; destruct H0; exists <[⟨t1,x⟩]>; now constructor.

@@ -12,6 +12,8 @@ Import ResourceNotations TermNotations.
 *)
 Module Cell <: IsLvlFullDTWL.
 
+Open Scope term_scope.
+
 (** ** Definition  *)
 
 (** *** Type *)
@@ -25,12 +27,18 @@ Definition t := raw.
 
 (** **** Equality *)
 
-Definition eq := @Logic.eq t.
+Definition eq (p p' : t) := 
+ match (p,p') with
+    | (inp p1,inp p2) => (p1 = p2)%tm
+    | (out p1,out p2) => (p1 = p2)%tm
+    | _ => False
+  end
+.
 
 Definition eqb (p p' : t) := 
   match (p,p') with
-    | (inp p1,inp p2) => (p1 =? p2)%tm
-    | (out p1,out p2) => (p1 =? p2)%tm
+    | (inp p1,inp p2) => p1 =? p2
+    | (out p1,out p2) => p1 =? p2
     | _ => false
   end
 .
@@ -43,8 +51,8 @@ Definition eqb (p p' : t) :=
 *)
 Definition shift (lb : Lvl.t) (k : Lvl.t) (c : t) : t := 
   match c with
-    | inp tm => inp <[[⧐ₜₘ lb ≤ k] tm]>
-    | out tm => out <[[⧐ₜₘ lb ≤ k] tm]>
+    | inp tm => inp <[[⧐ lb – k] tm]>
+    | out tm => out <[[⧐ lb – k] tm]>
   end.
 
 (** **** Others *)
@@ -73,39 +81,48 @@ Definition used (e : t) :=
 .
 
 
+(** *** Extract *)
+
+#[export] Instance extract_eq : Proper (eq ==> Term.eq) extract.
+Proof. 
+  repeat red; intros x y Heq; destruct x,y;
+  simpl in *; unfold eq in *; try contradiction;
+  now rewrite Heq.
+Qed.
+
 (** *** Valid function 
 
  A cell [c] is valid at level [lb] if its inner term is valid.
 *)
-Definition valid (lb : Lvl.t) (c : t) : Prop := lb ⊩ₜₘ (extract c).
-Definition validb (lb : Lvl.t) (c : t) : bool := lb ⊩?ₜₘ (extract c).
+Definition valid (lb : Lvl.t) (c : t) : Prop := lb ⊩ (extract c).
+Definition validb (lb : Lvl.t) (c : t) : bool := lb ⊩? (extract c).
 
 (** ** Property *)
 
 (** *** Equality *)
 
-Lemma eq_refl : Reflexive eq.
-Proof. unfold Reflexive, eq; intro x; destruct x; simpl; auto. Qed.
+#[export] Instance eq_refl : Reflexive eq.
+Proof. repeat red; intros x; destruct x; reflexivity. Qed.
 
-Lemma eq_sym : Symmetric eq.
+#[export] Instance eq_sym : Symmetric eq.
 Proof. 
-  unfold Symmetric,eq; intros x y; destruct x,y; simpl; intro; auto. 
+  repeat red; intros x y; destruct x,y; auto;
+  intros; unfold eq in *; now symmetry.
 Qed.
 
-Lemma eq_trans : Transitive eq.
-Proof. 
-  unfold Transitive,eq; intros x y z Hxy Hyz; destruct x,y,z; simpl in *;
-  try now transitivity (inp λ0). now transitivity (out λ0). 
+#[export] Instance eq_trans : Transitive eq.
+Proof.
+  repeat red; intros x y z; destruct x,y,z; auto;
+  intros; unfold eq in *; try contradiction;
+  now rewrite H.
 Qed.
 
 #[export] 
 Hint Resolve eq_refl eq_sym eq_trans : core.
 
-#[export] 
-Instance eq_rr : RewriteRelation eq := {}.
-#[export] 
-Instance eq_equiv : Equivalence eq.
-          Proof. split; auto. Qed.
+#[export] Instance eq_rr : RewriteRelation eq := {}.
+#[export] Instance eq_equiv : Equivalence eq.
+Proof. split; auto. Qed.
 
 Lemma eqb_refl : forall p, eqb p p = true.
 Proof. 
@@ -117,7 +134,8 @@ Proof.
   intros; split.
   - unfold eq,eqb in *; destruct p,p'; simpl in *; intro; try (now inversion H);
     f_equal; now apply Term.eqb_eq.
-  - unfold eq; intro; subst. apply eqb_refl.
+  - unfold eq; intro; subst. destruct p,p'; auto;
+    rewrite H; apply eqb_refl.
 Qed.
 
 Lemma eqb_neq : forall p p', eqb p p' = false <-> ~ eq p p'.
@@ -142,23 +160,30 @@ Proof.
 Qed.
 
 Lemma eq_leibniz : forall p p', eq p p' -> p = p'. 
-Proof. intros; auto. Qed.
+Proof. 
+  intros; unfold eq in *; destruct p,p'; try contradiction;
+  now rewrite H.
+Qed.
 
 
 (** *** Shift *)
 
-Lemma shift_refl : forall lb t, eq (shift lb 0 t) t.
-Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_refl. Qed.
+Lemma shift_zero_refl : forall lb t, eq (shift lb 0 t) t.
+Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_zero_refl. Qed.
 
-#[export]
-Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
-Proof. repeat red; intros; subst. now rewrite H1. Qed.
+#[export] Instance shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
+Proof.
+  repeat red; intros; subst; destruct x1,y1; auto;
+  unfold eq in *; simpl; now rewrite H1.
+Qed.
 
 Lemma shift_eq_iff : forall lb k t t1,
-  t = t1 <-> (shift lb k t) = (shift lb k t1).
+  eq t t1 <-> eq (shift lb k t) (shift lb k t1).
 Proof.
-  intros; destruct t0, t1; simpl in *; split;
-  intro H; inversion H; subst; f_equal;
+  intros; destruct t0,t1; simpl in *; split;
+  intro H; unfold eq in *; try contradiction;
+  try (now rewrite H);
   eapply Term.shift_eq_iff; eauto.
 Qed.
 
@@ -195,13 +220,17 @@ Proof.
   split; unfold validb, valid; destruct t0; simpl; intros; now apply Term.validb_nvalid.
 Qed.
 
-#[export]
-Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
-Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
+#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
+Proof.
+  repeat red; intros; subst; destruct x0,y0; unfold eq in *;
+  try contradiction; unfold valid; simpl; now rewrite H0.
+Qed.
 
-#[export]
-Instance validb_eq : Proper (Logic.eq ==> eq ==> Logic.eq) validb.
-Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
+#[export] Instance validb_eq : Proper (Logic.eq ==> eq ==> Logic.eq) validb.
+Proof.
+  repeat red; intros; subst; destruct x0,y0; unfold eq in *;
+  try contradiction; unfold valid; simpl; now rewrite H0.
+Qed.
 
 Lemma valid_weakening : forall k k' t, (k <= k') -> valid k t -> valid k' t.
 Proof.
@@ -218,23 +247,23 @@ Proof.
   intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_1.
 Qed.
 
-Lemma shift_preserves_valid_2 : forall lb lb' k k' t,
+Lemma shift_preserves_valid_gen : forall lb lb' k k' t,
   k <= k' -> lb <= lb' -> k <= lb -> k' <= lb' -> k' - k = lb' - lb -> 
   valid lb t -> valid lb' (shift k (k' - k) t).
 Proof.
   intros; destruct t0; unfold valid in *; simpl in *; 
-  now apply Term.shift_preserves_valid_2 with lb.
+  now apply Term.shift_preserves_valid_gen with lb.
 Qed.
 
-Lemma shift_preserves_valid_3 : forall lb lb' t,
+Lemma shift_preserves_valid_2 : forall lb lb' t,
   lb <= lb' -> valid lb t -> valid lb' (shift lb (lb' - lb) t).
 Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_3.
+  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_2.
 Qed.
 
-Lemma shift_preserves_valid_4 : forall k t, valid k t -> valid k (shift k 0 t).
+Lemma shift_preserves_valid_zero : forall k t, valid k t -> valid k (shift k 0 t).
 Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_4.
+  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_zero.
 Qed.
 
 End Cell.
@@ -252,10 +281,10 @@ Definition 𝑣 := Cell.t.
 
 Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wh, no associativity).
 Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wh, no associativity).
-Notation "'[⧐ᵣₓ' lb '≤' k ']' t" := (Cell.shift lb k t) (at level 45, right associativity).
+Notation "'[⧐' lb '–' k ']' t" := (Cell.shift lb k t) (at level 65, right associativity) : cell_scope.
 
-Infix "⊩ᵣₓ" := Cell.valid (at level 20, no associativity). 
-Infix "⊩?ᵣₓ" := Cell.validb (at level 20, no associativity). 
+Infix "⊩" := Cell.valid (at level 20, no associativity) : cell_scope. 
+Infix "⊩?" := Cell.validb (at level 20, no associativity) : cell_scope. 
 
 Infix "=" := Cell.eq : cell_scope.
 Infix "=?" := Cell.eqb  (at level 70) : cell_scope.

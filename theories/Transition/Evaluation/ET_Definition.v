@@ -1,6 +1,8 @@
 From Coq Require Import Relations.Relation_Operators.
 From Mecha Require Import Var Resource Term.
-Import ResourceNotations TermNotations.
+Import VarNotations ResourceNotations TermNotations.
+
+Open Scope term_scope.
 
 (** * Transition - Evaluation - Definition
 
@@ -15,7 +17,7 @@ In this file, we focus on the evaluation transition.
 
 (** ** Substitution *)
 
-Reserved Notation "'[' x ':=' v '~' lb '≤' k ']' t" (in custom wh at level 66, 
+Reserved Notation "'[' x ':=' v '~' lb '–' k ']' t" (in custom wh at level 66, 
                                                                   right associativity).
 
 (** *** Substitution function 
@@ -51,23 +53,23 @@ wh(unit; rsf[0])       (2)
 *)
 Fixpoint subst (lb : nat) (k : nat) (x : Var.t) (v t : Λ) : Λ :=
   match t with
-    | Term.tm_var y => if (x =? y)%v then <[[⧐ₜₘ lb ≤ k] v]> else t 
-    | <[t1 t2]> => <[([x := v ~ lb ≤ k]t1) ([x := v ~ lb ≤ k]t2)]>
-    | <[\y:τ,t0]> => if (x =? y)%v then t else <[\y:τ,[x := v ~ lb ≤ k]t0]>
+    | Term.tm_var y => if (x =? y)%v then <[[⧐ lb – k] v]> else t 
+    | <[t1 t2]> => <[([x := v ~ lb – k]t1) ([x := v ~ lb – k]t2)]>
+    | <[\y:τ,t0]> => if (x =? y)%v then t else <[\y:τ,[x := v ~ lb – k]t0]>
 
-    | <[⟨t1,t2⟩]> => <[⟨([x := v ~ lb ≤ k]t1),([x := v ~ lb ≤ k]t2)⟩]>
-    | <[t0.fst]> => <[([x := v ~ lb ≤ k]t0).fst]>
-    | <[t0.snd]> => <[([x := v ~ lb ≤ k]t0).snd]>
+    | <[⟨t1,t2⟩]> => <[⟨([x := v ~ lb – k]t1),([x := v ~ lb – k]t2)⟩]>
+    | <[t0.fst]> => <[([x := v ~ lb – k]t0).fst]>
+    | <[t0.snd]> => <[([x := v ~ lb – k]t0).snd]>
 
-    | <[arr(t0)]> => <[arr([x := v ~ lb ≤ k]t0)]>
-    | <[first(τ:t0)]> => <[first(τ:[x := v ~ lb ≤ k]t0)]>
-    | <[t1 >>> t2]> => <[([x := v ~ lb ≤ k]t1) >>> ([x := v ~ lb ≤ k]t2)]>
+    | <[arr(t0)]> => <[arr([x := v ~ lb – k]t0)]>
+    | <[first(τ:t0)]> => <[first(τ:[x := v ~ lb – k]t0)]>
+    | <[t1 >>> t2]> => <[([x := v ~ lb – k]t1) >>> ([x := v ~ lb – k]t2)]>
 
-    | <[wormhole(t1;t2)]> => <[wormhole([x := v ~ lb ≤ k] t1;[x := v ~ lb ≤ {S (S k)}] t2)]>
+    | <[wormhole(t1;t2)]> => <[wormhole([x := v ~ lb – k] t1;[x := v ~ lb – {S (S k)}] t2)]>
 
     | _ => t
   end
-  where "'[' x ':=' v '~' lb '≤' k ']' t" := (subst lb k x v t) (in custom wh)
+  where "'[' x ':=' v '~' lb '–' k ']' t" := (subst lb k x v t) (in custom wh)
 .
 
 Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t) (in custom wh at level 66, 
