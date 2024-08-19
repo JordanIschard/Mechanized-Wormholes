@@ -145,28 +145,6 @@ Proof.
   - destruct H; apply ReadStock.find_1 in H; auto.
 Qed.
 
-(* 
-(** ** Morphism from RStock to Resources *)
-
-Lemma to_RS_empty_spec : to_RS empty = ∅ᵣₛ.
-Proof.
-  unfold to_RS. rewrite ReadStock.to_RS_empty_spec.
-  now simpl.
-Qed.
-
-Lemma to_RS_in_spec : forall W r,
-  In r W <-> (r ∈ to_RS W)%rs.
-Proof.
-  split; unfold In,to_RS; destruct W; simpl; intros; 
-  now apply ReadStock.to_RS_in_spec_2.
-Qed.
-
-Lemma to_RS_union_spec : forall W W' r,
-  (r ∈ (to_RS (union W W')))%rs <-> (r ∈ (to_RS W))%rs \/ (r ∈ (to_RS W'))%rs.
-Proof.
- intros; repeat rewrite <- to_RS_in_spec; now rewrite union_spec.
-Qed. *)
-
 (** ** [valid] poperty *)
 
 Lemma valid_empty_spec : forall lb, valid lb empty.
@@ -307,7 +285,7 @@ Proof.
   destruct x2,y2; repeat red in H2; repeat red;
   unfold eq, RelationPairs.RelCompFun in *;
   simpl in *; destruct H2; split.
-  - now rewrite H.
+  - intro; now rewrite H.
   - now rewrite H0.
 Qed. 
 

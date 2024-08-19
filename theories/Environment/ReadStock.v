@@ -21,9 +21,6 @@ Include MapLvlD.MakeLvlMapLVLD Term.
 Import Raw Ext.
 
 (** ** Definition *)
-(* 
-Definition to_RS (st : ReadStock.t) (s : resources) : resources :=
-  fold (fun r _ acc => r +: acc)%s st s. *)
 
 Definition env_to_renv (st : ReadStock.t) (V : REnvironment.t) :=
   fold (fun r v acc => ⌈ r ⤆ ⩽ v … ⩾ ⌉ acc)%re st V.
@@ -390,7 +387,7 @@ Qed.
 #[export] Instance find_rk : Proper (Logic.eq ==> eq ==> Logic.eq) find := _.
 
 #[export] Instance Empty_rk : Proper (eq ==> iff) Empty.
-Proof. red; red; intros; now apply Empty_eq_spec. Qed.
+Proof. intros rs rs' Heq; now rewrite Heq. Qed.
 
 #[export] Instance Add_rk : 
 Proper (Resource.eq ==> Term.eq ==> eq ==> eq ==> iff) (@ReadStock.Add Term.t).
@@ -405,16 +402,6 @@ Proper (Resource.eq ==> Term.eq ==> ReadStock.eq ==> ReadStock.eq)
 Proof. 
  do 5 red; intros; subst; apply Term.eq_leibniz in H0; subst.
  rewrite H1; now rewrite H. 
-Qed. 
-
-#[export] Instance Submap_rk : 
-  Proper (ReadStock.eq ==> ReadStock.eq ==> iff) ReadStock.Submap.
-Proof. 
-  repeat red; intros; split; intros.
-  - rewrite ReadStock.Submap_eq_left_spec in H1; eauto.
-    rewrite ReadStock.Submap_eq_right_spec in H1; eauto.
-  - rewrite <- ReadStock.Submap_eq_left_spec in H1; eauto.
-    rewrite <- ReadStock.Submap_eq_right_spec in H1; eauto.
 Qed.
 
 #[export] Instance halts_eq: Proper (Logic.eq ==> ReadStock.eq ==> iff) halts.

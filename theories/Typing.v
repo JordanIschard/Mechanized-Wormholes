@@ -145,21 +145,6 @@ Proof.
        apply IHwt2; auto; now rewrite HReq.
 Qed.
 
-Fact context_invariance : forall Γ Γ' Re t τ, 
-  (forall x, isFV(x,t) -> (Γ ⌊x⌋)%vc = (Γ' ⌊x⌋)%vc) ->
-  Γ ⋅ Re ⊫ t ∈ τ -> Γ' ⋅ Re ⊫ t ∈ τ.
-Proof.
-  intros Γ Γ' Re t τ Hc Hwt.
-  generalize dependent Γ'.
-  dependent induction Hwt; intros; try (now eauto); try (econstructor; now eauto).
-  (* var *)
-  - constructor. rewrite <- H; symmetry; now apply Hc.
-  (* abs *)
-  - constructor; auto. apply IHHwt; intros x1 Hafi. destruct (Var.eq_dec x x1).
-    -- repeat rewrite VContext.add_eq_o; auto.
-    -- repeat rewrite VContext.add_neq_o; auto.
-Qed.
-
 Fact free_in_context : forall x t τ Γ Re,
   isFV(x,t) -> Γ ⋅ Re ⊫ t ∈ τ -> (x ∈ Γ)%vc.
 Proof with eauto.
@@ -170,33 +155,7 @@ Proof with eauto.
   - inversion H1.
 Qed.
 
-Fact well_typed_empty_closed : forall Re t τ,
-  (∅)%vc ⋅ Re ⊫ t ∈ τ -> cl(t).
-Proof.
-  intros. unfold Term.closed. intros x H1.
-  eapply free_in_context in H; eauto. inversion H.
-  apply VContext.empty_mapsto_iff in H0; contradiction.
-Qed.
-
 Open Scope term_scope.
-
-Fact canonical_form : forall Γ Re (e : Λ) (α β : Τ) R,
-  value(e) -> Γ ⋅ Re ⊫ e ∈ (α ⟿ β ∣ R) -> 
-
-  (exists (e': Λ), e = <[arr(e')]>) \/ 
-  (exists τ e', e = <[first(τ:e')]>) \/ 
-  (exists r, e = <[rsf[r]]>) \/ 
-  (exists e' e'', e = <[e' >>> e'']>) \/ 
-  (exists e' e'', e = <[wormhole(e';e'')]>).
-Proof.
-  intros Γ Re e; revert Γ Re; induction e; intros Γ Re α β R Hvt Hwt;
-  inversion Hvt; inversion Hwt; subst.
-  - left; now exists e.
-  - right; left; exists τ;now exists e.
-  - right; right; right; left; exists e1; now exists e2.
-  - right; right; left; now exists r.
-  - repeat right; exists e1; now exists e2.
-Qed.
 
 (** *** Proof of determinism 
 
@@ -330,8 +289,8 @@ Proof.
             * apply Typ.valid_weakening with (k := Re⁺); auto.
             * apply RContext.valid_weakening with (k := Re⁺); auto.
             * apply RContext.Ext.new_key_notin_spec; lia.
-      + apply RContext.Ext.new_key_notin_spec; 
-        rewrite RContext.Ext.new_key_add_spec_1; auto.
+      + apply RContext.Ext.new_key_notin_spec.
+        rewrite RContext.Ext.new_key_add_ge_spec; auto.
         apply RContext.Ext.new_key_notin_spec; lia. 
   (* unit *)
   - repeat constructor.
@@ -410,7 +369,7 @@ Proof.
            repeat apply RContext.Submap_add_spec. assumption.
         ++ apply RContext.Ext.new_key_notin_spec; lia.
         ++ apply RContext.Ext.new_key_notin_spec.
-           rewrite RContext.Ext.new_key_add_spec_1; auto.
+           rewrite RContext.Ext.new_key_add_ge_spec; auto.
            apply RContext.Ext.new_key_notin_spec; lia.
       + rewrite RContext.new_key_wh_spec; lia.
       + rewrite RContext.new_key_wh_spec; lia.
@@ -427,14 +386,17 @@ Proof.
   try (apply RContext.Ext.new_key_Submap_spec in H0; assumption).
   assert (([⧐ Re⁺ – Re1⁺ - Re⁺] Re = Re)%rc)
   by now apply RContext.shift_valid_refl.
-  eapply RContext.Submap_eq_left_spec; eauto. 
+  now rewrite H2.
 Qed.
 
 (** *** Weakening corollaries *)
 
 Corollary weakening_Γ_empty : forall Γ Re t τ,
   (∅)%vc ⋅ Re ⊫ t ∈ τ -> Γ ⋅ Re ⊫ t ∈ τ.
-Proof. intros Γ Re t τ; eapply weakening_Γ. apply VContext.Submap_empty_spec. Qed.
+Proof. 
+  intros Γ Re t τ; eapply weakening_Γ. 
+  apply VContext.Submap_empty_bot. 
+Qed.
 
 Corollary weakening_ℜ : forall (Γ : Γ) (Re Re1 : ℜ) t (τ : Τ),
           (Re⁺ ⊩ Γ)%vc -> (Re⁺ ⊩ Re)%rc -> 
@@ -457,6 +419,4 @@ Corollary weakening_ℜ_bis : forall Γ (Re Re1 : ℜ) k k' t (τ : Τ),
     (Re ⊆ Re1)%rc -> Γ ⋅ Re ⊫ t ∈ τ -> 
 (*--------------------------------------*) 
      Γ ⋅ Re1 ⊫ {Term.shift k k' t} ∈ τ.
-Proof. 
-  intros; subst. now apply weakening_ℜ. 
-Qed.
+Proof. intros; subst. now apply weakening_ℜ. Qed.

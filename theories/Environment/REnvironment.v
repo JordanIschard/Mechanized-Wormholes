@@ -84,7 +84,7 @@ Lemma add_new_new_spec : forall V v,
  new_key (add_new_revert v V) = S (new_key V).
 Proof.
   unfold add_new_revert, add_new; intros.
-  rewrite new_key_add_spec_1; auto.
+  rewrite new_key_add_ge_spec; auto.
   - apply shift_new_notin_spec; lia.
   - rewrite shift_new_spec; lia.
 Qed.
@@ -311,7 +311,7 @@ Lemma valid_wh_spec_1 : forall m v v',
                               (add (new_key m) (Cell.shift (new_key m) 2 v') (shift (new_key m) 2 m))).
 Proof.
   intros. apply valid_add_notin_spec.
-  - apply new_key_notin_spec; rewrite new_key_add_spec_1; auto.
+  - apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
     * apply new_key_notin_spec; rewrite shift_new_spec; auto.
     * rewrite shift_new_spec; auto.
   - repeat split. 
@@ -483,8 +483,8 @@ Lemma max_key_wh_spec : forall (m : t) v v',
 Proof.
   intros. assert (~In (S (max_key m)) m) by (apply max_key_notin_spec; lia).
   assert (~In (S (S (max_key m))) (add (S (max_key m)) v' m)).
-  - apply max_key_notin_spec. rewrite max_key_add_spec_1; auto; lia.
-  - rewrite max_key_add_spec_1; auto. rewrite max_key_add_spec_1; auto.
+  - apply max_key_notin_spec. rewrite max_key_add_ge_spec; auto; lia.
+  - repeat rewrite max_key_add_ge_spec; auto.
 Qed.
 
 Lemma new_key_wh_spec m v v' :
@@ -492,11 +492,11 @@ Lemma new_key_wh_spec m v v' :
           (add (new_key m) (Cell.shift (new_key m) 2 v') 
                                       (shift (new_key m) 2 m))) = S (S (new_key m)).
 Proof.
-  rewrite new_key_add_spec_1; auto.
-  + apply new_key_notin_spec; rewrite new_key_add_spec_1; auto.
+  rewrite new_key_add_ge_spec; auto.
+  + apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
     ++ apply new_key_notin_spec; rewrite shift_new_spec; auto.
     ++ rewrite shift_new_spec; auto.
-  + rewrite new_key_add_spec_1; auto.
+  + rewrite new_key_add_ge_spec; auto.
     ++ apply new_key_notin_spec; rewrite shift_new_spec; auto.
     ++ rewrite shift_new_spec; auto.
 Qed.
@@ -512,9 +512,6 @@ Qed.
 
 #[export] Instance find_renv : Proper (Logic.eq ==> eq ==> Logic.eq) find := _.
 
-#[export] Instance Empty_renv : Proper (eq ==> iff) Empty .
-Proof. red; red; intros; now apply Empty_eq_spec. Qed.
-
 #[export] Instance Add_renv : 
 Proper (Resource.eq ==> Cell.eq ==> eq ==> eq ==> iff) (@Add Cell.t).
 Proof. 
@@ -529,16 +526,6 @@ Proof.
   do 5 red; intros; subst; apply Cell.eq_leibniz in H0; subst.
   rewrite H1; now rewrite H. 
 Qed. 
-
-#[export] Instance Submap_env : 
-  Proper (REnvironment.eq ==> REnvironment.eq ==> iff) REnvironment.Submap.
-Proof. 
-  repeat red; intros; split; intros.
-  - rewrite REnvironment.Submap_eq_left_spec in H1; eauto.
-    rewrite REnvironment.Submap_eq_right_spec in H1; eauto.
-  - rewrite <- REnvironment.Submap_eq_left_spec in H1; eauto.
-    rewrite <- REnvironment.Submap_eq_right_spec in H1; eauto.
-Qed.
 
 #[export] Instance unused_renv :
   Proper (Logic.eq ==> REnvironment.eq ==> iff) REnvironment.unused.

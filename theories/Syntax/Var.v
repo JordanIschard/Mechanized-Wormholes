@@ -32,5 +32,6 @@ Infix "=?" := Var.eqb (at level 70) : var_scope.
 #[export] Hint Resolve Var.eq_refl Var.eq_sym Var.eq_trans : core.
 #[export] Instance var_eq_rr : RewriteRelation Var.eq := _.
 #[export] Instance var_eq_equiv : Equivalence Var.eq := _.
+#[export] Instance var_leibniz_eq : Proper Logic.eq Var.eq := _.
 
 End VarNotations.

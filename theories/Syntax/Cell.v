@@ -289,4 +289,8 @@ Infix "⊩?" := Cell.validb (at level 20, no associativity) : cell_scope.
 Infix "=" := Cell.eq : cell_scope.
 Infix "=?" := Cell.eqb  (at level 70) : cell_scope.
 
+
+(** ** Morphism *)
+#[export] Instance cell_leibniz_eq : Proper Logic.eq Cell.eq := _.
+
 End CellNotations.

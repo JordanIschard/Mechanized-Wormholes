@@ -57,7 +57,7 @@ Proof.
        replace (S (S (Re⁺ - Re1⁺))) with ((S (S (Re⁺))) - Re1⁺) by lia.
        eapply IHt2 in Hwv; eauto.
        + erewrite <- RContext.new_key_wh_spec; eauto.
-       + now apply RContext.Ext.new_key_Submap_spec_1.
+       + now apply RContext.Ext.new_key_Submap_add_spec.
 Qed.
 
 (** *** Proof of preservation of typing through the substitution

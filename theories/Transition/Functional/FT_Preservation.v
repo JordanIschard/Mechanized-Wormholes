@@ -78,7 +78,7 @@ Proof.
   (* fT_rsf *)
   - assert (r ∈ V).
     { rewrite RE.in_find; rewrite H; intro c; now inversion c. }
-    rewrite RE.Ext.new_key_add_spec_3; auto; try lia; repeat split; auto.
+    rewrite RE.Ext.new_key_add_in_spec; auto; try lia; repeat split; auto.
     -- now apply RE.valid_update_spec.
     -- now apply RE.valid_find_spec with (lb := V⁺) in H as [_ H].
   (* fT_wh *)
@@ -679,7 +679,8 @@ Proof.
     repeat split.
     -- intros r' HIn; rewrite Resources.St.singleton_spec in HIn; subst; now exists v.
     -- intros r' [HnIn HIn]; apply Resources.St.singleton_notin_spec in HnIn.
-        rewrite RE.add_neq_o; auto. rewrite RE.Ext.new_key_add_spec_3.
+        rewrite RE.add_neq_o; auto. 
+        rewrite RE.Ext.new_key_add_in_spec.
         + replace (V⁺ - V⁺) with 0 by lia; now rewrite RE.shift_zero_refl.
         + exists (⩽ v … ⩾); now apply RE.find_2.
     -- exists Re; exists \{{r}}; split; try reflexivity; auto; 
@@ -691,7 +692,7 @@ Proof.
          ++ now rewrite (wf_env_fT_in Re V).
        + apply RE.valid_find_spec with (lb := V⁺) in HfV as Hv; auto.
          destruct Hv as [Hvr Hvv].
-         rewrite RE.Ext.new_key_add_spec_3.
+         rewrite RE.Ext.new_key_add_in_spec.
          ++ apply RE.valid_add_spec; repeat split; auto.
             unfold Cell.valid; simpl. 
             rewrite <- (wf_env_fT_new Re V); auto.
@@ -723,7 +724,7 @@ Proof.
     apply halts_wh in Hlsf as [Hli Hlt].
     apply weakening_ℜ  
     with (Re1 := (⌈ S (Re ⁺) ⤆ (τ, <[ 𝟙 ]>) ⌉ (⌈ Re ⁺ ⤆ (<[ 𝟙 ]>, τ) ⌉ Re))%rc) in Hwsv as Hwsv';
-    try (now apply RC.Ext.new_key_Submap_spec_1); auto.
+    try (now apply RC.Ext.new_key_Submap_add_spec); auto.
     rewrite RC.new_key_wh_spec in *. replace (S (S (Re⁺)) - Re⁺)%rc with 2 in * by lia.
 
     apply IHfT 
@@ -804,7 +805,7 @@ Proof.
          ++ apply RC.Ext.Submap_Add_spec with (m := (⌈ Re⁺ ⤆ (<[ 𝟙 ]>, τ) ⌉ Re)%rc)
                                               (x := S (Re⁺)%rc) (v := (τ, <[ 𝟙 ]>)) in HSubRe1; auto.
             * apply RC.Submap_Add_spec with
-                (m := Re) (x := (Re⁺)%rc) (v := (<[ 𝟙 ]>, τ)) in HSubRe1; auto.
+                (m := Re) (x := (Re⁺)%rc) (e := (<[ 𝟙 ]>, τ)) in HSubRe1; auto.
               ** apply RC.Ext.new_key_notin_spec; auto.
               ** unfold RC.Add;  reflexivity.
             * intro c. rewrite RC.add_in_iff in c; destruct c; try lia.
@@ -819,13 +820,15 @@ Proof.
                  apply wf_env_fT_new in Hwf' as Hnew'; rewrite <- Hnew'.
                  apply weakening_ℜ; auto.
                  { 
-                  apply (RC.Submap_Add_spec Re1 Re (⌈Re⁺ ⤆ (<[𝟙]>, τ) ⌉ Re)%rc
+                  apply (RC.Submap_Add_spec Re (⌈Re⁺ ⤆ (<[𝟙]>, τ) ⌉ Re)%rc Re1
                                             (Re⁺)%rc (<[𝟙]>, τ)); try (now unfold RC.Add). 
-                  - apply (RC.Submap_Add_spec Re1 (⌈Re⁺ ⤆ (<[𝟙]>, τ) ⌉ Re)%rc
+                  - apply (RC.Submap_Add_spec (⌈Re⁺ ⤆ (<[𝟙]>, τ) ⌉ Re)%rc
                                               (⌈S(Re⁺) ⤆ (τ, <[𝟙]>)⌉ (⌈Re⁺ ⤆ (<[𝟙]>, τ) ⌉ Re))%rc
+                                              Re1
                                               (S (Re⁺)%rc) (τ, <[𝟙]>)); try (now unfold RC.Add).
-                    -- apply RC.Ext.new_key_notin_spec. rewrite RC.Ext.new_key_add_spec_1; auto.
-                       apply RC.Ext.new_key_notin_spec; lia.
+                    -- apply RC.Ext.new_key_notin_spec. 
+                       rewrite RC.Ext.new_key_add_ge_spec; auto.
+                       apply RC.Ext.new_key_notin_spec. lia.
                   - apply RC.Ext.new_key_notin_spec; lia. 
                  }
                  {
@@ -863,7 +866,7 @@ Proof.
               ** apply RC.Ext.Submap_add_spec_1.
                  { 
                   apply RC.Ext.new_key_notin_spec.
-                  rewrite RC.Ext.new_key_add_spec_1; auto.
+                  rewrite RC.Ext.new_key_add_ge_spec; auto.
                   apply RC.Ext.new_key_notin_spec; lia.
                  }
                  {

@@ -129,15 +129,15 @@ Proof.
     unfold RC.OP.P.Add in *. rewrite H0. 
     unfold RE.OP.P.Add in *. rewrite HAddV.
     destruct (Resource.ltb_spec0 x (max(Re1))%rc).
-    -- rewrite RC.Ext.max_key_add_spec_2; auto.
-       rewrite RE.Ext.max_key_add_spec_2; auto.
+    -- rewrite RC.Ext.max_key_add_lt_spec; auto.
+       rewrite RE.Ext.max_key_add_lt_spec; auto.
        + subst. intro Hc. 
         rewrite RE.OP.P.remove_in_iff in Hc. 
         destruct Hc; contradiction.
        + now rewrite Hmax in *.
-    -- rewrite RC.Ext.max_key_add_spec_1; auto; try lia.
+    -- rewrite RC.Ext.max_key_add_ge_spec; auto; try lia.
        rewrite Hmax in n.
-       rewrite RE.Ext.max_key_add_spec_1; auto; try lia.
+       rewrite RE.Ext.max_key_add_ge_spec; auto; try lia.
        subst. intro Hc. 
        rewrite RE.OP.P.remove_in_iff in Hc. 
        destruct Hc; contradiction.
@@ -245,28 +245,24 @@ Proof.
   destruct Hv as [HvRe HvV].
   repeat split.
   
-  - intro HIn. repeat rewrite RC.OP.P.add_in_iff in HIn.
-    repeat rewrite RE.OP.P.add_in_iff.
-    destruct HIn as [Heq' | [Heq' | HIn]]; subst.
-    -- left; f_equal; symmetry; assumption.
-    -- right; left. symmetry; assumption.
-    -- repeat right. 
-       rewrite (wf_env_fT_in Re V) in HIn; auto.
-       apply RE.valid_in_spec with (lb := V⁺) in HIn as Hvr; auto.
-       rewrite <- (Resource.shift_valid_refl (V⁺) 2 r); auto.
-       now apply RE.shift_in_iff.
-  - intro HIn. repeat rewrite RE.OP.P.add_in_iff in HIn.
+  - intro HIn. 
+    repeat rewrite RE.OP.P.add_in_iff.  
+    repeat apply RC.OP.P.add_in_iff in HIn as [Heq' | HIn]; subst; auto.
+    repeat right. 
+    rewrite (wf_env_fT_in Re V) in HIn; auto.
+    apply RE.valid_in_spec with (lb := V⁺) in HIn as Hvr; auto.
+    rewrite <- (Resource.shift_valid_refl (V⁺) 2 r); auto.
+    now apply RE.shift_in_iff.
+  - intro HIn. 
     repeat rewrite RC.OP.P.add_in_iff.
-    destruct HIn as [Heq' | [Heq' | HIn]]; subst.
-    -- left; f_equal; assumption.
-    -- right; left; assumption.
-    -- repeat right.
-       apply RE.shift_in_e_spec in HIn as Hr'.
-       destruct Hr' as [r' Heq']; subst.
-       apply RE.shift_in_iff in HIn.
-       apply RE.valid_in_spec with (lb := V⁺) in HIn as Hvr; auto.
-       rewrite (Resource.shift_valid_refl (V⁺) 2 r'); auto.
-       now apply (wf_env_fT_in Re V).
+    repeat apply RE.OP.P.add_in_iff in HIn as [Heq' | HIn]; subst; auto.
+    repeat right.
+    apply RE.shift_in_e_spec in HIn as Hr'.
+    destruct Hr' as [r' Heq']; subst.
+    apply RE.shift_in_iff in HIn.
+    apply RE.valid_in_spec with (lb := V⁺) in HIn as Hvr; auto.
+    rewrite (Resource.shift_valid_refl (V⁺) 2 r'); auto.
+    now apply (wf_env_fT_in Re V).
   - rewrite RC.new_key_wh_spec; 
     apply RC.valid_wh_spec; auto; split; simpl; auto;
     try now constructor.
@@ -290,7 +286,7 @@ Proof.
          ++  rewrite RC.new_key_wh_spec; lia.
          ++ apply RC.Ext.Submap_add_spec_1.
             * apply RC.Ext.new_key_notin_spec.
-              rewrite RC.Ext.new_key_add_spec_1; auto.
+              rewrite RC.Ext.new_key_add_ge_spec; auto.
               apply RC.Ext.new_key_notin_spec; lia.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec; lia.
@@ -314,7 +310,7 @@ Proof.
             * rewrite RC.new_key_wh_spec; lia.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec.
-                 rewrite RC.Ext.new_key_add_spec_1; auto.
+                 rewrite RC.Ext.new_key_add_ge_spec; auto.
                  apply RC.Ext.new_key_notin_spec; lia.
               ** apply RC.Ext.Submap_add_spec_1.
                  { apply RC.Ext.new_key_notin_spec; lia. }
@@ -324,7 +320,7 @@ Proof.
             * rewrite RC.new_key_wh_spec; lia.
             * apply RC.Ext.Submap_add_spec_1.
               ** apply RC.Ext.new_key_notin_spec.
-                rewrite RC.Ext.new_key_add_spec_1; auto.
+                rewrite RC.Ext.new_key_add_ge_spec; auto.
                 apply RC.Ext.new_key_notin_spec; lia.
               ** apply RC.Ext.Submap_add_spec_1.
                 { apply RC.Ext.new_key_notin_spec; lia. }

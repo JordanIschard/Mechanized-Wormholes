@@ -19,55 +19,60 @@ Open Scope ptyp_scope.
 
 (** ** Wormholes specification *)
 
-Lemma max_key_wh_spec : forall (m : t) v v',
+Lemma max_key_wh_spec : forall (m : t) (v v' : πΤ),
   max_key (add (S (S (max_key m))) v (add (S (max_key m)) v' m)) = S (S (max_key m)).
 Proof.
-  intros. assert (~In (S (max_key m)) m) by (apply max_key_notin_spec; lia).
-  assert (~In (S (S (max_key m))) (add (S (max_key m)) v' m)).
-  - apply max_key_notin_spec. rewrite max_key_add_spec_1; auto; lia.
-  - rewrite max_key_add_spec_1; auto. rewrite max_key_add_spec_1; auto.
+  intros m v v'.
+  apply max_key_add_ge_spec.
+  - apply max_key_notin_spec. 
+    rewrite max_key_add_ge_spec; auto.
+    apply max_key_notin_spec; auto.
+  - rewrite max_key_add_ge_spec; auto.
+    apply max_key_notin_spec; auto.
 Qed.
 
-Lemma new_key_wh_spec : forall (m : t) v v',
+Lemma new_key_wh_spec : forall (m : t) (v v' : πΤ),
   new_key (add (S (new_key m)) v (add (new_key m) v' m)) = S (S (new_key m)).
 Proof.
-  intros; unfold new_key; rewrite is_empty_add_spec; destruct (is_empty m) eqn:Heq.
-  - rewrite max_key_add_spec_1; auto.
+  intros m v v'; unfold new_key; 
+  rewrite is_empty_add_spec; destruct (is_empty m) eqn:Heq.
+  - rewrite max_key_add_ge_spec; auto.
     -- apply is_empty_iff in Heq; unfold Empty,not in *; 
       intros. destruct H. apply (Heq 1 x). apply add_mapsto_iff in H.
       destruct H; destruct H; try lia; assumption.
-    -- rewrite max_key_add_spec_1; auto.
-      + apply is_empty_iff in Heq; unfold Empty,not in *; 
+    -- rewrite max_key_add_ge_spec; auto.
+      + apply is_empty_iff in Heq. unfold Empty,not in *; 
         intros; destruct H; now apply (Heq 0 x).
       + rewrite max_key_Empty_spec; auto. now apply is_empty_iff.
   - f_equal. apply max_key_wh_spec.
 Qed.
 
-Lemma valid_wh_spec : forall m v v',
-  valid (new_key m) m -> (new_key m) ⊩ v -> (new_key m) ⊩ v' -> 
-  valid (S (S (new_key m))) (add (S (new_key m)) v 
-                                        (add (new_key m) v' m)).
+Lemma valid_wh_spec : forall (m : t) (v v' : πΤ),
+  valid (new_key m) m -> 
+  (new_key m) ⊩ v -> (new_key m) ⊩ v' -> 
+  valid (S (S (new_key m))) (add (S (new_key m)) v (add (new_key m) v' m)).
 Proof.
-  intros. apply valid_add_notin_spec.
-  - rewrite add_in_iff; intro. destruct H2; try lia.
-    apply new_key_notin_spec in H2; auto.
-  - split. 
+  intros m v v' Hvm Hvv Hvv'. 
+  apply valid_add_notin_spec.
+  - rewrite add_in_iff; intro Ha. 
+    destruct Ha as [Heq | HIn]; try lia.
+    apply new_key_notin_spec in HIn; auto.
+  - repeat split. 
     -- unfold Resource.valid; lia.
-    -- split.
-      * apply PairTyp.valid_weakening with (k := new_key m); auto.
-      * apply valid_add_notin_spec.
-        ** apply new_key_notin_spec; lia.
-        ** split.
-            + unfold Resource.valid; lia.
-            + split.
-              ++ apply PairTyp.valid_weakening with (k := new_key m); auto.
-              ++ apply valid_weakening with (k := new_key m); auto.
+    -- apply PairTyp.valid_weakening with (k := new_key m); auto.
+    -- apply PairTyp.valid_weakening with (k := new_key m); auto.
+    -- apply valid_add_notin_spec.
+       + apply new_key_notin_spec; lia.
+       + repeat split.
+         ++ unfold Resource.valid; lia.
+         ++ apply PairTyp.valid_weakening with (k := new_key m); auto.
+         ++ apply PairTyp.valid_weakening with (k := new_key m); auto.
+         ++ apply valid_weakening with (k := new_key m); auto.
 Qed.
 
 (** ** Morphisms *)
 
-#[export] 
-Instance in_rctx : 
+#[export] Instance in_rctx : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
   repeat red; intros; split; intros;
@@ -75,40 +80,25 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[export] 
-Instance find_rctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
+#[export] Instance find_rctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[export] 
-Instance Empty_rctx : Proper (eq ==> iff) Empty.
-Proof. red; red; intros; now apply Empty_eq_spec. Qed.
+#[export] Instance Empty_rctx : Proper (eq ==> iff) Empty.
+Proof. intros c c' Heq; now rewrite Heq. Qed.
 
-#[export] 
-Instance Add_rctx : 
-Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@Add PairTyp.t).
+#[export] Instance Add_rctx : 
+  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@Add PairTyp.t).
 Proof. 
   red; red; red; red; red; intros. apply PairTyp.eq_leibniz in H0; subst.
   rewrite H. unfold OP.P.Add in *. rewrite H1; rewrite H2. split; intros; auto.
 Qed.
 
-#[export] 
-Instance add_rctx : 
-Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@add PairTyp.t).
+#[export] Instance add_rctx : 
+  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@add PairTyp.t).
 Proof. 
  red; red; red; red; red; intros; subst; apply PairTyp.eq_leibniz in H0; subst.
  rewrite H1; now rewrite H. 
 Qed. 
-
-#[export] 
-Instance Submap_rctx : 
-  Proper (eq ==> eq ==> iff) Submap.
-Proof. 
-  repeat red; intros; split; intros.
-  - rewrite Submap_eq_left_spec in H1; eauto.
-    rewrite Submap_eq_right_spec in H1; eauto.
-  - rewrite <- Submap_eq_left_spec in H1; eauto.
-    rewrite <- Submap_eq_right_spec in H1; eauto.
-Qed.
 
 End RContext.
 

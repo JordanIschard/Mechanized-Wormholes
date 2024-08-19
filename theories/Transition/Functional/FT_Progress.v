@@ -185,7 +185,7 @@ Proof.
     -- unfold k in *. rewrite RC.new_key_wh_spec; lia.
     -- unfold k in *. apply RC.Ext.Submap_add_spec_1.
       + apply RC.Ext.new_key_notin_spec.
-        rewrite RC.Ext.new_key_add_spec_1; auto.
+        rewrite RC.Ext.new_key_add_ge_spec; auto.
         apply RC.Ext.new_key_notin_spec; lia.
       + apply RC.Ext.Submap_add_spec_1; try reflexivity.
         apply RC.Ext.new_key_notin_spec; lia.

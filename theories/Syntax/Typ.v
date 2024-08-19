@@ -352,4 +352,7 @@ Infix "⊩?" := PairTyp.validb (at level 20, no associativity) : ptyp_scope.
 Infix "="  := Typ.eq : typ_scope.
 Infix "=?" := Typ.eqb  (at level 70) : typ_scope.
 
+(** ** Morphism *)
+#[export] Instance typ_leibniz_eq : Proper Logic.eq Typ.eq := _.
+
 End TypNotations.

@@ -1,4 +1,4 @@
-From Coq Require Import Lia PeanoNat.
+From Coq Require Import Lia PeanoNat Classes.Morphisms.
 From Mecha Require Import Resource.
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
 
@@ -96,5 +96,9 @@ Infix "⊩" := Resources.valid (at level 20, no associativity) : resources_scope
 Infix "⊩?" := Resources.validb (at level 20, no associativity) : resources_scope. 
 Notation "'[⧐' lb '–' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity) : resources_scope.
 Notation "'[⧐⧐' lb '–' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity) : resources_scope.
+
+
+(** ** Morphism *)
+#[export] Instance resources_leibniz_eq : Proper Logic.eq Resources.eq := _.
 
 End ResourcesNotations.

@@ -732,4 +732,8 @@ Infix "="  := Term.eq : term_scope.
 Infix "=?" := Term.eqb  (at level 70) : term_scope.
 Infix "="  := OptTerm.eq : opt_term_scope.
 
+
+(** ** Morphism *)
+#[export] Instance term_leibniz_eq : Proper Logic.eq Term.eq := _.
+
 End TermNotations.

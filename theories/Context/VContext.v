@@ -17,8 +17,7 @@ Import Raw Ext.
 
 (** *** Morphism *)
 
-#[export] 
-Instance in_vctx : 
+#[export] Instance in_vctx : 
   Proper (Logic.eq ==> eq ==> iff) In.
 Proof.
   repeat red; intros; split; intros;
@@ -26,39 +25,27 @@ Proof.
   apply H0; eauto. 
 Qed.
 
-#[export] 
-Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
+#[export] Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[export] 
-Instance Empty_vctx : Proper (eq ==> iff) Empty.
-Proof. red; red; intros; now apply Empty_eq_spec. Qed.
+#[export] Instance Empty_vctx : Proper (eq ==> iff) Empty.
+Proof. intros c c' Heq; now rewrite Heq. Qed.
 
-#[export] 
-Instance Add_vctx : 
-Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@Add Typ.t).
-Proof. 
-  red; red; red; red; red; intros. unfold Typ.eq in *; subst.
-  rewrite H. unfold Add in *. rewrite H1; rewrite H2. 
-  split; intros; auto.
-Qed.
-
-#[export] 
-Instance add_vctx : 
-Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@add Typ.t).
-Proof. 
- red; red; red; red; red; intros; subst; unfold Typ.eq in H0; subst.
- rewrite H1; now rewrite H. 
+#[export] Instance add_vctx : 
+  Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@add Typ.t).
+Proof.
+  intros x x' HeqV ty ty' HeqT c c' Heq.
+  rewrite HeqV; rewrite HeqT.
+  now rewrite Heq.
 Qed. 
 
-#[export] 
-Instance Submap_vctx : Proper (eq ==> eq ==> iff) Submap.
+#[export] Instance Add_vctx : 
+  Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@Add Typ.t).
 Proof. 
-  repeat red; intros; split; intros.
-  - rewrite Submap_eq_left_spec in H1; eauto.
-    rewrite Submap_eq_right_spec in H1; eauto.
-  - rewrite <- Submap_eq_left_spec in H1; eauto.
-    rewrite <- Submap_eq_right_spec in H1; eauto.
+  intros x x' HeqV ty ty' HeqT c c' Heq c1 c1' Heq1.
+  rewrite HeqV; rewrite HeqT.
+  unfold Add.
+  now rewrite Heq,Heq1.
 Qed.
 
 End VContext.
@@ -108,7 +95,6 @@ Import VContext.
 #[export] Instance Submap_vctx : Proper (eq ==> eq ==> iff) Submap := _.
 #[export] Instance valid_vctx : Proper (Logic.eq ==> eq ==> iff) valid := _.
 #[export] Instance shift_vctx : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
-#[export] Instance Submap_vctx_po : PreOrder Submap.
-Proof. apply Submap_po. Qed. 
+#[export] Instance Submap_vctx_po : PreOrder Submap := _.
 
 End VContextNotations.

@@ -489,18 +489,18 @@ Proof.
     destruct HI as [[Heq Hle] | [Heq Hgt]]; subst.
     -- rewrite puts_Add_spec; eauto. unfold puts_func.
        destruct (V⌊max_key fl2⌋) eqn:HfV.
-       + destruct r; rewrite max_key_add_spec_1; auto;
+       + destruct r; rewrite max_key_add_ge_spec; auto;
          try (now rewrite <- IHfl1);
          now rewrite <- puts_In_iff.
-       + rewrite max_key_add_spec_1; auto.
+       + rewrite max_key_add_ge_spec; auto.
          ++ now rewrite <- puts_In_iff.
          ++ now rewrite <- IHfl1.
     -- rewrite puts_Add_spec; eauto. unfold puts_func.
        destruct (V⌊x⌋) eqn:HfV; rewrite Heq.
-       + destruct r; rewrite max_key_add_spec_2; auto;
+       + destruct r; rewrite max_key_add_lt_spec; auto;
          try (now rewrite <- IHfl1);
          now rewrite <- puts_In_iff.
-       + rewrite max_key_add_spec_2; auto.
+       + rewrite max_key_add_lt_spec; auto.
          ++ now rewrite <- puts_In_iff.
          ++ now rewrite <- IHfl1.
 Qed.
@@ -533,6 +533,7 @@ Qed.
 
 
 (** ** [shift] property *)
+
 
 Lemma shift_new_in_spec : forall r S,
   In r S -> r < new_key S.
@@ -586,6 +587,7 @@ Proof.
     eapply shift_find_e_spec; eauto. 
 Qed.
 
+
 (** ** [halts] property *)
 
 #[export] Instance halts_eq : Proper (Logic.eq ==> eq ==> iff) halts.
@@ -617,6 +619,7 @@ Proof.
     -- apply (H0 r). rewrite add_neq_o; auto.
 Qed.
 
+
 Lemma halts_weakening : forall k k' t, 
   k <= k' -> halts k t -> halts k' (shift k (k' - k) t).
 Proof.
@@ -627,6 +630,7 @@ Proof.
   apply (Hlt r'). apply Sample.eq_leibniz in Heqv'; subst.
   now apply shift_find_iff in HfV.
 Qed.
+
 
 Lemma halts_nexts k t : 
   halts k t -> REnvironment.halts k (nexts t).
@@ -678,7 +682,7 @@ Qed.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
 #[export] Instance Empty_rsamples : Proper (Samples.eq ==> iff) OP.P.Empty.
-Proof. red; red; intros; now apply Empty_eq_spec. Qed.
+Proof. intros s s' Heq; now rewrite Heq. Qed.
 
 #[export] Instance Add_rsamples : 
   Proper (Resource.eq ==> Logic.eq ==> eq ==> eq ==> iff) (@OP.P.Add Sample.t).
@@ -692,15 +696,6 @@ Qed.
 #[export] Instance add_rsamples : 
   Proper (Resource.eq ==> Logic.eq ==> eq ==> eq) (@add Sample.t).
 Proof. repeat red; intros; subst; rewrite H1; now rewrite H. Qed. 
-
-#[export] Instance Submap_env : Proper (eq ==> eq ==> iff) Submap.
-Proof. 
-  repeat red; intros; split; intros.
-  - rewrite Submap_eq_left_spec in H1; eauto.
-    rewrite Submap_eq_right_spec in H1; eauto.
-  - rewrite <- Submap_eq_left_spec in H1; eauto.
-    rewrite <- Submap_eq_right_spec in H1; eauto.
-Qed.
 
 #[export] Instance halts_samples : Proper (Logic.eq ==> eq ==> iff) halts. 
 Proof.

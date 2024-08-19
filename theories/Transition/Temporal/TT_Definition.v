@@ -40,8 +40,8 @@ Definition wf_env_tT (Re : ℜ) (S : 𝐒) (W : 𝐖) :=
   (* validity properties *)
   (Re⁺ ⊩ Re)%rc /\ (S⁺ ⊩ S)%rf /\
   (* typing *)
-  (forall r τ τ' v,  Re⌊r⌋%rc = Some (τ,τ') ->  S⌊r⌋%rf = Some v -> 
-                      Sample.well_typed (∅%vc) Re v τ' τ)
+  (forall r τ τ' v,  S⌊r⌋%rf = Some v -> Re⌊r⌋%rc = Some (τ,τ') -> 
+                      Sample.well_typed (∅%vc) Re (Sample.shift (S⁺%rf) ((Re⁺)%rc - (S⁺)%rf) v) τ' τ)
                                             /\
   (forall (r : resource) (v : Λ) (τ τ' : Τ), 
         W⌊r⌋%sk = Some v -> Re⌊r⌋%rc = Some (τ',τ) -> ∅%vc ⋅ Re ⊫ v ∈ τ)

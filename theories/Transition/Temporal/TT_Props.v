@@ -72,7 +72,7 @@ Proof.
        apply Samples.nexts_find_spec in H as H'.
        rewrite HfSa in H'; destruct x; inversion H'; subst.
        clear H'.
-       eapply HwtSa in H; eauto. destruct H; now simpl in *.
+       eapply HwtSa in H; eauto.
 Admitted.
 
 #[export]
