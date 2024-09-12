@@ -1,56 +1,56 @@
-From Coq Require Import Lia PeanoNat Classes.Morphisms.
+From Coq Require Import Lia Classes.Morphisms.
 From DeBrLevel Require Import LevelInterface Level.
 
 (** * Syntax - Resource
 
-  Resources are names that are either bound to I/O or introduced by the binder wh as local references.
-  The original paper defines a resource as an element taken from an infinite countable set.
-  We choose De-Bruijn level as representation which avoid captures issues. Consequently, a resource is 
-  a level. It is a direct use of the [Level] module.
+  Resources are names that are either bound to I/O or introduced by the binder, named wormhole.In the original paper, a resource is an element taken from a certain infinite countable set. We choose De-Bruijn level as representation to avoid captures issues. Consequently, in this formalization, a resource name is a level. It is a direct use of the [Level] module of [DeBrLevel] library.
 *)
+
+(** ** Module - Resource *)
 Module Resource <: IsBdlLvlFullOTWL.
+
+(** *** Definition *)
 
 Include Level.
 
-(** ** Multi shift 
+(** **** Multi shift 
 
-During the functional transition, defined in [FT_Definition], the signal function is updated multiple 
-times with different lower bound and shift value. Thus, we define a [multi_shift] function that applies
-[n] shifts for two lists [lbs] and [ks] of length [n].
-
+  During the functional transition, defined in [FT_Definition], the signal function is updated multiple times for different well-formednes level and shift. Consequently, we define a [multi_shift] function that applies [n] shifts for two lists [lbs] and [ks] of length [n].
 *)
-Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
-  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+Definition multi_shift (lbs : list Lvl.t) (ks : list Lvl.t) (t : t) :=
+  List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
 
-Lemma multi_shift_valid_refl lbs ks lb t:
-  valid lb t -> (forall i, List.In i lbs -> lb <= i) ->
-  multi_shift lbs ks t = t.
+(** *** Property *)
+
+Lemma multi_shift_valid_refl (lbs ks : list Lvl.t) (lb : Lvl.t) (t : t):
+  valid lb t -> (forall i, List.In i lbs -> lb <= i) -> multi_shift lbs ks t = t.
 Proof.
-  revert ks lb t; unfold multi_shift. 
-  induction lbs; intros ks lb t Hvt Hvl; simpl; try reflexivity.
-  destruct ks; simpl; try reflexivity.
-  rewrite IHlbs with (lb := lb); auto.
+  revert ks; unfold multi_shift. 
+  induction lbs; intros ks Hvt Hvl; auto. 
+  destruct ks as [| k ks]; simpl; auto.
+  rewrite IHlbs; auto.
   - rewrite shift_valid_refl; auto. unfold valid in *.
-    assert (lb <= a). { apply Hvl; simpl; now left. }
-    lia.
+    destruct (Hvl a); try lia.
+    simpl; now left.
   - intros. apply Hvl; simpl; now right.
 Qed.
 
 End Resource.
 
+(** ---- *)
 
-
-(** * Notation - Resource *)
+(** ** Notation - Resource *)
 Module ResourceNotations.
 
-(** ** Scope *)
+(** *** Scope *)
 Declare Custom Entry wh.
 Declare Scope resource_scope.
 Delimit Scope resource_scope with r.
 
 
-(** ** Notations *)
+(** *** Notation *)
 Definition resource := Resource.t.
+Definition lvl := Level.t.
 
 Notation "<[ e ]>" := e (e custom wh at level 99).
 Notation "( x )"   := x (in custom wh, x at level 99).
@@ -59,15 +59,21 @@ Notation "{ x }"   := x (in custom wh at level 1, x constr).
 
 Infix "<"  := Resource.lt : resource_scope.
 Infix "="  := Resource.eq : resource_scope.
-Infix "<?" := Resource.ltb (at level 70) : resource_scope.
-Infix "=?" := Resource.eqb  (at level 70) : resource_scope.
 Infix "⊩" := Resource.valid (at level 20, no associativity) : resource_scope. 
-Infix "⊩?" := Resource.validb (at level 20, no associativity) : resource_scope. 
-Notation "'[⧐' lb '–' k ']' t" := (Resource.shift lb k t) (at level 65, right associativity) : resource_scope.
-Notation "'[⧐⧐' lb '–' k ']' t" := (Resource.multi_shift lb k t) (at level 65, right associativity) : resource_scope.
+
+Notation "'[⧐' lb '–' k ']' t" := (Resource.shift lb k t) 
+                                   (at level 65, right associativity) : resource_scope.
+Notation "'[⧐⧐' lb '–' k ']' t" := (Resource.multi_shift lb k t) 
+                                    (at level 65, right associativity) : resource_scope.
 
 
-(** ** Morphism *)
+(** *** Morphism *)
 #[export] Instance resource_leibniz_eq : Proper Logic.eq Resource.eq := _.
+#[export] Instance resource_valid_proper : 
+  Proper (Level.eq ==> Resource.eq ==> iff) Resource.valid := _.
+#[export] Instance resource_shift_proper : 
+  Proper (Level.eq ==> Level.eq ==> Resource.eq ==> Logic.eq) Resource.shift := _.
+#[export] Instance resource_multi_shift_proper : 
+  Proper (Logic.eq ==> Logic.eq ==> Resource.eq ==> Logic.eq) Resource.multi_shift := _.
 
 End ResourceNotations.

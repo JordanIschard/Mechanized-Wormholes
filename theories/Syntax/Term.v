@@ -3,88 +3,67 @@ From DeBrLevel Require Import LevelInterface OptionLevel.
 From Mecha Require Import Var Resource Typ.
 Import VarNotations ResourceNotations TypNotations.
 
-Open Scope resource_scope.
-Open Scope typ_scope.
 
 (** * Syntax - Term
 
-  The syntax of Wormholes consists in a typed lambda-calculus
-  with pairs, recursion, arrow primitives and two additional 
-  terms: rsf and wh. It is the first [Type] where levels can be
-  bound.
+  Wormholes's syntax is an extended version of the standard lambda calculus with pair, projections, fixpoint, ground value, denoted [()], and arrow primitives (arr,first and comp). In addition, the language introduces [rsf] and [wormhole]. The former access to the environment and allows interaction with it. The latter creates local resources.
 *)
-Module Term <: IsLvlFullDTWL.
+
+(** ** Module - Term *)
+Module Term <: IsLvlDTWL.
 
 (** *** Definition *)
 
+Open Scope resource_scope.
+Open Scope typ_scope.
 
-(** **** Type *)
+(** **** Type 
+
+  The syntax is an usual lambda-calculus, with arrow primitives (arr, first and comp) as well as two additional arrow primitives named [rsf] and [wormhole] that respectively represent an interaction with the environment and a [let...in] structure for resource names and reactive expression.
+*)
 Inductive raw : Type :=
-  | tm_var    : variable -> raw
-  | tm_app    : raw -> raw -> raw
-  | tm_abs    : variable -> Τ -> raw -> raw
-  | tm_pair   : raw -> raw -> raw
-  | tm_fst    : raw -> raw
-  | tm_snd    : raw -> raw
-  | tm_arr    : raw -> raw
-  | tm_first  : Τ -> raw -> raw
-  | tm_comp   : raw -> raw -> raw
-  | tm_rsf    : resource -> raw
-  | tm_wh     : raw -> raw -> raw
   | tm_unit   : raw
   | tm_fix    : raw
+  | tm_var (x : variable) : raw
+  | tm_abs (x : variable) (t : raw) : raw
+  | tm_app  (t1 t2 : raw) : raw
+  | tm_pair (t1 t2 : raw) : raw
+  | tm_fst   (t : raw) : raw
+  | tm_snd   (t : raw) : raw
+  | tm_arr   (t : raw) : raw
+  | tm_first (t : raw) : raw
+  | tm_rsf (r : resource) : raw
+  | tm_comp (t1 t2 : raw) : raw
+  | tm_wh   (t1 t2 : raw) : raw
 .
 
 Definition t := raw.
-
-(** **** Equality *)
-
 Definition eq := @eq t.
-
-Fixpoint eqb (e e' : t) := 
-  match (e,e') with
-    | (tm_var x,tm_var y) => (x =? y)%v
-    | (tm_app e1 e2,tm_app e1' e2') => (eqb e1 e1') && (eqb e2 e2')
-    | (tm_abs x τ e,tm_abs y τ' e') => (x =? y)%v && (τ =? τ') && (eqb e e')
-    | (tm_pair e1 e2,tm_pair e1' e2') => (eqb e1 e1') && (eqb e2 e2')
-    | (tm_fst e,tm_fst e') => eqb e e'
-    | (tm_snd e,tm_snd e') => eqb e e'
-    | (tm_arr e,tm_arr e') => eqb e e'
-    | (tm_first τ e,tm_first τ' e') => (τ =? τ') && eqb e e'
-    | (tm_comp e1 e2,tm_comp e1' e2') => (eqb e1 e1') && (eqb e2 e2')
-    | (tm_wh e1 e2,tm_wh e1' e2') => (eqb e1 e1') && (eqb e2 e2')
-    | (tm_rsf r,tm_rsf r') => (r =? r')%r
-    | (tm_unit, tm_unit) => true
-    | (tm_fix, tm_fix) => true
-    | _ => false
-  end
-.
 
 (** **** Shift function 
 
-  In terms, types and resource signal function are implied by the [shift] function.
-  Then we recursively apply the appropriate shift on all types and resource contained
-  in the term.
+  The [shift] function takes a lower bound [lb] a natural [k] and a term [t], and produces a term [t'] where all resources [r] greater or equal to [lb] in [t] are incremented by [k]. The others are left unchanged.
 *)
 Fixpoint shift (lb : nat) (k : nat) (e : t) : t := 
   match e with
-  | tm_app t1 t2 => tm_app (shift lb k t1) (shift lb k t2)
-  | tm_abs x τ t0 => tm_abs x <[[⧐ lb – k] τ]> (shift lb k t0)
-
-  | tm_pair t1 t2 => tm_pair (shift lb k t1) (shift lb k t2)
-  | tm_fst t0 => tm_fst (shift lb k t0)
-  | tm_snd t0 => tm_snd (shift lb k t0)
-
-  | tm_arr t0 => tm_arr (shift lb k t0)
-  | tm_first τ t0 => tm_first <[[⧐ lb – k] τ]> (shift lb k t0)
-  | tm_comp t1 t2 => tm_comp (shift lb k t1) (shift lb k t2)
-
   | tm_rsf r => tm_rsf ([⧐ lb – k] r)
-  | tm_wh t1 t2 => tm_wh (shift lb k t1) (shift lb k t2)
+
+  | tm_abs x t0 => tm_abs x (shift lb k t0)
+  | tm_fst t0   => tm_fst   (shift lb k t0)
+  | tm_snd t0   => tm_snd   (shift lb k t0)
+  | tm_arr t0   => tm_arr   (shift lb k t0)
+  | tm_first t0 => tm_first (shift lb k t0)
+
+  | tm_app  t1 t2 => tm_app  (shift lb k t1) (shift lb k t2)
+  | tm_pair t1 t2 => tm_pair (shift lb k t1) (shift lb k t2)
+  | tm_comp t1 t2 => tm_comp (shift lb k t1) (shift lb k t2)
+  | tm_wh   t1 t2 => tm_wh   (shift lb k t1) (shift lb k t2)
 
   | _ => e
   end
 .
+
+(*========================= STOP ===============================*)
 
 Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
   List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
@@ -104,9 +83,9 @@ valid 0 wormhole(unit;rsf[0]) <-> valid 0 unit /\ valid 2 rsf[0]
 
 but
 
-            (shift 0 3 wormhole(unit;rsf[0])) != wormhole(unit;rsf[0])
-wormhole((shift 0 3 unit);(shift 0 3 rsf[0])) != wormhole(unit;rsf[0])
-                        wormhole(unit;rsf[3]) != wormhole(unit;rsf[0])
+            (shift 0 3 wormhole(unit;rsf[0])) ≠ wormhole(unit;rsf[0])
+wormhole((shift 0 3 unit);(shift 0 3 rsf[0])) ≠ wormhole(unit;rsf[0])
+                        wormhole(unit;rsf[3]) ≠ wormhole(unit;rsf[0])
 >>
 *)
 Inductive valid' : nat -> t -> Prop :=
@@ -114,42 +93,22 @@ Inductive valid' : nat -> t -> Prop :=
   | vΛ_var : forall k x, valid' k (tm_var x)
   | vΛ_fix : forall k, valid' k tm_fix
   | vΛ_app : forall k t1 t2, valid' k t1 -> valid' k t2 -> valid' k (tm_app t1 t2)
-  | vΛ_abs : forall k x τ t, k ⊩ τ -> valid' k t -> valid' k (tm_abs x τ t)
+  | vΛ_abs : forall k x t, valid' k t -> valid' k (tm_abs x t)
   
   | vΛ_pair : forall k t1 t2, valid' k t1 -> valid' k t2 -> valid' k (tm_pair t1 t2)
   | vΛ_fst  : forall k t, valid' k t -> valid' k (tm_fst t) 
   | vΛ_snd  : forall k t, valid' k t -> valid' k (tm_snd t)
   
   | vΛ_arr   : forall k t, valid' k t -> valid' k (tm_arr t)
-  | vΛ_first : forall k τ t, k ⊩ τ -> valid' k t -> valid' k (tm_first τ t)
+  | vΛ_first : forall k t, valid' k t -> valid' k (tm_first t)
   | vΛ_comp  : forall k t1 t2, valid' k t1 -> valid' k t2 -> valid' k (tm_comp t1 t2)
   | vΛ_rsf : forall k r, (k ⊩ r)%r ->  valid' k (tm_rsf r)
   | vΛ_wh  : forall k t1 t2, valid' k t1 -> valid' (S (S k)) t2 -> valid' k (tm_wh t1 t2)
 .
 
-Fixpoint validb' (k : nat) (t : t) :=
-  match t with
-    | tm_unit => true
-    | tm_fix => true
-    | tm_var x => true
-    | tm_app t1 t2 => (validb' k t1) && (validb' k t2) 
-    | tm_abs x τ t1 => k ⊩? τ && (validb' k t1)
-    | tm_pair t1 t2 => (validb' k t1) && (validb' k t2) 
-    | tm_fst t1 => validb' k t1
-    | tm_snd t1 => validb' k t1
-    | tm_arr t1 => validb' k t1
-    | tm_first τ t1 => k ⊩? τ && (validb' k t1)
-    | tm_comp t1 t2 => (validb' k t1) && (validb' k t2) 
-    | tm_rsf r => (k ⊩? r)%r 
-    | tm_wh t1 t2 => (validb' k t1) && (validb' (S (S k)) t2) 
-  end
-.
-
 Definition valid := valid'.
-Definition validb := validb'.
 
-#[global] 
-Hint Constructors valid' : core.
+#[export] Hint Constructors valid' : core.
 
 (** **** Others *)
 
@@ -160,8 +119,8 @@ Inductive appears_free_in : variable -> t -> Prop :=
 
   | afi_app2 :  forall x t1 t2, appears_free_in x t2 -> appears_free_in x (tm_app t1 t2)
 
-  | afi_abs  :  forall x y τ t,
-                  y <> x  -> appears_free_in x t -> appears_free_in x (tm_abs y τ t) 
+  | afi_abs  :  forall x y t,
+                  y <> x  -> appears_free_in x t -> appears_free_in x (tm_abs y t) 
 
   | afi_pair1 : forall x t1 t2, appears_free_in x t1 -> appears_free_in x (tm_pair t1 t2)
 
@@ -170,7 +129,7 @@ Inductive appears_free_in : variable -> t -> Prop :=
   | afi_fst   : forall x t, appears_free_in x t -> appears_free_in x (tm_fst t)
   | afi_snd   : forall x t, appears_free_in x t -> appears_free_in x (tm_snd t)
   | afi_arr   : forall x t, appears_free_in x t -> appears_free_in x (tm_arr t)
-  | afi_first : forall x τ t, appears_free_in x t -> appears_free_in x (tm_first τ t)
+  | afi_first : forall x t, appears_free_in x t -> appears_free_in x (tm_first t)
   
   | afi_comp1 : forall x t1 t2, appears_free_in x t1 -> appears_free_in x (tm_comp t1 t2)
   | afi_comp2 : forall x t1 t2, appears_free_in x t2 -> appears_free_in x (tm_comp t1 t2)
@@ -185,14 +144,14 @@ Inductive value : t -> Prop :=
   | v_unit  : value tm_unit
   | v_fix  : value tm_fix
 
-  | v_abs   : forall x τ t, value (tm_abs x τ t)
+  | v_abs   : forall x t, value (tm_abs x t)
 
   | v_pair  : forall v1 v2, 
                 value v1 -> value v2 -> value (tm_pair v1 v2)
 
   | v_arr   : forall t, value t -> value (tm_arr t)
 
-  | v_first : forall τ t, value t -> value (tm_first τ t)
+  | v_first : forall t, value t -> value (tm_first t)
 
   | v_comp  : forall t1 t2, value t1 -> value t2 -> value (tm_comp t1 t2)
 
@@ -210,57 +169,10 @@ Hint Constructors value appears_free_in : core.
 #[export] Instance eq_refl : Reflexive eq := _.
 #[export] Instance eq_sym : Symmetric eq := _.
 #[export] Instance eq_trans : Transitive eq := _.
-
-#[export] 
-Hint Resolve eq_refl eq_sym eq_trans : core.
-
 #[export] Instance eq_rr : RewriteRelation eq := {}.
 #[export] Instance eq_equiv : Equivalence eq := _.
 
-Lemma eqb_refl : forall e, eqb e e = true.
-Proof.
-  induction e; simpl; auto; try (rewrite andb_true_iff; split; now auto).
-  - apply Var.eqb_refl.
-  - repeat rewrite andb_true_iff; split; auto; split.
-    -- apply Var.eqb_refl.
-    -- apply Typ.eqb_refl.
-  - rewrite andb_true_iff; split; try assumption. apply Typ.eqb_refl.
-  - apply Resource.eqb_refl.
-Qed.  
-
-Lemma eqb_eq : forall e1 e2, eqb e1 e2 = true <-> eq e1 e2.
-Proof.
-  unfold eq,eqb; induction e1; intros; destruct e2; split; intro H; 
-  try (now inversion H); fold eqb in *;
-  try (apply andb_true_iff in H as [H H']; f_equal; rewrite IHe1_1 in *; 
-        rewrite IHe1_2 in *; now auto);
-  try (inversion H; subst; rewrite andb_true_iff in *; split; now apply eqb_refl);
-  try (rewrite IHe1 in *; subst; now reflexivity);
-  try (inversion H; subst; now apply eqb_refl).
-  - f_equal; now rewrite Var.eqb_eq in *.
-  - inversion H; subst; apply Var.eqb_refl.
-  - repeat rewrite andb_true_iff in *; destruct H as [[H1 H2] H3].
-    rewrite IHe1 in *; subst; rewrite Var.eqb_eq in H1; subst.
-    rewrite Typ.eqb_eq in H2; rewrite H2; reflexivity. 
-  - repeat rewrite andb_true_iff in *; inversion H; subst; repeat split.
-    -- apply Var.eqb_refl.
-    -- apply Typ.eqb_refl.
-    -- apply eqb_refl.
-  - rewrite andb_true_iff in *; destruct H; rewrite Typ.eqb_eq in H.
-    rewrite H; apply IHe1 in H0; now subst.
-  - rewrite andb_true_iff; inversion H; split.
-    -- apply Typ.eqb_refl.
-    -- apply eqb_refl.
-  - rewrite Resource.eqb_eq in *; subst; reflexivity.
-  - inversion H; subst; apply Resource.eqb_refl.
-Qed.
-
-Lemma eqb_neq : forall e e', eqb e e' = false <-> ~ eq e e'.
-Proof.
-  split; intros.
-  - unfold not; intros; apply eqb_eq in H0; rewrite H in *; inversion H0.
-  - rewrite <- eqb_eq in *; intros; now apply not_true_is_false.
-Qed.
+#[export] Hint Resolve eq_refl eq_sym eq_trans : core.
 
 Lemma eq_dec : forall (e e' : t), {eq e e'} + {~ eq e e'}.
 Proof.
@@ -273,11 +185,9 @@ Proof.
   - destruct (Var.eqb_spec v v0); subst.
     -- now left.
     -- right; intro c; inversion c; subst; clear c; now contradiction n.
-  - destruct (Typ.eq_dec τ τ0); destruct (Var.eqb_spec v v0); unfold Typ.eq in *; subst;
+  - destruct (Var.eqb_spec v v0); subst;
     destruct (IHe e'); subst; try (right; intro c; inversion c; subst; now contradiction).
     now left.
-  - destruct (Typ.eq_dec τ τ0); destruct (IHe e'); unfold Typ.eq in *; subst; auto;
-    try (right; intro c; inversion c; subst; now contradiction).
   - destruct (Resource.eq_dec r r0); subst; try now left. right; intro c; inversion c; subst;
     contradiction.
 Qed.
@@ -289,13 +199,10 @@ Lemma eq_leibniz : forall x y, eq x y -> x = y. Proof. auto. Qed.
 Lemma shift_zero_refl : forall (lb : nat) (t : t), shift lb 0 t = t.
 Proof.
   intros lb t; induction t; simpl; f_equal; auto.
-  - apply Typ.shift_zero_refl.
-  - apply Typ.shift_zero_refl.
-  - apply Resource.shift_zero_refl.
+  apply Resource.shift_zero_refl.
 Qed.
 
-#[export] Instance shift_eq : 
-  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
+#[export] Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
 
 Lemma shift_eq_iff : forall lb k t t1,
   t = t1 <-> (shift lb k t) = (shift lb k t1).
@@ -304,27 +211,21 @@ Proof.
   - intros; now subst.
   - revert lb k t1; induction t0; intros lb k t' Heq; destruct t'; 
     simpl in *; try (now inversion Heq); try (inversion Heq;f_equal; eauto).
-    -- eapply Typ.shift_eq_iff; eauto.
-    -- eapply Typ.shift_eq_iff; eauto.
-    -- eapply Resource.shift_eq_iff; eauto.
+    eapply Resource.shift_eq_iff; eauto.
 Qed.
 
 Lemma shift_trans : forall lb k k' t,
   shift lb k (shift lb k' t) = shift lb (k + k') t.
 Proof.
   intros lb k k' t; induction t; simpl; f_equal; auto.
-  - apply Typ.shift_trans.
-  - apply Typ.shift_trans.
-  - apply Resource.shift_trans.
+  apply Resource.shift_trans.
 Qed.
 
 Lemma shift_permute : forall lb k k' t,
   shift lb k (shift lb k' t) = shift lb k' (shift lb k t).
 Proof.
   intros lb k k' t; induction t; simpl; f_equal; auto.
-  - apply Typ.shift_permute.
-  - apply Typ.shift_permute.
-  - apply Resource.shift_permute.
+  apply Resource.shift_permute.
 Qed.
 
 Lemma shift_not_fix_iff : forall t lb k,
@@ -372,18 +273,14 @@ Lemma shift_permute_1 : forall t lb k k',
   eq (shift lb k (shift lb k' t)) (shift (lb + k) k' (shift lb k t)).
 Proof.
   unfold eq; intro t; induction t; simpl; intros lb k k'; f_equal; auto.
-  - apply Typ.shift_permute_1.
-  - apply Typ.shift_permute_1.
-  - apply Resource.shift_permute_1.
+  apply Resource.shift_permute_1.
 Qed.
 
 Lemma shift_permute_2 : forall lb lb' k k' t,
   lb <= lb' -> eq (shift lb k (shift lb' k' t)) (shift (lb' + k) k' (shift lb k t)).
 Proof.
   unfold eq; intros lb lb' k k' t; induction t; simpl; intros; f_equal; auto.
-  - now apply Typ.shift_permute_2.
-  - now apply Typ.shift_permute_2.
-  - now apply Resource.shift_permute_2.
+  now apply Resource.shift_permute_2.
 Qed.
 
 Lemma shift_unfold : forall lb k k' t,
@@ -392,9 +289,7 @@ Proof.
     intros lb k k' t; induction t; simpl; auto;
     try (rewrite IHt1; rewrite IHt2; now reflexivity);
     try (rewrite IHt; now reflexivity).
-    - rewrite Typ.shift_unfold; now rewrite IHt.
-    - rewrite Typ.shift_unfold; now rewrite IHt.
-    - now rewrite Resource.shift_unfold.
+    now rewrite Resource.shift_unfold.
 Qed.
 
 Lemma shift_unfold_1 : forall k k' k'' t,
@@ -404,45 +299,18 @@ Proof.
     intros k k' k'' t Hlt Hlt'; induction t; simpl; auto;
     try (rewrite IHt1; rewrite IHt2; now reflexivity);
     try (rewrite IHt; now reflexivity).
-    - rewrite Typ.shift_unfold_1; auto; now rewrite IHt.
-    - rewrite Typ.shift_unfold_1; auto; now rewrite IHt.
-    - now rewrite Resource.shift_unfold_1.
+    now rewrite Resource.shift_unfold_1.
 Qed.
 
 (** *** Valid *)
 
-Lemma validb_valid : forall k t, validb k t = true <-> valid k t.
-Proof.
-  split.
-  - revert k; induction t0; simpl; intros k H; constructor;
-    try (repeat rewrite andb_true_iff in *; destruct H;
-          fold valid; now auto); 
-    try (repeat rewrite andb_true_iff in *; destruct H; now rewrite <- Typ.validb_valid);
-    now rewrite <- Resource.validb_valid.
-  - revert k; induction t0; simpl; intros k H; auto; inversion H; subst;
-    fold valid in *; auto; try (rewrite andb_true_iff; split; auto);
-    try (now rewrite Typ.validb_valid); now rewrite Resource.validb_valid.
-Qed.
 
-Lemma validb_nvalid : forall k t, validb k t = false <-> ~ valid k t.
-Proof.
-  intros; rewrite <- not_true_iff_false; split; intros; intro.
-  - apply H; now rewrite validb_valid. 
-  - apply H; now rewrite <- validb_valid.
-Qed.
-
-#[export] Instance valid_eq : 
-  Proper (Logic.eq ==> eq ==> iff) valid := _.
-
-#[export] Instance validb_eq : 
-  Proper (Logic.eq ==> eq ==> Logic.eq) validb := _.
+#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid := _.
 
 Lemma valid_weakening : forall k k' t, (k <= k') -> valid k t -> valid k' t.
 Proof.
     unfold valid; intros k k' t; generalize k k'; clear k k'; induction t; 
     intros k k'; simpl; auto; intros Hlt Hv; try (inversion Hv; subst; now eauto).
-    - inversion Hv; subst; apply vΛ_abs; eauto; eapply Typ.valid_weakening; eauto.
-    - inversion Hv; subst; apply vΛ_first; eauto; eapply Typ.valid_weakening; eauto.
     - inversion Hv; subst; constructor; eapply Resource.valid_weakening; eauto.
     - inversion Hv; subst; apply vΛ_wh.
     -- eapply IHt1; eauto.
@@ -454,8 +322,6 @@ Theorem shift_preserves_valid_1 : forall lb k k' t,
 Proof.
     unfold valid; intros lb k k' t; revert lb k k'; induction t; intros lb k k' Hvt; 
     inversion Hvt; subst; simpl; auto.
-    - constructor; auto; now apply Typ.shift_preserves_valid_1.
-    - constructor; auto; now apply Typ.shift_preserves_valid_1.
     - constructor; now apply Resource.shift_preserves_valid_1.
     - apply vΛ_wh; auto. replace (S (S (k + k'))) with ((S (S k)) + k'); auto; lia.
 Qed.
@@ -478,8 +344,6 @@ Proof.
     intros lb lb' k k' t; revert k k' lb lb'; induction t; intros; simpl; inversion H4; subst; 
     constructor; eauto; try (apply IHt1 with lb; now auto);
     try (apply IHt2 with lb; now auto); try (apply IHt with lb; now auto).
-    - apply Typ.shift_preserves_valid_gen with lb; auto.
-    - apply Typ.shift_preserves_valid_gen with lb; auto.
     - apply Resource.shift_preserves_valid_gen with lb; auto.
     - apply IHt2 with (lb := S (S lb)); auto; lia.
 Qed.
@@ -610,8 +474,8 @@ Proof.
     -- simpl. rewrite IHlbs. now simpl.
 Qed.
 
-Lemma multi_shift_abs lbs ks : forall x τ t1,
-  multi_shift lbs ks (tm_abs x τ t1) = tm_abs x <[[⧐⧐ lbs – ks]  τ]> (multi_shift lbs ks t1).
+Lemma multi_shift_abs lbs ks : forall x t1,
+  multi_shift lbs ks (tm_abs x t1) = tm_abs x (multi_shift lbs ks t1).
 Proof. 
   unfold multi_shift. revert ks.
   induction lbs.
@@ -621,8 +485,8 @@ Proof.
     -- simpl. rewrite IHlbs. now simpl.
 Qed.
 
-Lemma multi_shift_first lbs ks : forall τ t1,
-  multi_shift lbs ks (tm_first τ t1) = tm_first <[[⧐⧐ lbs – ks]  τ]> (multi_shift lbs ks t1).
+Lemma multi_shift_first lbs ks : forall t1,
+  multi_shift lbs ks (tm_first t1) = tm_first (multi_shift lbs ks t1).
 Proof. 
   unfold multi_shift. revert ks.
   induction lbs.
@@ -672,18 +536,25 @@ Qed.
 
 End Term.
 
+(** ---- *)
+
+(** * Syntax - Optional Term *)
+
+(** ** Module - Optional Term *)
 Module OptTerm <: IsLvlETWL := IsLvlOptETWL Term.
 
-(** * Notation - Term *)
+(** ---- *)
+
+(** ** Notation - Term *)
 Module TermNotations.
 
-(** ** Scope *)
+(** *** Scope *)
 Declare Scope term_scope.
 Declare Scope opt_term_scope.
 Delimit Scope term_scope with tm.
 Delimit Scope opt_term_scope with otm.
 
-(** ** Notations *)
+(** *** Notation *)
 Definition Λ := Term.t.
 Definition Λₒ := OptTerm.t.
 
@@ -693,9 +564,8 @@ Notation "cl( t )" := (Term.closed t) (at level 20, no associativity).
 Notation "'isFV(' r ',' t ')'" := (Term.appears_free_in r t) (at level 40, t custom wh).
 
 Notation "x y"     := (Term.tm_app x y) (in custom wh at level 70, left associativity).
-Notation "\ x : t , y" := (Term.tm_abs x t y) (in custom wh at level 90, 
-                                                    x at level 99, t custom wh at level 99, 
-                                                    y custom wh at level 99, 
+Notation "\ x , y" := (Term.tm_abs x y) (in custom wh at level 90, 
+                                                    x at level 99, y custom wh at level 99, 
                                                     left associativity).
 Notation "'unit'" := (Term.tm_unit) (in custom wh at level 0).
 Notation "'Fix'" := (Term.tm_fix) (in custom wh at level 0).
@@ -707,7 +577,7 @@ Notation "t '.snd'"  := (Term.tm_snd t) (in custom wh at level 0).
 Notation "'arr(' f ')'"    := (Term.tm_arr f) (in custom wh at level 0, 
                                                       f custom wh at level 99,
                                                       no associativity).
-Notation "'first(' τ ':' sf ')'" := (Term.tm_first τ sf) (in custom wh at level 0).
+Notation "'first(' sf ')'" := (Term.tm_first sf) (in custom wh at level 0).
 Notation " sf1 '>>>' sf2 " := (Term.tm_comp sf1 sf2) (in custom wh at level 60, 
                                                                           left associativity).
 Notation "'rsf[' r ']'"    := (Term.tm_rsf r) (in custom wh at level 0,  
@@ -726,14 +596,12 @@ Notation "'[⧐' lb '–' k ']' t" := (OptTerm.shift lb k t)
 
 Infix "⊩"  := Term.valid (at level 20, no associativity) : term_scope.   
 Infix "⊩" := OptTerm.valid (at level 20, no associativity) : opt_term_scope.   
-Infix "⊩?" := Term.validb (at level 20, no associativity) : term_scope. 
 
 Infix "="  := Term.eq : term_scope.
-Infix "=?" := Term.eqb  (at level 70) : term_scope.
 Infix "="  := OptTerm.eq : opt_term_scope.
 
 
-(** ** Morphism *)
+(** *** Morphism *)
 #[export] Instance term_leibniz_eq : Proper Logic.eq Term.eq := _.
 
 End TermNotations.

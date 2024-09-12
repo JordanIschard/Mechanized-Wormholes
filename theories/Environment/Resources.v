@@ -1,34 +1,35 @@
-From Coq Require Import Lia PeanoNat Classes.Morphisms.
+From Coq Require Import Lia Classes.Morphisms.
 From Mecha Require Import Resource.
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
+Import ResourceNotations.
 
 (** * Environment - Resources
 
-  Wormholes types contains a "reactive" arrow that carries a set of resources used
-  by the signal function. We define a set of resource directly via the [Levels] 
-  implementation contained in the library.
+  Wormholes types contains a signal function arrow that carries a set of resources used by the signal function during the functional transition. We define a set of resource directly via the [Levels] contained in [DeBrLevel] library. The set module is based on [MSet].
 *)
+
+(** ** Module - Resources *)
 Module Resources <: IsBdlLvlFullOTWL.
+
+(** *** Definition *)
 
 Include Levels.
 Import St.
 
-(** ** Multi shift 
+(** **** Multi shift 
 
-During the functional transition, defined in [FT_Definition], the signal function is updated multiple 
-times with different lower bound and shift value. Thus, we define a [multi_shift] function that applies
-[n] shifts for two lists [lbs] and [ks] of length [n].
-
+  As said in [Resource.v], the proof of progress of the functional transition requires multiple
+  shift with different well-formedness level and shifts. Thus we also define [multi_shift] here. 
 *)
-Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
-  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
+  List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
 
-(** ** [valid] property *)
+(** *** Property *)
 
-Lemma valid_in_spec_1 : forall (s : t) lb k r,
+Lemma valid_in_spec_1 (lb k r : lvl) (s : t):
   valid lb s -> In r (shift lb k s) <-> In r s.
 Proof.
-  intro s. induction s using set_induction; intros lb k r Hv; split.
+  induction s using set_induction; intro Hv; split.
   - intro HIn; rewrite shift_Empty_spec in *; auto; inversion HIn.
   - intro HIn; unfold Empty in *; exfalso; now apply (H r).
   - intro HIn; apply Add_inv in H0; subst. rewrite shift_add_notin_spec in *; auto.
@@ -41,7 +42,7 @@ Proof.
     -- rewrite add_spec; right. rewrite IHs1; eauto.
 Qed.
 
-Lemma valid_wh_spec : forall s lb,
+Lemma valid_wh_spec (lb : lvl) (s : t):
   valid (S (S lb)) s -> valid lb (diff s (add lb (add (S lb) empty))).
 Proof.
   intros; rewrite valid_unfold in *; unfold For_all in *; 
@@ -53,15 +54,16 @@ Qed.
 
 End Resources.
 
+(** ---- *)
 
-(** * Notation - Set *)
+(** ** Notation - Set *)
 Module SetNotations.
 
-(** ** Scope *)
+(** *** Scope *)
 Declare Scope set_scope.
 Delimit Scope set_scope with s.
 
-(** ** Notations *)
+(** *** Notation *)
 
 Notation "∅" := (Resources.St.empty) : set_scope.
 Notation "'\{{' x '}}'" := (Resources.St.singleton x).
@@ -81,15 +83,17 @@ Infix "=?" := Resources.St.equal (at level 70) : set_scope.
 
 End SetNotations.
 
-(** * Notation - Resources *)
+(** ---- *)
+
+(** ** Notation - Resources *)
 Module ResourcesNotations.
 
-(** ** Scope *)
+(** *** Scope *)
 Declare Scope resources_scope.
 Delimit Scope resources_scope with rs.
 
 
-(** ** Notations *)
+(** *** Notation *)
 Definition resources := Resources.t.
 
 Infix "⊩" := Resources.valid (at level 20, no associativity) : resources_scope. 
@@ -98,7 +102,7 @@ Notation "'[⧐' lb '–' k ']' t" := (Resources.shift lb k t) (at level 65, rig
 Notation "'[⧐⧐' lb '–' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity) : resources_scope.
 
 
-(** ** Morphism *)
+(** *** Morphism *)
 #[export] Instance resources_leibniz_eq : Proper Logic.eq Resources.eq := _.
 
 End ResourcesNotations.
