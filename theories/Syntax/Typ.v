@@ -1,5 +1,5 @@
-From Coq Require Import Classes.Morphisms Bool.Bool Classical_Prop.
-From DeBrLevel Require Import LevelInterface PairLevel.
+From Coq Require Import Classes.Morphisms.
+From DeBrLevel Require Import LevelInterface Level PairLevel.
 From Mecha Require Import Resource Resources.
 Import ResourceNotations ResourcesNotations SetNotations.
 
@@ -35,9 +35,9 @@ Definition eq := @Logic.eq t.
 
 (** **** Shift function 
 
-  The shift function impacts only the set of used resources. It takes a type goes through all sub-terms and applies the shift function defined for sets, in [Levels], on all used resource sets encountered.
+  The shift function impacts only the set of used resources. It takes a type goes through all sub-terms and applies the shift function defined for sets, in [Levels], on all used resource sets encountered. It is denoted [[⧐ _ – _] _].
 *)
-Fixpoint shift (lb : Lvl.t) (k : Lvl.t) (α : t) : t := 
+Fixpoint shift (lb : lvl) (k : lvl) (α : t) : t := 
   match α with
     | ty_arrow t1 t2 => ty_arrow (shift lb k t1) (shift lb k t2)    
     | ty_prod  t1 t2 => ty_prod  (shift lb k t1) (shift lb k t2)    
@@ -54,17 +54,18 @@ Definition multi_shift (lbs : list lvl) (ks : list lvl) (α : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) α (List.combine lbs ks).
 
 
-(** **** Valid function
+(** **** Valid property
 
-  The well-formed property, named [valid], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Recall that a resource name [r] is well-formed under [k] if [r < k] and a resource set [s] is well-formed under [k] if all
+  The well-formed property, named [valid] and denoted [(⊩)], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Recall that a resource name [r] is well-formed under [k] if [r < k] and a resource set [s] is well-formed under [k] if all
   [r] in [s] are well-formed under [k].
 *)
-Inductive valid' : Lvl.t -> t -> Prop :=
+Inductive valid' : lvl -> t -> Prop :=
   | vΤ_unit (k : lvl): valid' k ty_unit
   | vΤ_prod (k : lvl) (α β : t): valid' k α -> valid' k β -> valid' k (ty_prod α β)
   | vΤ_func (k : lvl) (α β : t): valid' k α -> valid' k β -> valid' k (ty_arrow α β)
   | vΤ_reac (k : lvl) (α β : t) (R : resources): 
-                   valid' k α -> valid' k β -> k ⊩ R -> valid' k (ty_reactive α β R).
+                   valid' k α -> valid' k β -> k ⊩ R -> valid' k (ty_reactive α β R)
+.
 
 Definition valid := valid'.
 
@@ -266,6 +267,11 @@ Infix "⊩"  := PairTyp.valid (at level 20, no associativity) : ptyp_scope.
 Infix "="  := Typ.eq : typ_scope.
 
 (** *** Morphism *)
+Import Typ.
+
 #[export] Instance typ_leibniz_eq : Proper Logic.eq Typ.eq := _.
+#[export] Instance typ_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
+#[export] Instance typ_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+#[export] Instance typ_multi_shift_proper : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
 
 End TypNotations.

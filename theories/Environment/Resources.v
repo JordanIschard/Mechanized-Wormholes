@@ -26,6 +26,17 @@ Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
 
 (** *** Property *)
 
+(** **** [multi_shift] property *)
+
+#[export] Instance multi_shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift.
+Proof.
+  intros lbs' lbs Heqlbs ks' ks Heqks r1 r2 Heqr; subst.
+  unfold eq in Heqr; apply eq_leibniz in Heqr. 
+  now rewrite Heqr.
+Qed.
+
+(** **** [valid] extra property *)
+
 Lemma valid_in_spec_1 (lb k r : lvl) (s : t):
   valid lb s -> In r (shift lb k s) <-> In r s.
 Proof.
@@ -103,6 +114,11 @@ Notation "'[⧐⧐' lb '–' k ']' t" := (Resources.multi_shift lb k t) (at leve
 
 
 (** *** Morphism *)
-#[export] Instance resources_leibniz_eq : Proper Logic.eq Resources.eq := _.
+Import Resources.
+
+#[export] Instance resources_leibniz_eq : Proper Logic.eq eq := _.
+#[export] Instance resources_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
+#[export] Instance resources_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+#[export] Instance resources_multi_shift_proper : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
 
 End ResourcesNotations.
