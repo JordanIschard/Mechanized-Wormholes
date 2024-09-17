@@ -1,4 +1,4 @@
-From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
+(* From Coq Require Import Lia Arith.PeanoNat Classical_Prop.
 From Mecha Require Import Resource Resources Term REnvironment Cell ReadStock.
 From DeBrLevel Require Import LevelInterface MapExt PairLevel.
 From MMaps Require Import MMaps.
@@ -7,19 +7,17 @@ Import ResourceNotations TermNotations CellNotations REnvironmentNotations
 
 (** * Environment - Virtual Resource Environment
 
-  W, defined in [Stock.v], is in charge of keeping bound resources
-  and initial terms of each removed wh term. In the original paper,
-  W is a set of triplets, which can be cumbersome to treat. We decide
-  to split W into two data structures: a map and a set. 
-
+   In the functional transition there are two kind of environment: the resource environment and the stock. The former, defined in [REnvironment.v], represents the local memory during an instant. The latter, defined here, keeps local resource names with their initial value. This environment is split into a map, defined in [ReadStock.v], which maps local resource names, used for a reading interaction, to terms, and a set which keeps 'writing' local resource names.   
 *)
+
+(** ** Module - Virtual Resource Environment *)
 Module Stock <: IsLvlET.
 
 Include IsLvlPairET ReadStock Resources.
 Open Scope resources_scope.
 Open Scope set_scope.
 
-(** ** Definition *)
+(** *** Definition *)
 
 Definition get_r (t : Stock.t) : 𝐖ᵣ := fst t.
 Definition get_w (t : Stock.t) : resources := snd t.
@@ -48,7 +46,7 @@ Definition find (r : resource) (W : Stock.t) := (fst W) ⌊r⌋%rk.
 
 Definition halts k st := ReadStock.halts k (get_r st).
 
-(** ** [env_from_stock] property *)
+(** *** [env_from_stock] property *)
 
 Lemma env_from_stock_unused : forall sk V,
   REnvironment.For_all (fun _ v => Cell.unused v) V ->
@@ -291,13 +289,17 @@ Qed.
 
 End Stock.
 
+(** ---- *)
+
+(** ** Notation - Virtual Resource Environment *)
+
 Module StockNotations.
 
-(** ** Scope *)
+(** *** Scope *)
 Declare Scope stock_scope.
 Delimit Scope stock_scope with sk.
 
-(** ** Notations *)
+(** *** Notation *)
 Definition 𝐖 := Stock.t.
 
 Infix "∈" := Stock.In (at level 60, no associativity) : stock_scope. 
@@ -314,7 +316,7 @@ Notation "'[⧐' lb '–' k ']' t" := (Stock.shift lb k t) (at level 65,
                                                                 right associativity) : stock_scope.
 Infix "⊩" := Stock.valid (at level 20, no associativity) : stock_scope.
 
-(** ** Morphisms *)
+(** *** Morphism *)
 
 Import Stock.
 
@@ -324,4 +326,4 @@ Import Stock.
 #[export] Instance add_stk : 
   Proper (Resource.eq ==> Resource.eq ==> Term.eq ==> eq ==> eq) add := _.
 
-End StockNotations.
+End StockNotations. *)

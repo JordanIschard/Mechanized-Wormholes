@@ -54,13 +54,13 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
          Γ ⋅ Re ⊢ t ∈ (α × β) -> 
     (* --------------------------- WT-Fst *)
-          Γ ⋅ Re ⊢ t.fst ∈ α
+          Γ ⋅ Re ⊢ (fst.t) ∈ α
 
   | wt_snd (Γ : Γ) (Re : ℜ) (t : Λ) (α β : Τ) :
 
         Γ ⋅ Re ⊢ t ∈ (α × β) -> 
     (* --------------------------- WT-Snd *)
-          Γ ⋅ Re ⊢ t.snd ∈ β
+          Γ ⋅ Re ⊢ (snd.t) ∈ β
 
   | wt_fix (Γ : Γ) (Re : ℜ) (t : Λ) (τ : Τ) :
 
@@ -93,14 +93,14 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
     (* -------------------------------------------- WT-Rsf *)
          Γ ⋅ Re ⊢ rsf[r] ∈ (τin ⟿ τout ∣ \{{r}})
 
-  | wt_wh (Γ : Γ) (Re : ℜ) (R R' : resources) (i t : Λ) (α β τ : Τ) :
+  | wt_wh (Γ : Γ) (Re : ℜ) (R R' : resources) (t1 t2 : Λ) (α β τ : Τ) :
 
          (R = R' \ \{{ Re⁺; (S (Re⁺)) }})%rs -> (Re⁺ ⊩ α)%ty -> (Re⁺ ⊩ β)%ty ->
 
-         Γ ⋅ Re ⊢ i ∈ τ ->
-         Γ ⋅ (⌈(S (Re⁺)) ⤆ (τ,<[𝟙]>)⌉ (⌈Re⁺ ⤆ (<[𝟙]>,τ)⌉ Re)) ⊢ t ∈ (α ⟿ β ∣ R') ->
+         Γ ⋅ Re ⊢ t1 ∈ τ ->
+         Γ ⋅ (⌈(S (Re⁺)) ⤆ (τ,<[𝟙]>)⌉ (⌈Re⁺ ⤆ (<[𝟙]>,τ)⌉ Re)) ⊢ t2 ∈ (α ⟿ β ∣ R') ->
     (* -------------------------------------------------------------------------------- WT-Wh *)
-                          Γ ⋅ Re ⊢ wormhole(i;t) ∈ (α ⟿ β ∣ R)
+                          Γ ⋅ Re ⊢ wormhole(t1;t2) ∈ (α ⟿ β ∣ R)
 
 where "G '⋅' R '⊢' t '∈' T" := (well_typed G R t T).
 
@@ -256,7 +256,7 @@ Proof.
     -- assert (Re⁺ <= Re1⁺).
        { 
          apply RC.Ext.new_key_Submap_spec in Hsub. 
-         now rewrite <- RC.shift_new_key_le in Hsub.
+         now rewrite <- RC.shift_new_key_le_spec in Hsub.
        }
        apply (Typ.shift_preserves_valid_gen (Re⁺)); auto; lia. 
   (* application *)
@@ -270,7 +270,7 @@ Proof.
     assert (Re⁺ <= Re1⁺).
     { 
       apply RC.Ext.new_key_Submap_spec in Hsub. 
-      now rewrite <- RC.shift_new_key_le in Hsub.
+      now rewrite <- RC.shift_new_key_le_spec in Hsub.
     }
     apply Typ.shift_preserves_valid_gen with (Re⁺); auto; lia.
   (* comp *)
@@ -287,7 +287,7 @@ Proof.
   - assert (Hle1 : Re⁺ <= Re1⁺). 
     { 
       apply RC.Ext.new_key_Submap_spec in Hsub. 
-      now rewrite <- RC.shift_new_key_le in Hsub.
+      now rewrite <- RC.shift_new_key_le_spec in Hsub.
     }
     eapply wt_wh with (τ := <[[⧐ n – {m - n}] τ]>) (R' := ([⧐ n – m - n] R')%rs); auto.
     -- rewrite H; rewrite Resources.shift_diff_spec.

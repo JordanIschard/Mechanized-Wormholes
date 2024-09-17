@@ -44,7 +44,7 @@ Definition eq := @eq t.
 
   The [shift] function takes a lower bound [lb] a natural [k] and a term [t], and produces a term [t'] where all resources [r] greater or equal to [lb] in [t] are incremented by [k]. The others are left unchanged. It is denoted [[⧐ lb – k] t].
 *)
-Fixpoint shift (lb : lvl) (k : lvl) (e : t) : t := 
+Fixpoint shift (lb k : lvl) (e : t) : t := 
   match e with
   | tm_rsf r => tm_rsf ([⧐ lb – k] r)
 
@@ -470,8 +470,8 @@ Notation "⟨ t1 ',' t2 ⟩" := (Term.tm_pair t1 t2)
                            t2 custom wh at level 99).
 
 Notation "'Fix' t"   := (Term.tm_fix t) (in custom wh at level 0).
-Notation "t '.fst'"  := (Term.tm_fst t) (in custom wh at level 0).
-Notation "t '.snd'"  := (Term.tm_snd t) (in custom wh at level 0).
+Notation "'fst.' t"  := (Term.tm_fst t) (in custom wh at level 0).
+Notation "'snd.' t"  := (Term.tm_snd t) (in custom wh at level 0).
 
 Notation "'rsf[' r ']'" := (Term.tm_rsf r) (in custom wh at level 0, r constr, no associativity).
 

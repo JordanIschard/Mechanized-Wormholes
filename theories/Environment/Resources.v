@@ -1,5 +1,5 @@
 From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Resource.
+From Mecha Require Import Resource OverlaySet.
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
 Import ResourceNotations.
 
@@ -13,7 +13,7 @@ Module Resources <: IsBdlLvlFullOTWL.
 
 (** *** Definition *)
 
-Include Levels.
+Include OverlaySet.
 Import St.
 
 (** **** Multi shift 
@@ -35,23 +35,7 @@ Proof.
   now rewrite Heqr.
 Qed.
 
-(** **** [valid] extra property *)
-
-Lemma valid_in_spec_1 (lb k r : lvl) (s : t):
-  valid lb s -> In r (shift lb k s) <-> In r s.
-Proof.
-  induction s using set_induction; intro Hv; split.
-  - intro HIn; rewrite shift_Empty_spec in *; auto; inversion HIn.
-  - intro HIn; unfold Empty in *; exfalso; now apply (H r).
-  - intro HIn; apply Add_inv in H0; subst. rewrite shift_add_notin_spec in *; auto.
-    apply valid_add_spec in Hv as [Hvr Hv]. rewrite add_spec in HIn; destruct HIn; subst.
-    -- rewrite Resource.shift_valid_refl; auto; rewrite add_spec; now left.
-    -- rewrite add_spec; right. rewrite <- IHs1; eauto.
-  - intro HIn; apply Add_inv in H0; subst. rewrite shift_add_notin_spec in *; auto.
-    apply valid_add_spec in Hv as [Hvr Hv]. rewrite add_spec in HIn; destruct HIn; subst.
-    -- rewrite Resource.shift_valid_refl; auto; rewrite add_spec; now left.
-    -- rewrite add_spec; right. rewrite IHs1; eauto.
-Qed.
+(** **** [valid] Wormholes specification *)
 
 Lemma valid_wh_spec (lb : lvl) (s : t):
   valid (S (S lb)) s -> valid lb (diff s (add lb (add (S lb) empty))).
@@ -108,7 +92,6 @@ Delimit Scope resources_scope with rs.
 Definition resources := Resources.t.
 
 Infix "⊩" := Resources.valid (at level 20, no associativity) : resources_scope. 
-Infix "⊩?" := Resources.validb (at level 20, no associativity) : resources_scope. 
 Notation "'[⧐' lb '–' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity) : resources_scope.
 Notation "'[⧐⧐' lb '–' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity) : resources_scope.
 
