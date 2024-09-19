@@ -22,6 +22,17 @@ Open Scope ptyp_scope.
 
 (** **** Wormholes specification *)
 
+
+Lemma Submap_wh_spec (m : t) (v v' : πΤ) :
+  Submap m (add (S (new_key m)) v (add (new_key m) v' m)).
+Proof.
+  repeat apply Submap_add_spec_1; try reflexivity.
+  - apply new_key_notin_spec.
+    rewrite new_key_add_ge_spec; auto.
+    apply new_key_notin_spec; lia.
+  - apply new_key_notin_spec; lia. 
+Qed.
+
 Lemma new_key_wh_spec (m : t) (v v' : πΤ) :
   new_key (add (S (new_key m)) v (add (new_key m) v' m)) = S (S (new_key m)).
 Proof.
@@ -52,6 +63,15 @@ Proof.
          ++ apply PairTyp.valid_weakening with (k := new_key m); auto.
          ++ apply PairTyp.valid_weakening with (k := new_key m); auto.
          ++ apply valid_weakening with (k := new_key m); auto.
+Qed.
+
+Lemma valid_wh_full_spec (m : t) (v v' : πΤ) :
+  valid (new_key m) m -> (new_key m) ⊩ v -> (new_key m) ⊩ v' -> 
+  valid (new_key (add (S (new_key m)) v (add (new_key m) v' m)))
+        (add (S (new_key m)) v (add (new_key m) v' m)).
+Proof.
+  intros Hvm Hvv Hvv'.
+  rewrite new_key_wh_spec; now apply valid_wh_spec.
 Qed.
 
 (** **** Morphism *)

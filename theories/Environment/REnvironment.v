@@ -29,9 +29,9 @@ Module RS := Resources.St.
 
   For each instant, local resource names that represent a writing interaction have their memory cells initialized as unused with a [unit] term. This function takes a resource set [rs] and an environement [V] and produces an environment where all resource names in [rs] are initialized.
 *)
-Definition init_write_func (r : resource) (V : t) : t := add r (⩽ unit … ⩾) V.
+Definition init_writers_func (r : resource) (V : t) : t := add r (⩽ unit … ⩾) V.
 
-Definition init_write (rs : resources) (V : t) := RS.fold (init_write_func) rs V.
+Definition init_writers (rs : resources) (V : t) := RS.fold (init_writers_func) rs V.
 
 (** **** Halts 
 
@@ -133,63 +133,63 @@ Lemma used_add_neq_spec (r r' : resource) (v : 𝑣) (V : t) :
   r <> r' -> (used r V) -> (used r (add r' v V)).
 Proof. unfold used, Cell.opt_used; intro Husd; rewrite add_neq_o; auto. Qed.
 
-(** **** [init_write] property *)
+(** **** [init_writers] property *)
 
 
-#[export] Instance init_write_func_proper : Proper (Logic.eq ==> eq ==> eq) init_write_func.
+#[export] Instance init_writers_func_proper : Proper (Logic.eq ==> eq ==> eq) init_writers_func.
 Proof. 
-  unfold init_write_func; intros k' k Heqk V V' HeqV. 
+  unfold init_writers_func; intros k' k Heqk V V' HeqV. 
   subst; now rewrite HeqV. 
 Qed.
 
-Lemma init_write_func_transpose : transpose eq init_write_func.
+Lemma init_writers_func_transpose : transpose eq init_writers_func.
 Proof. 
-  unfold init_write_func; intros k k' V. 
+  unfold init_writers_func; intros k k' V. 
   destruct (Resource.eq_dec k k') as [Heq | Hneq]; subst.
   - reflexivity.
   - now rewrite add_add_2; auto.
 Qed.
 
-#[local] Hint Resolve init_write_func_proper init_write_func_transpose : core.
+#[local] Hint Resolve init_writers_func_proper init_writers_func_transpose : core.
 
-Lemma init_write_Empty_spec (rs : resources) (V : t) :
-  RS.Empty rs -> eq (init_write rs V) V.
+Lemma init_writers_Empty_spec (rs : resources) (V : t) :
+  RS.Empty rs -> eq (init_writers rs V) V.
 Proof.
-  intro Hemp; unfold init_write.
+  intro Hemp; unfold init_writers.
   apply RS.empty_is_empty_1 in Hemp.
   rewrite RS.fold_equal with (eqA := eq); eauto.
   now rewrite RS.fold_empty.
 Qed.
 
-Lemma init_write_add_spec (r : resource) (rs : resources) (V : t) :
+Lemma init_writers_add_spec (r : resource) (rs : resources) (V : t) :
   (r ∉ rs)%s ->
-  eq (init_write (RS.add r rs) V) (add r (⩽ unit … ⩾) (init_write rs V)). 
+  eq (init_writers (RS.add r rs) V) (add r (⩽ unit … ⩾) (init_writers rs V)). 
 Proof.
-  unfold init_write; intro HnIn.
+  unfold init_writers; intro HnIn.
   now rewrite RS.fold_add with (eqA := eq); auto.
 Qed.
 
-Lemma init_write_unused (rs : resources) (V : t) (r : resource) :
-  (r ∈ rs)%s -> unused r (init_write rs V).
+Lemma init_writers_unused (rs : resources) (V : t) (r : resource) :
+  (r ∈ rs)%s -> unused r (init_writers rs V).
 Proof.
   revert r; induction rs using RS.set_induction; intros r HIn.
   - unfold RS.Empty in H. 
     exfalso; now apply (H r).
   - apply RS.Add_inv in H0; subst.
-    rewrite init_write_add_spec; auto.
+    rewrite init_writers_add_spec; auto.
     apply RS.add_spec in HIn as [Heq | HIn]; subst. 
     -- apply unused_add_eq_spec; now red.
     -- assert (r <> x) by (intro; subst; contradiction).
        apply unused_add_neq_spec; auto. 
 Qed.
 
-Lemma init_write_find_spec (rs : resources) (V : t) (r : resource) (v : 𝑣) :
-  find r (init_write rs V) = Some v -> (r ∈ rs)%s \/ find r V = Some v.
+Lemma init_writers_find_spec (rs : resources) (V : t) (r : resource) (v : 𝑣) :
+  find r (init_writers rs V) = Some v -> (r ∈ rs)%s \/ find r V = Some v.
 Proof.
   revert r v; induction rs using RS.set_induction; intros r v Hfi.
-  - rewrite init_write_Empty_spec in Hfi; auto.
+  - rewrite init_writers_Empty_spec in Hfi; auto.
   - apply RS.Add_inv in H0; subst.
-    rewrite init_write_add_spec in Hfi; auto.
+    rewrite init_writers_add_spec in Hfi; auto.
     destruct (Resource.eq_dec x r) as [Heq | Hneq]; subst.
     -- left; rewrite RS.add_spec; auto.
     -- rewrite add_neq_o in Hfi; auto.
@@ -197,40 +197,56 @@ Proof.
        left; rewrite RS.add_spec; auto.
 Qed.
 
-Lemma init_write_in_iff (rs : resources) (V : t) (r : resource) :
-  In r (init_write rs V) <-> (r ∈ rs)%s \/ In r V.
+Lemma init_writers_in_iff (rs : resources) (V : t) (r : resource) :
+  In r (init_writers rs V) <-> (r ∈ rs)%s \/ In r V.
 Proof.
   revert r; induction rs using RS.set_induction; intro r; split.
-  - intro HIn. rewrite init_write_Empty_spec in HIn; auto.
+  - intro HIn. rewrite init_writers_Empty_spec in HIn; auto.
   - intros [HIn | HIn].
     -- exfalso. now apply (H r).
-    -- now rewrite init_write_Empty_spec.
+    -- now rewrite init_writers_Empty_spec.
   - intro HIn; apply RS.Add_inv in H0; subst. 
-    rewrite init_write_add_spec in HIn; auto.
+    rewrite init_writers_add_spec in HIn; auto.
     apply add_in_iff in HIn as [Heq | HIn]; subst.
     -- left; rewrite RS.add_spec; auto.
     -- apply IHrs1 in HIn as [HIn | HIn]; auto.
        left; rewrite RS.add_spec; auto.
   - intros [HIn | HIn]; apply RS.Add_inv in H0; subst.
-    -- rewrite init_write_add_spec; auto.
+    -- rewrite init_writers_add_spec; auto.
        rewrite add_in_iff.
        apply RS.add_spec in HIn as [Heq | HIn]; auto.
        right; rewrite IHrs1; now left.
-    -- rewrite init_write_add_spec; auto.
+    -- rewrite init_writers_add_spec; auto.
        rewrite add_in_iff; right.
        rewrite IHrs1; now right. 
 Qed. 
        
-(* Lemma init_write_Forall_unused : forall rs V,
+(* Lemma init_writers_Forall_unused : forall rs V,
   For_all (fun _ v => Cell.unused v) V ->
-  For_all (fun _ v => Cell.unused v) (init_write rs V).
+  For_all (fun _ v => Cell.unused v) (init_writers rs V).
 Proof.
   unfold For_all in *; intros.
-  apply init_write_find_spec in H0 as H0'; destruct H0'; auto.
-  - eapply init_write_unused in H1; eauto.
+  apply init_writers_find_spec in H0 as H0'; destruct H0'; auto.
+  - eapply init_writers_unused in H1; eauto.
     destruct H1; rewrite H0 in H1; inversion H1. now simpl.
   - eapply H; eauto.
 Qed. *)
+
+
+(** *** [new_key] property *)
+
+Lemma new_key_wh_spec (v v' : 𝑣) (V : t) :
+  new_key (add (S (new_key V)) v 
+          (add (new_key V) (Cell.shift (new_key V) 2 v') 
+                           (shift (new_key V) 2 V))) = S (S (new_key V)).
+Proof.
+  repeat rewrite new_key_add_ge_spec; auto.
+  - apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
+    -- apply new_key_notin_spec; rewrite shift_new_spec; auto.
+    -- rewrite shift_new_spec; auto.
+  - apply new_key_notin_spec; rewrite shift_new_spec; auto.
+  - rewrite shift_new_spec; auto.
+Qed.
 
 
 (** *** [valid] property *)
@@ -254,6 +270,18 @@ Proof.
     -- rewrite shift_new_spec; auto.
 Qed.
 
+Lemma valid_wh_full_spec (v v' : 𝑣) (V : t) :
+  valid (new_key V) V -> ((new_key V) ⊩ v)%cl -> ((new_key V) ⊩ v')%cl -> 
+  valid (new_key 
+          ((add (S (new_key V)) v 
+          (add (new_key V) (Cell.shift (new_key V) 2 v') (shift (new_key V) 2 V))))) 
+        (add (S (new_key V)) v 
+        (add (new_key V) (Cell.shift (new_key V) 2 v') (shift (new_key V) 2 V))).
+Proof.
+  intros HvV Hvv Hvv'.
+  rewrite new_key_wh_spec; now apply valid_wh_spec.
+Qed.
+
 (** *** [halts] property *)
 
 Lemma halts_add_spec (k : lvl) (r : resource) (v : 𝑣) (V : t) :
@@ -267,13 +295,13 @@ Proof.
     now apply Hltm in Hfi.
 Qed.
 
-Lemma halts_init_write (k : lvl) (rs : resources) (V : t) :
-  halts k V -> halts k (init_write rs V).
+Lemma halts_init_writers (k : lvl) (rs : resources) (V : t) :
+  halts k V -> halts k (init_writers rs V).
 Proof.
   induction rs using Resources.St.set_induction; intro Hlt.
-  - now rewrite init_write_Empty_spec.
+  - now rewrite init_writers_Empty_spec.
   - apply RS.Add_inv in H0; subst.
-    rewrite init_write_add_spec; auto.
+    rewrite init_writers_add_spec; auto.
     apply halts_add_spec; split; auto.
     red; exists <[unit]>; split.
     -- apply ET.multi_unit.
@@ -297,22 +325,6 @@ Proof.
   intro Hlt; replace n with ((m + n) - m) at 2 by lia.
   apply halts_weakening; auto; lia.
 Qed.
-
-(** *** [new_key] property *)
-
-Lemma new_key_wh_spec (v v' : 𝑣) (V : t) :
-  new_key (add (S (new_key V)) v 
-          (add (new_key V) (Cell.shift (new_key V) 2 v') 
-                           (shift (new_key V) 2 V))) = S (S (new_key V)).
-Proof.
-  repeat rewrite new_key_add_ge_spec; auto.
-  - apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
-    -- apply new_key_notin_spec; rewrite shift_new_spec; auto.
-    -- rewrite shift_new_spec; auto.
-  - apply new_key_notin_spec; rewrite shift_new_spec; auto.
-  - rewrite shift_new_spec; auto.
-Qed.
-
 
 (** *** Morphism *)
 

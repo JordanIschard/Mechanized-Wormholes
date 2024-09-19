@@ -93,7 +93,7 @@ Proof.
        rewrite add_in_iff; intros [Hc | Hc]; subst; contradiction.
 Qed.
 
-Lemma valid_in_iff (m n k : Lvl.t) (d : Data.t) (o : t) :
+Lemma valid_in_iff (m n k : Lvl.t) (o : t) :
   valid m o -> In k (shift m n o) <-> In k o.
 Proof.
   revert k; induction o using map_induction; intros k Hvo; split; intro HIn.
@@ -238,16 +238,18 @@ Proof.
     now exists x.
 Qed.
 
-(* Lemma shift_find_spec_3 : forall lb k r V V',
-  (lb ⊩ r)%r -> In r V ->
-  find r V = find r V' -> find r (shift lb k V) = find r (shift lb k V').
+Lemma shift_find_spec_3 (m n k : Lvl.t) (o o' : t) :
+  Level.valid m k -> In k o ->
+  find k o = find k o' -> find k (shift m n o) = find k (shift m n o').
 Proof.
-  intros. destruct H0 as [v HfV]; apply find_1 in HfV.
-  apply shift_find_iff with (lb := lb) (k := k) in HfV as HfV1.
-  rewrite H1 in HfV. 
-  apply shift_find_iff with (lb := lb) (k := k) in HfV as HfV2.
-  rewrite Resource.shift_valid_refl in *; auto. now rewrite HfV1, HfV2. 
-Qed. *)
+  intros Hvk HIn Hfi. 
+  destruct HIn as [v HfV]; apply find_1 in HfV.
+  apply shift_find_iff with (lb := m) (k := n) in HfV as HfV1.
+  rewrite Hfi in HfV. 
+  apply shift_find_iff with (lb := m) (k := n) in HfV as HfV2.
+  rewrite Level.shift_valid_refl in *; auto. 
+  now rewrite HfV1, HfV2. 
+Qed.
 
 Lemma shift_find_e_spec_1 (m n k : Lvl.t) (d : Data.t) (o : t) :
   find k (shift m n o) = Some d -> 
