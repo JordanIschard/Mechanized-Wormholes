@@ -115,7 +115,7 @@ Qed.
 
 (** **** [shift] property *)
 
-Lemma shift_new_in_spec (k : Lvl.t) (o : t) :
+Lemma new_key_in_spec (k : Lvl.t) (o : t) :
   In k o ->  k < new_key o.
 Proof.
   revert k; induction o using map_induction; intros k HIn.

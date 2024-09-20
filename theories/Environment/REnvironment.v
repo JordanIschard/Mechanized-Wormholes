@@ -84,12 +84,64 @@ Proof.
 Qed.
 
 Lemma unused_add_eq_spec (r : resource) (v : 𝑣) (V : t) :
-  (Cell.unused v) -> (unused r (add r v V)).
-Proof. unfold unused, Cell.opt_unused; intro Husd; rewrite add_eq_o; auto. Qed.
+  (Cell.unused v) <-> (unused r (add r v V)).
+Proof. 
+  unfold unused, Cell.opt_unused; split; intro Husd.
+  - rewrite add_eq_o; auto.
+  - rewrite add_eq_o in Husd; auto. 
+Qed.
 
 Lemma unused_add_neq_spec (r r' : resource) (v : 𝑣) (V : t) :
-  r <> r' -> (unused r V) -> (unused r (add r' v V)).
-Proof. unfold unused, Cell.opt_unused; intro Husd; rewrite add_neq_o; auto. Qed.
+  r <> r' -> (unused r V) <-> (unused r (add r' v V)).
+Proof. 
+  unfold unused, Cell.opt_unused; split; intro Husd.
+  - rewrite add_neq_o; auto.
+  - rewrite add_neq_o in Husd; auto. 
+Qed.
+
+Lemma unused_find_e_spec (r : resource) (V : t) :
+  unused r V -> exists (v : Λ), Logic.eq (find r V) (Some (⩽v … ⩾)).
+Proof.
+  unfold unused; intro unsd.
+  destruct (find r V) eqn:Hfi; simpl in *; try contradiction.
+  destruct r0; simpl in *; try contradiction.
+  now exists λ.
+Qed.
+
+Lemma unused_find_iff (r : resource) (V V' : t) :
+  find r V = find r V' -> unused r V <-> unused r V'.
+Proof.
+  intro Hfi; unfold unused; destruct (find r V); 
+  rewrite <- Hfi; simpl; try (split; auto).
+Qed.
+
+Lemma unused_find_spec (r : resource) (v : Λ) (V : t) :
+  find r V = Some (⩽v … ⩾) -> unused r V.
+Proof. intro Hfi; unfold unused; rewrite Hfi; now simpl. Qed.
+
+Lemma unused_shift_valid_spec (m n : lvl) (r : resource) (V : t) : 
+  valid m V -> unused r (shift m n V) <-> unused r V.
+Proof.
+  intro HvV; split; intro Hunsd.
+  - apply unused_find_e_spec in Hunsd as [v Hfi].
+    apply shift_find_e_spec_1 in Hfi as HI.
+    destruct HI as [[r' Heqr] [v' Heqv]]; subst.
+    destruct v'; simpl in *; inversion Heqv; subst; clear Heqv.
+    replace (⩽ [⧐m – n] λ … ⩾) with (([⧐m – n] ⩽ λ … ⩾)) in Hfi by auto.
+    rewrite <- shift_find_iff in Hfi.
+    apply (valid_find_spec m) in Hfi as HI; auto.
+    destruct HI as [Hvr' _].
+    rewrite Resource.shift_valid_refl; auto.
+    now apply unused_find_spec in Hfi.
+  - apply unused_find_e_spec in Hunsd as [v Hfi].
+    apply (valid_find_spec m) in Hfi as HI; auto.
+    destruct HI as [Hvr' _].
+    rewrite <- (Resource.shift_valid_refl m n r); auto.
+    apply (unused_find_spec _ <[[⧐m – n] v]>).
+    replace (⩽ [⧐m – n] v … ⩾) with (([⧐m – n] ⩽ v … ⩾)) by auto.
+    now rewrite <- shift_find_iff.
+Qed.
+    
 
 #[export] Instance used_proper : Proper (Logic.eq ==> eq ==> iff) used.
 Proof.
@@ -126,12 +178,63 @@ Proof.
 Qed.
 
 Lemma used_add_eq_spec (r : resource) (v : 𝑣) (V : t) :
-  (Cell.used v) -> (used r (add r v V)).
-Proof. unfold used, Cell.opt_used; intro Husd; rewrite add_eq_o; auto. Qed.
+  (Cell.used v) <-> (used r (add r v V)).
+Proof. 
+  unfold used, Cell.opt_used; split; intro Husd.
+  - rewrite add_eq_o; auto.
+  - rewrite add_eq_o in Husd; auto. 
+Qed.
 
 Lemma used_add_neq_spec (r r' : resource) (v : 𝑣) (V : t) :
-  r <> r' -> (used r V) -> (used r (add r' v V)).
-Proof. unfold used, Cell.opt_used; intro Husd; rewrite add_neq_o; auto. Qed.
+  r <> r' -> (used r V) <-> (used r (add r' v V)).
+Proof. 
+  unfold used, Cell.opt_used; split; intro Husd.
+  - rewrite add_neq_o; auto.
+  - rewrite add_neq_o in Husd; auto. 
+Qed.
+
+Lemma used_find_e_spec (r : resource) (V : t) :
+  used r V -> exists (v : Λ), Logic.eq (find r V) (Some (⩽… v⩾)).
+Proof.
+  unfold used; intro unsd.
+  destruct (find r V) eqn:Hfi; simpl in *; try contradiction.
+  destruct r0; simpl in *; try contradiction.
+  now exists λ.
+Qed.
+
+Lemma used_find_iff (r : resource) (V V' : t) :
+  find r V = find r V' -> used r V <-> used r V'.
+Proof.
+  intro Hfi; unfold used; destruct (find r V); 
+  rewrite <- Hfi; simpl; try (split; auto).
+Qed.
+
+Lemma used_find_spec (r : resource) (v : Λ) (V : t) :
+  find r V = Some (⩽… v⩾) -> used r V.
+Proof. intro Hfi; unfold used; rewrite Hfi; now simpl. Qed.
+
+Lemma used_shift_valid_spec (m n : lvl) (r : resource) (V : t) : 
+  valid m V -> used r (shift m n V) <-> used r V.
+Proof.
+  intro HvV; split; intro Hunsd.
+  - apply used_find_e_spec in Hunsd as [v Hfi].
+    apply shift_find_e_spec_1 in Hfi as HI.
+    destruct HI as [[r' Heqr] [v' Heqv]]; subst.
+    destruct v'; simpl in *; inversion Heqv; subst; clear Heqv.
+    replace (⩽…  [⧐m – n] λ⩾) with (([⧐m – n] ⩽…  λ⩾)) in Hfi by auto.
+    rewrite <- shift_find_iff in Hfi.
+    apply (valid_find_spec m) in Hfi as HI; auto.
+    destruct HI as [Hvr' _].
+    rewrite Resource.shift_valid_refl; auto.
+    now apply used_find_spec in Hfi.
+  - apply used_find_e_spec in Hunsd as [v Hfi].
+    apply (valid_find_spec m) in Hfi as HI; auto.
+    destruct HI as [Hvr' _].
+    rewrite <- (Resource.shift_valid_refl m n r); auto.
+    apply (used_find_spec _ <[[⧐m – n] v]>).
+    replace (⩽… [⧐m – n] v⩾) with (([⧐m – n] ⩽…  v⩾)) by auto.
+    now rewrite <- shift_find_iff.
+Qed.
 
 (** **** [init_writers] property *)
 

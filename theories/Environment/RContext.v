@@ -33,6 +33,21 @@ Proof.
   - apply new_key_notin_spec; lia. 
 Qed.
 
+Lemma Submap_wh_spec_1 (m m' : t) (v v' : πΤ) :
+  Submap (add (S (new_key m)) v (add (new_key m) v' m)) m' -> Submap m m'.
+Proof.
+  intro HSub.
+  apply Submap_Add_spec 
+  with (m := (add (new_key m) v' m)) (x := (S (new_key m))) (v := v) in HSub.
+  - apply Submap_Add_spec with (m := m) (x := (new_key m)) (v := v') in HSub; auto.
+    -- apply new_key_notin_spec; auto.
+    -- unfold Add; reflexivity.
+  - apply new_key_notin_spec.
+    rewrite new_key_add_ge_spec; auto.
+    apply new_key_notin_spec; lia.
+  - unfold Add; reflexivity. 
+Qed.
+
 Lemma new_key_wh_spec (m : t) (v v' : πΤ) :
   new_key (add (S (new_key m)) v (add (new_key m) v' m)) = S (S (new_key m)).
 Proof.

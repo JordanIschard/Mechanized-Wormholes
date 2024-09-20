@@ -360,3 +360,15 @@ Corollary weakening_ℜ_2 (k k' : lvl) (Γ : Γ) (Re Re1 : ℜ) (t : Λ) (τ : �
   (* ------------------------------------------------------------------ *) 
                 Γ ⋅ Re1 ⊢ {Term.shift k k' t} ∈ τ.
 Proof. intros; subst; now apply weakening_ℜ. Qed.
+
+Corollary weakening_ℜ_wh (Γ : Γ) (Re : ℜ) (t : Λ) (α β τ : Τ) :
+
+                (Re⁺ ⊩ Γ)%vc -> (Re⁺ ⊩ Re)%rc -> Γ ⋅ Re ⊢ t ∈ τ -> 
+  (* ------------------------------------------------------------------------------- *)
+       Γ ⋅ (⌈S (Re⁺) ⤆ (β, α)⌉ (⌈Re⁺ ⤆ (α, β)⌉ Re)) ⊢ {Term.shift (Re⁺) 2 t} ∈ τ.
+Proof.
+  intros HvΓ HvRe Hwt.
+  apply (weakening_ℜ_2 _ _ _ Re); auto.
+  - rewrite RC.new_key_wh_spec; lia.
+  - apply RC.Submap_wh_spec.
+Qed.
