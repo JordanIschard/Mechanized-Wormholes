@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Morphisms.
-From Mecha Require Import Resource Resources Term REnvironment Cell OverlayMap.
+From Mecha Require Import Resource Resources Term REnvironment Cell.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 Import ResourceNotations TermNotations REnvironmentNotations CellNotations
        ResourcesNotations SetNotations.
@@ -13,7 +13,7 @@ Import ResourceNotations TermNotations REnvironmentNotations CellNotations
 (** ** Module - Virtual Resource Environment - Reader *)
 Module ReaderStock <: IsLvlET.
 
-Include OverlayMap Term.
+Include MapLvlD.MakeLvlMapLVLD Term.
 Import Raw Ext.
 
 Module ET := Evaluation_Transition.

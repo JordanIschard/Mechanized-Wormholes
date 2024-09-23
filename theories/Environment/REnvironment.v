@@ -1,5 +1,5 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop Morphisms SetoidList.
-From Mecha Require Import OverlayMap Resource Resources Term Cell.
+From Mecha Require Import Resource Resources Term Cell.
 From Mecha Require Evaluation_Transition.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel MapExtInterface MapExt.
 Import ResourceNotations TermNotations CellNotations 
@@ -16,7 +16,7 @@ Import ResourceNotations TermNotations CellNotations
 Module REnvironment <: IsLvlET.
 
 (** *** Definition *)
-Include OverlayMap Cell.
+Include MapLvlD.MakeLvlMapLVLD Cell.
 Import Raw Ext.
 
 Open Scope cell_scope.
@@ -345,10 +345,10 @@ Lemma new_key_wh_spec (v v' : 𝑣) (V : t) :
 Proof.
   repeat rewrite new_key_add_ge_spec; auto.
   - apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
-    -- apply new_key_notin_spec; rewrite shift_new_spec; auto.
-    -- rewrite shift_new_spec; auto.
-  - apply new_key_notin_spec; rewrite shift_new_spec; auto.
-  - rewrite shift_new_spec; auto.
+    -- apply new_key_notin_spec; rewrite shift_new_refl_spec; auto.
+    -- rewrite shift_new_refl_spec; auto.
+  - apply new_key_notin_spec; rewrite shift_new_refl_spec; auto.
+  - rewrite shift_new_refl_spec; auto.
 Qed.
 
 
@@ -367,10 +367,10 @@ Proof.
        now apply Cell.shift_preserves_valid_1.
     -- replace (S (S (new_key V))) with ((new_key V) + 2) by lia. 
        now apply shift_preserves_valid_1.  
-  - apply new_key_notin_spec; auto; rewrite shift_new_spec; auto.
+  - apply new_key_notin_spec; auto; rewrite shift_new_refl_spec; auto.
   - apply new_key_notin_spec; rewrite new_key_add_ge_spec; auto.
-    -- apply new_key_notin_spec; auto; rewrite shift_new_spec; auto.
-    -- rewrite shift_new_spec; auto.
+    -- apply new_key_notin_spec; auto; rewrite shift_new_refl_spec; auto.
+    -- rewrite shift_new_refl_spec; auto.
 Qed.
 
 Lemma valid_wh_full_spec (v v' : 𝑣) (V : t) :

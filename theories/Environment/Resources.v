@@ -1,5 +1,5 @@
 From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Resource OverlaySet.
+From Mecha Require Import Resource.
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
 Import ResourceNotations.
 
@@ -13,7 +13,7 @@ Module Resources <: IsBdlLvlFullOTWL.
 
 (** *** Definition *)
 
-Include OverlaySet.
+Include Levels.
 Import St.
 
 (** **** Multi shift 

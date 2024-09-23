@@ -1,5 +1,5 @@
 From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Typ Resource OverlayMap.
+From Mecha Require Import Typ Resource.
 From DeBrLevel Require Import LevelInterface Level MapLevelInterface MapLevel.
 Import ResourceNotations TypNotations.
 
@@ -13,7 +13,7 @@ Module RContext <: IsBdlLvlET.
 
 (** *** Definition *)
 
-Include OverlayMapBdl PairTyp.
+Include MapLvlD.MakeBdlLvlMapLVLD PairTyp.
 Import Raw Ext.
 
 Open Scope ptyp_scope.
