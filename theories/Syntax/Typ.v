@@ -250,10 +250,10 @@ Definition Τ := Typ.t.
 Definition πΤ := PairTyp.t.
   
 Notation "'𝟙'"       := Typ.ty_unit (in custom wh at level 0).
-Notation "T1 '→' T2" := (Typ.ty_arrow T1 T2) (in custom wh at level 50, right associativity).
-Notation "X '×' Y"   := (Typ.ty_prod X Y) 
-                        (in custom wh at level 2, X custom wh, Y custom wh at level 0).
-Notation "α '⟿' β '∣' R" := (Typ.ty_reactive α β R)
+Notation "t1 '→' t2" := (Typ.ty_arrow t1 t2) (in custom wh at level 50, right associativity).
+Notation "t1 '×' t2"   := (Typ.ty_prod t1 t2) 
+                        (in custom wh at level 2, t1 custom wh, t2 custom wh at level 0).
+Notation "t1 '⟿' t2 '∣' R" := (Typ.ty_reactive t1 t2 R)
                                (in custom wh at level 50, R constr, right associativity).
 Notation "'[⧐' lb '–' k ']' t" := (Typ.shift lb k t) 
                                    (in custom wh at level 45, right associativity) : typ_scope.

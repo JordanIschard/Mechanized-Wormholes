@@ -54,13 +54,13 @@ Delimit Scope vcontext_scope with vc.
 (** *** Notation *)
 Definition Γ := VContext.t.
 
-Notation "r '∉' G" := (~ (VContext.Raw.In r G)) (at level 75, no associativity) : vcontext_scope. 
+Notation "r '∉' t" := (~ (VContext.Raw.In r t)) (at level 75, no associativity) : vcontext_scope. 
 Notation "∅" := VContext.Raw.empty (at level 0, no associativity) : vcontext_scope. 
-Notation "'isEmpty(' G ')'" := (VContext.Empty G) 
+Notation "'isEmpty(' t ')'" := (VContext.Empty t) 
                                 (at level 20, no associativity) : vcontext_scope. 
 Notation "'Add'" := (VContext.Add) (at level 20, no associativity) : vcontext_scope. 
-Notation "R '⌊' x '⌋'"  := (VContext.Raw.find x R) (at level 15, x constr) : vcontext_scope.
-Notation "⌈ x ⤆ v '⌉' R"  := (VContext.Raw.add x v R) 
+Notation "t '⌊' x '⌋'"  := (VContext.Raw.find x t) (at level 15, x constr) : vcontext_scope.
+Notation "⌈ x ⤆ v '⌉' t"  := (VContext.Raw.add x v t) 
                              (at level 15, x constr, v constr) : vcontext_scope.
 Notation "'[⧐' lb '–' k ']' t" := (VContext.shift lb k t) 
                                    (at level 65, right associativity) : vcontext_scope.

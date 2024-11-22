@@ -11,7 +11,6 @@ Import ResourceNotations TypNotations TermNotations RContextNotations
 
 
 Open Scope rcontext_scope. 
-Open Scope set_scope.
 
 Module RC := RContext.
 Module VC := VContext.
@@ -72,7 +71,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
              Γ ⋅ Re ⊢ t ∈ (α → β) -> 
     (* ------------------------------------- WT-Arr *)
-         Γ ⋅ Re ⊢ arr(t) ∈ (α ⟿ β ∣ ∅)%rs
+         Γ ⋅ Re ⊢ arr(t) ∈ (α ⟿ β ∣ ∅)%s
 
   | wt_first (Γ : Γ) (Re : ℜ) (R : resources) (t : Λ) (α β τ : Τ) :
 
@@ -82,8 +81,8 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
   | wt_comp (Γ : Γ) (Re : ℜ) (R R1 R2 : resources) (t1 t2 : Λ) (α β τ : Τ) :
 
-         Γ ⋅ Re ⊢ t1 ∈ (α ⟿ τ ∣ R1) -> (R = (R1 ∪ R2))%rs -> 
-         Γ ⋅ Re ⊢ t2 ∈ (τ ⟿ β ∣ R2) -> (∅ = (R1 ∩ R2))%rs -> 
+         Γ ⋅ Re ⊢ t1 ∈ (α ⟿ τ ∣ R1) -> (R = (R1 ∪ R2))%s -> 
+         Γ ⋅ Re ⊢ t2 ∈ (τ ⟿ β ∣ R2) -> (∅ = (R1 ∩ R2))%s -> 
     (* -------------------------------------------------------- WT-Comp *)
               Γ ⋅ Re ⊢ (t1 >>> t2) ∈ (α ⟿ β ∣ R)
 
@@ -95,7 +94,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
   | wt_wh (Γ : Γ) (Re : ℜ) (R R' : resources) (t1 t2 : Λ) (α β τ : Τ) :
 
-         (R = R' \ \{{ Re⁺; (S (Re⁺)) }})%rs -> (Re⁺ ⊩ α)%ty -> (Re⁺ ⊩ β)%ty ->
+         (R = R' \ \{{ Re⁺; (S (Re⁺)) }})%s -> (Re⁺ ⊩ α)%ty -> (Re⁺ ⊩ β)%ty ->
 
          Γ ⋅ Re ⊢ t1 ∈ τ ->
          Γ ⋅ (⌈(S (Re⁺)) ⤆ (τ,<[𝟙]>)⌉ (⌈Re⁺ ⤆ (<[𝟙]>,τ)⌉ Re)) ⊢ t2 ∈ (α ⟿ β ∣ R') ->
@@ -143,7 +142,7 @@ Theorem typing_Re_R (Γ : Γ) (Re : ℜ) (t : Λ) (α β : Τ) (R : resources) :
 
        (* (1) *) value(t) -> (* (2) *) Γ ⋅ Re ⊢ t ∈ (α ⟿ β ∣ R) -> 
   (* ---------------------------------------------------------------- *)
-           (forall (r : resource), (r ∈ R)%rs -> (r ∈ Re)%rc).
+           (forall (r : resource), (r ∈ R)%s -> (r ∈ Re)%rc).
 Proof.
   revert Γ Re α β R; induction t; intros Γ Re α β R Hvt Hwt r1 HIn; 
   inversion Hvt; subst; inversion Hwt; subst.

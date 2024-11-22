@@ -438,7 +438,23 @@ End Term.
 *)
 
 (** ** Module - Optional Term *)
-Module OptTerm <: IsLvlETWL := IsLvlOptETWL Term.
+Module OptTerm <: IsLvlETWL.
+
+(** *** Definition - Optional Term *)
+
+Include IsLvlOptETWL Term.
+
+(** **** Option map for [Prop] 
+
+  We define [prop_opt] which is [True] if the optional term is None or if the term contained satisfies the property P. Otherwise, [prop_opt] returns [False].
+*)
+Definition prop_opt (P: Term.t -> Prop) ot :=
+  match ot with
+    | Some t => P t
+    | _ => True
+  end.
+
+End OptTerm.
 
 (** ---- *)
 

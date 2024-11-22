@@ -131,13 +131,13 @@ Delimit Scope rcontext_scope with rc.
 Definition ℜ := RContext.t.
 
 Notation "∅" := RContext.Raw.empty (at level 0, no associativity) : rcontext_scope. 
-Notation "R '⁺'" := (RContext.Ext.new_key R) (at level 16) : rcontext_scope.
-Notation "r '∉' Re" := (~ (RContext.Raw.In r Re)) (at level 75, no associativity) : rcontext_scope. 
-Notation "'isEmpty(' Re ')'" := (RContext.Empty Re) (at level 20, no associativity) : rcontext_scope. 
+Notation "t '⁺'" := (RContext.Ext.new_key t) (at level 16) : rcontext_scope.
+Notation "r '∉' t" := (~ (RContext.Raw.In r t)) (at level 75, no associativity) : rcontext_scope. 
+Notation "'isEmpty(' t ')'" := (RContext.Empty t) (at level 20, no associativity) : rcontext_scope. 
 Notation "'Add'" := (RContext.Add) (at level 20, no associativity) : rcontext_scope. 
-Notation "R '⌊' x '⌋'"  := (RContext.Raw.find x R) (at level 15, x constr) : rcontext_scope.
-Notation "'max(' R ')'" := (RContext.Ext.max_key R) (at level 15) : rcontext_scope.
-Notation "⌈ x ⤆ v '⌉' R" := (RContext.Raw.add x v R) 
+Notation "t '⌊' x '⌋'"  := (RContext.Raw.find x t) (at level 15, x constr) : rcontext_scope.
+Notation "'max(' t ')'" := (RContext.Ext.max_key t) (at level 15) : rcontext_scope.
+Notation "⌈ x ⤆ v '⌉' t" := (RContext.Raw.add x v t) 
                              (at level 15, x constr, v constr) : rcontext_scope.
 Notation "'[⧐' lb '–' k ']' t" := (RContext.shift lb k t) 
                                    (at level 65, right associativity) : rcontext_scope.
