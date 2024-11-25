@@ -253,7 +253,7 @@ Proof.
 Qed.
 
 Lemma init_locals_valid (k : lvl) (V : 𝐕) (t : t) :
-  valid k t -> (k ⊩ V)%re -> (k ⊩ init_locals t V)%re.
+  valid k t /\ (k ⊩ V)%re -> (k ⊩ init_locals t V)%re.
 Proof.
 Admitted.
 

@@ -331,6 +331,26 @@ Proof.
        rewrite Heq'; auto; lia.
 Qed.
 
+(** **** [valid] property *)
+
+Lemma valid_remove_spec (k x: lvl) (t : t) :
+  valid k t -> valid k (remove x t).
+Proof.
+  revert k x. 
+  induction t using map_induction; intros k y Hvt.
+  - apply valid_Empty_spec.
+    intros x v HM.
+    apply remove_3 in HM.
+    apply (H x v HM).
+  - unfold Add in H0; rewrite H0 in *; clear H0.
+    apply valid_add_notin_spec in Hvt as [Hvx [Hve Hvt]]; auto.
+    destruct (Resource.eq_dec y x); subst.
+    -- rewrite remove_add_1.
+       now apply IHt1.
+    -- rewrite remove_add_2; auto.
+       apply valid_add_notin_spec; auto.
+       rewrite remove_in_iff; intros []; auto.
+Qed.
 
 (** **** [init_writers] property *)
 
@@ -462,25 +482,87 @@ Proof.
     -- apply unused_add_neq_spec; auto.
 Qed.
 
+Lemma init_writers_add_remove (r : resource) (rs : resources) (V : t) :
+  REnvironment.eq (init_writers (r +: rs)%s V) (init_writers (r +: rs)%s (remove r V)).
+Proof.
+  revert r V; induction rs using RS.set_induction; intros r V.
+  - do 2 rewrite init_writers_add_spec by apply H.
+    -- apply (init_writers_Empty_spec rs V) in H as H'; rewrite H'; clear H'.
+       apply (init_writers_Empty_spec rs (remove r V)) in H as H'; rewrite H'; clear H'.
+       clear H rs; revert r. 
+       induction V using map_induction; intro r.
+       + assert (REnvironment.eq (remove r V) V).
+         { 
+          unfold REnvironment.eq; rewrite remove_id.
+          intros [v1 HM]; now apply (H r v1).
+         }
+         now rewrite H0.
+       + unfold Add in H0; rewrite H0 in *; clear H0.
+         destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+         ++ rewrite add_shadow.
+            rewrite add_remove_1.
+            now rewrite add_shadow.
+         ++ rewrite add_add_2; auto.
+            rewrite remove_add_2; auto.
+            symmetry.
+            rewrite add_add_2; auto.
+            now rewrite IHV1.
+  - apply RS.Add_inv in H0; subst. 
+    destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+    -- replace (x +: (x +: rs1))%s with (x +: rs1)%s; auto.
+       apply RS.eq_leibniz.
+       symmetry; rewrite RS.add_equal; try reflexivity.
+       rewrite RS.add_spec; now left.
+    -- replace (r +: (x +: rs1))%s with (x +: (r +: rs1))%s; auto.
+       + do 2 rewrite (init_writers_add_spec x) 
+         by (rewrite RS.add_spec; intros [|]; auto).
+         now rewrite <- IHrs1.
+       + apply RS.eq_leibniz.
+         now rewrite RS.add_add.
+Qed.
+
+
 Lemma init_writers_new_key (V : t) (rs : resources) : 
   new_key (init_writers rs V) = max (Resources.new_key rs) (new_key V).
 Proof.
-  revert V; induction rs using RS.set_induction; intro V.
-  - rewrite init_writers_Empty_spec; auto.
-    apply RS.empty_is_empty_1 in H.
-    rewrite H.
-    rewrite Resources.new_key_empty_spec.
-    now simpl.
+  revert V.
+  induction rs using RS.set_induction; intro V.
+  - rewrite Resources.new_key_Empty_spec; auto; simpl.
+    rewrite init_writers_Empty_spec; auto.
   - apply RS.Add_inv in H0; subst.
+    rewrite init_writers_add_remove.
     rewrite init_writers_add_spec; auto.
     rewrite Resources.new_key_max_spec; auto.
-    destruct (In_dec V x).
-    -- admit.
-    -- rewrite new_key_max_spec; auto.
-       + rewrite IHrs1; lia.
-       + rewrite init_writers_in_iff.
-         intros [|]; auto.
-Admitted.
+    rewrite new_key_max_spec.
+    + rewrite IHrs1.
+      destruct (In_dec V x).
+      ++ apply new_key_in_remove_spec_1 in i as HI.
+         rewrite HI; lia.
+      ++ apply remove_id in n.
+         rewrite n; lia.
+    + rewrite init_writers_in_iff; intros [|]; auto.
+      rewrite remove_in_iff in H0.
+      destruct H0; auto.
+Qed.
+
+Lemma init_writers_valid (k : lvl) (V : t) (t : resources) :
+  (k ⊩ t)%rs /\ valid k V -> valid k (init_writers t V).
+Proof.
+  revert k V.
+  induction t using RS.set_induction; intros k V  [Hvt HvV].
+  - rewrite init_writers_Empty_spec; auto.
+  - apply RS.Add_inv in H0; subst.
+    apply Resources.valid_add_spec in Hvt as [Hvx Hvt1].
+    rewrite init_writers_add_remove.
+    rewrite init_writers_add_spec; auto.
+    apply valid_add_notin_spec.
+    -- rewrite init_writers_in_iff; intros [|]; auto.
+       apply remove_in_iff in H0 as []; auto.
+    -- do 2 (split;auto).
+       + constructor.
+       + apply IHt1; split; auto.
+         now apply valid_remove_spec.
+Qed.
 
 (** *** [valid] property *)
 

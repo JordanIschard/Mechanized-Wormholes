@@ -315,6 +315,24 @@ Proof.
       destruct H0; auto.
 Qed.
 
+Lemma init_readers_valid (k : lvl) (V : 𝐕) (t : t) :
+  valid k t /\ (k ⊩ V)%re -> (k ⊩ init_readers t V)%re.
+Proof.
+  revert k V.
+  induction t using map_induction; intros k V  [Hvt HvV].
+  - rewrite init_readers_Empty_spec; auto.
+  - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
+    apply valid_add_notin_spec in Hvt as [Hvx [Hve Hvt1]]; auto.
+    rewrite init_readers_add_remove.
+    rewrite init_readers_add_spec; auto.
+    apply RE.valid_add_notin_spec.
+    -- rewrite init_readers_in_iff; intros [|]; auto.
+       apply RE.remove_in_iff in H0 as []; auto.
+    -- do 2 (split; auto).
+       apply IHt1; split; auto.
+       now apply RE.valid_remove_spec.
+Qed.
+
 (** **** [init_globals] property *)
 
 Lemma init_globals_Empty_spec (t : t) :

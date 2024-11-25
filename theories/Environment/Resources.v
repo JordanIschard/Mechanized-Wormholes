@@ -129,13 +129,23 @@ Qed.
 
 (** **** [new_key] property *)
 
-Lemma new_key_empty_spec : new_key empty = 0.
-Proof. now unfold new_key; simpl. Qed.
 
 #[export] Instance new_key_eq : Proper (eq ==> Logic.eq) new_key.
 Proof. 
   intros s1 s2 Heq.
   apply eq_leibniz in Heq; now subst.
+Qed.
+
+
+Lemma new_key_empty_spec : new_key empty = 0.
+Proof. now unfold new_key; simpl. Qed.
+
+Lemma new_key_Empty_spec (t : t) : Empty t -> new_key t = 0.
+Proof. 
+  intro HEmp.
+  apply empty_is_empty_1 in HEmp.
+  rewrite HEmp.
+  now rewrite new_key_empty_spec.
 Qed.
 
 Lemma new_key_add_spec (x: lvl) (t : t) :
