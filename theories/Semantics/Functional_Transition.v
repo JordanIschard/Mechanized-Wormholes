@@ -23,7 +23,7 @@ Definition eqDom (Re : ℜ) (V : 𝐕) := forall (r : resource), (r ∈ Re)%rc <
 
 (** *** Well-formed environment-context 
 
-  For subsequent proofs we define a well-formed property between the resource context ([Re]) and the resource environment ([V]). They need four property: (1) their domain matches; (2,3) they are both well-formed under their new key; (4) and all pair (types, cell) admit the well-typed property under the empty variable context and the resource context [Re].
+  For subsequent proofs we define a well-formed property between the resource context ([Re]) and the resource environment ([V]). They need four property: (1) their domain matches; (2,3) they are both well-formed under their new key; (4) and each pair (types, cell) is well-typed under the empty variable context and the resource context [Re].
 *)
 Definition well_formed_ec (Re : ℜ) (V : 𝐕) :=
   (* (1) *) eqDom Re V /\ 

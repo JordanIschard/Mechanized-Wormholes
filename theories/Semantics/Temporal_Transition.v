@@ -30,9 +30,9 @@ Definition well_formed_in_ec (Re : ℜ) (S : 𝐄) (W : 𝐖) :=
   (* (4) *) (forall (r : resource) (α : πΤ) (v : Λ), Re⌊r⌋%rc = Some α -> 
               (S⌊r⌋%sr = Some v -> (∅)%vc ⋅ Re ⊢ {Term.shift (S⁺)%sr ((max (S⁺)%sr (W⁺)%sk) - (S⁺)%sr) v} ∈ {snd α}) /\
               (W⌊r⌋%sk = Some v -> (∅)%vc ⋅ Re ⊢ v ∈ {snd α})) /\
-            (~ ST.eq W ST.empty -> (W⁺)%sk > (S⁺)%sr) /\
+            (~ ST.Empty W -> (W⁺)%sk > (S⁺)%sr) /\
             (forall (r : resource) (α : πΤ), (r ∈ (ST.writers W))%s -> Re⌊r⌋%rc = Some α -> (snd α) = <[𝟙]>).
-                                             
+
 
 Definition well_formed_out_ec (Re : ℜ) (S : o𝐄) (W : 𝐖) :=
   (* (1) *) (forall (r : resource), (r ∈ Re)%rc <->  (r ∈ W)%sk \/ (r ∈ S)%or) /\ 
@@ -124,6 +124,8 @@ Proof.
   rewrite SRE.shift_new_refl_spec; auto.
 Qed.
 
+
+
 (** *** [unused] property *)
 
 (*
@@ -192,8 +194,9 @@ Proof.
                  { rewrite ST.new_key_empty_spec; lia. }
               ** inversion Hfi.
             * split.
-              ** intro Hc.
-                 exfalso; apply Hc; reflexivity.
+              ** intro Hc; exfalso.
+                 apply Hc.
+                 apply ST.Empty_empty.
               ** simpl; intros r πα HIn.
                  inversion HIn.
   - intros [HeqDom [_ [HvRc [HvS [_ [Hwt _]]]]]].
@@ -276,11 +279,25 @@ Proof.
   - split; auto; split.
     -- rewrite init_input_env_new_key.
        unfold init_input_env.
-       apply ST.init_locals_valid.
-       + admit.
+       apply ST.init_locals_valid; split.
+       + destruct (ST.is_empty W) eqn:Heq.
+         ++ apply ST.Empty_is_empty in Heq.
+            now apply ST.valid_Empty_spec.
+         ++ rewrite <- ST.not_Empty_is_empty in Heq.
+            apply HnInW in Heq.
+            replace (Init.Nat.max (S⁺) (W⁺)%sk)%sr with (W⁺)%sk by lia.
+            assumption.
        + apply SRE.init_globals_valid.
-         destruct (Nat.leb_spec0  (S⁺)%sr (W ⁺)%sk).
-       admit.
+         destruct (ST.is_empty W) eqn:Heq.
+         ++ apply ST.Empty_is_empty in Heq.
+            rewrite ST.new_key_Empty_spec; auto.
+            replace (Init.Nat.max (S⁺) 0)%sr with (S⁺)%sr by lia.
+            replace (S⁺ - S⁺)%sr with 0 by lia.
+            rewrite SRE.shift_zero_refl; assumption.
+         ++ rewrite <- ST.not_Empty_is_empty in Heq.
+            apply HnInW in Heq.
+            replace (Init.Nat.max (S⁺) (W⁺)%sk)%sr with (W⁺)%sk by lia.
+            apply SRE.shift_preserves_valid_2; auto; lia.
     -- intros r α β v Hfi HfV.
        apply ST.init_locals_find_inp_spec in HfV as H.
        + destruct H as [v' Heq]; subst.
@@ -311,7 +328,7 @@ Proof.
               ** apply (SRE.valid_find_spec (S⁺)%sr) in HfS as [H _]; auto.
        + intros r' HfS.
          now apply SRE.init_globals_find_e_spec in HfS.
-Admitted.
+Qed.
 
 (** ---- *)
 

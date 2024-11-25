@@ -33,6 +33,10 @@ Definition writers (W : t) : resources := snd W.
 *)
 Definition empty : t := (∅%sr,∅). 
 
+Definition Empty (t : t) : Prop := SRE.Empty (readers t) /\ RS.Empty (writers t).
+
+Definition is_empty (t : t) : bool := SRE.Raw.is_empty (readers t) && RS.is_empty (writers t).
+
 (** **** Initialize the resource environment
 
   For each instant, the resource environment has to be initialize for its global resource names and its local ones. The latter is done by picking information in the stock. We define [init_locals] which takes a stock [W] and a resource environment [V] and produces a new resource environment with all elements of [V] and readers and writers, stored in [W], initialized.
@@ -81,6 +85,41 @@ Definition halts (k : lvl) (W : t) := SRE.halts k (readers W).
 Definition new_key (W : t) := max ((readers W)⁺)%sr ((writers W)⁺)%s.
 
 (** *** Property *)
+
+(** **** [Empty] property *)
+
+Lemma Empty_empty : Empty empty.
+Proof.
+  split; simpl.
+  - apply SRE.empty_1.
+  - now apply RS.empty_is_empty_2.
+Qed.
+
+Lemma Empty_is_empty (t : t) : Empty t <-> is_empty t = true.
+Proof.
+  destruct t; unfold Empty, is_empty; simpl; split.
+  - intros [HE HE'].
+    apply SRE.is_empty_1 in HE; rewrite HE.
+    now apply RS.is_empty_spec.
+  - rewrite andb_true_iff. 
+    intros [HE HE'].
+    apply SRE.is_empty_2 in HE.
+    rewrite RS.is_empty_spec in HE'.
+    now split.
+Qed. 
+
+Lemma not_Empty_is_empty (t : t) : ~ Empty t <-> is_empty t = false.
+Proof.
+  split.
+  - intro HE.
+    apply not_true_is_false; intro Hc.
+    apply HE.
+    now rewrite Empty_is_empty.
+  - intros HE Hc.
+    revert HE.
+    apply eq_true_false_abs. 
+    now rewrite <- Empty_is_empty.
+Qed. 
 
 (** **** [init_locals] property *)
 
@@ -213,6 +252,16 @@ Proof.
   - apply Resources.valid_empty_spec.
 Qed.
 
+Lemma valid_Empty_spec (k : lvl) (t : t) : Empty t -> valid k t.
+Proof.
+  unfold valid, Empty; destruct t; simpl; split.
+  - destruct H.
+    now apply SRE.valid_Empty_spec.
+  - destruct H.
+    apply RS.empty_is_empty_1 in H0; rewrite H0. 
+    apply Resources.valid_empty_spec.
+Qed.
+
 Lemma valid_add_spec (k : lvl) (r r' : resource) (v : Λ) (W : t) :
   (k ⊩ r)%r -> (k ⊩ r')%r -> (k ⊩ v)%tm -> valid k W -> valid k (add r r' v W).
 Proof.
@@ -255,7 +304,12 @@ Qed.
 Lemma init_locals_valid (k : lvl) (V : 𝐕) (t : t) :
   valid k t /\ (k ⊩ V)%re -> (k ⊩ init_locals t V)%re.
 Proof.
-Admitted.
+  destruct t as [rW wW]. 
+  intros [[HvrW HvrwW] HvV].
+  simpl in *. unfold init_locals.
+  apply SRE.init_readers_valid; simpl; split; auto.
+  apply RE.init_writers_valid; simpl; split; auto.
+Qed.
 
 (** **** [new_key] property *)
 
@@ -268,6 +322,15 @@ Proof.
   rewrite Resources.new_key_empty_spec.
   now simpl. 
 Qed.
+
+Lemma new_key_Empty_spec (t : t) : Empty t -> new_key t = 0.
+Proof.
+  destruct t; intros []; simpl in *.
+  unfold new_key; simpl.
+  rewrite SRE.Ext.new_key_Empty_spec; auto.
+  rewrite Resources.new_key_Empty_spec; auto.
+Qed.
+
 (** **** [shift] property *)
 
 Lemma shift_in_iff (m n : lvl) (r : resource) (W : t) :
@@ -378,6 +441,13 @@ Proof.
   now rewrite Heqr, Heqw.
 Qed.
 
+#[export] Instance Empty_stk : Proper (eq ==> iff) Empty.
+Proof.
+  intros [rx wx] [ry wy] [Hreq Hweq].
+  unfold RelationPairs.RelCompFun,Empty in *; simpl in *.
+  rewrite Hreq, Hweq; split; auto.
+Qed.
+
 End Stock.
 
 (** ---- *)
@@ -418,5 +488,6 @@ Import Stock.
 #[export] Instance find_stk : Proper (Logic.eq ==> eq ==> Logic.eq) find := _.
 #[export] Instance add_stk : Proper (Resource.eq ==> Resource.eq ==> Term.eq ==> eq ==> eq) add := _.
 #[export] Instance new_key_stk : Proper (eq ==> Logic.eq) new_key := _.
+#[export] Instance Empty_stk : Proper (eq ==> iff) Empty := _.
 
 End StockNotations.
