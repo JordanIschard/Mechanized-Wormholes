@@ -4,7 +4,7 @@ JSFILES = doc/resources/config.js doc/resources/coqdocjs.js
 HTMLFILES = doc/resources/header.html doc/resources/footer.html
 COQDOCDIR = doc/html
 
-COQDOCHTMLFLAGS = --toc --toc-depth 2 --index indexpage --html --utf8 -s \
+COQDOCHTMLFLAGS = --toc --toc-depth 2 --index index --html --utf8 -s \
   --interpolate --no-lib-name --parse-comments \
   --with-header doc/resources/header.html --with-footer doc/resources/footer.html
 
