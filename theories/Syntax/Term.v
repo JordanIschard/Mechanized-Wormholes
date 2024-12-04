@@ -12,7 +12,7 @@ Import VarNotations ResourceNotations TypNotations.
 (** ** Module - Term *)
 Module Term <: IsLvlDTWL.
 
-(** *** Definition *)
+(** *** Definitions *)
 
 Open Scope resource_scope.
 Open Scope typ_scope.
@@ -72,17 +72,17 @@ Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
 
 
-(** **** Valid property 
+(** **** Well-formedness 
 
-  Defined as an inductive property and denoted [(⊩)], the well-formed property, named [valid], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Contrary to the property defined in [Typ.v], it is not exactly true because of bound resource names. Indeed, [k] may increase during the descent into the sub-term. It happens when
+  Defined as an inductive property and denoted [(⊩)], the well-formed property, named [Wf], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Contrary to the property defined in [Typ.v], it is not exactly true because of bound resource names. Indeed, [k] may increase during the descent into the sub-term. It happens when
   we go through a [wormhole] term. It is the reactive binder that binds two resource names. If 
   [k ⊩ wormhole(t1;t2)] then its local resource names will be [k] and [S k]. Consequently, the
   well-formedness level [k] becomes [k + 2] in [t2]. A direct consequence the definition is that
- [shift_valid_refl] cannot hold anymore.
+ [shift_wf_refl] cannot hold anymore.
 <<
 We recall the lemma below.
 
-Lemma shift_valid_refl (lb k : lvl) (t : t) : valid lb t -> (shift lb k t) = t.
+Lemma shift_wf_refl (lb k : lvl) (t : t) : Wf lb t -> (shift lb k t) = t.
 
 Suppose t equals to wormhole(unit;rsf[0]), lb equals to 0 and k equals to 3. We know that: 
 
@@ -95,29 +95,29 @@ However,
                            wormhole(unit;rsf[3]) ≠ wormhole(unit;rsf[0])
 >>
 *)
-Inductive valid' : lvl -> t -> Prop :=
-  | vΛ_unit (k : lvl) : valid' k tm_unit
-  | vΛ_var  (k : lvl) (x : variable) : valid' k (tm_var x)
-  | vΛ_abs  (k : lvl) (x : variable) (t : t) : valid' k t -> valid' k (tm_abs x t)
+Inductive Wf' : lvl -> t -> Prop :=
+  | wfΛ_unit (k : lvl) : Wf' k tm_unit
+  | wfΛ_var  (k : lvl) (x : variable) : Wf' k (tm_var x)
+  | wfΛ_abs  (k : lvl) (x : variable) (t : t) : Wf' k t -> Wf' k (tm_abs x t)
 
-  | vΛ_app  (k : lvl) (t1 t2 : t) : valid' k t1 -> valid' k t2 -> valid' k (tm_app t1 t2)
-  | vΛ_pair (k : lvl) (t1 t2 : t) : valid' k t1 -> valid' k t2 -> valid' k (tm_pair t1 t2)
+  | wfΛ_app  (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' k t2 -> Wf' k (tm_app t1 t2)
+  | wfΛ_pair (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' k t2 -> Wf' k (tm_pair t1 t2)
 
-  | vΛ_fix   (k : lvl) (t : t) : valid' k t -> valid' k (tm_fix t) 
-  | vΛ_fst   (k : lvl) (t : t) : valid' k t -> valid' k (tm_fst t) 
-  | vΛ_snd   (k : lvl) (t : t) : valid' k t -> valid' k (tm_snd t)
-  | vΛ_arr   (k : lvl) (t : t) : valid' k t -> valid' k (tm_arr t)
-  | vΛ_first (k : lvl) (t : t) : valid' k t -> valid' k (tm_first t)
+  | wfΛ_fix   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_fix t) 
+  | wfΛ_fst   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_fst t) 
+  | wfΛ_snd   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_snd t)
+  | wfΛ_arr   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_arr t)
+  | wfΛ_first (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_first t)
 
-  | vΛ_rsf (k : lvl) (r : resource) : (k ⊩ r)%r ->  valid' k (tm_rsf r)
+  | wfΛ_rsf (k : lvl) (r : resource) : (k ⊩ r)%r ->  Wf' k (tm_rsf r)
 
-  | vΛ_comp (k : lvl) (t1 t2 : t) : valid' k t1 -> valid' k t2 -> valid' k (tm_comp t1 t2)
-  | vΛ_wh   (k : lvl) (t1 t2 : t) : valid' k t1 -> valid' (S (S k)) t2 -> valid' k (tm_wh t1 t2)
+  | wfΛ_comp (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' k t2 -> Wf' k (tm_comp t1 t2)
+  | wfΛ_wh   (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' (S (S k)) t2 -> Wf' k (tm_wh t1 t2)
 .
 
-Definition valid := valid'.
+Definition Wf := Wf'.
 
-#[export] Hint Constructors valid' : core.
+#[export] Hint Constructors Wf' : core.
 
 (** **** Value property 
 
@@ -137,19 +137,25 @@ Inductive value : t -> Prop :=
   | v_wh   (v1 v2 : t) : value v1 -> value v2 -> value (tm_wh v1 v2)
 .
 
-#[export] Hint Constructors value valid' : core.
+#[export] Hint Constructors value Wf' : core.
 
-(** *** Property *)
+(** *** Properties *)
+
+(** **** [eq] properties *)
 
 #[export] Instance eq_refl : Reflexive eq := _.
+
 #[export] Instance eq_sym : Symmetric eq := _.
+
 #[export] Instance eq_trans : Transitive eq := _.
+
 #[export] Instance eq_rr : RewriteRelation eq := {}.
+
 #[export] Instance eq_equiv : Equivalence eq := _.
 
 #[export] Hint Resolve eq_refl eq_sym eq_trans : core.
 
-Lemma eq_dec (t1 t2 : t) : {eq t1 t2} + {~ eq t1 t2}.
+Lemma eq_dec (t1 t2: t) : {eq t1 t2} + {~ eq t1 t2}.
 Proof.
   unfold eq; revert t2; induction t1; intro; destruct t2; simpl; auto; 
   try (right; unfold not; intros contra; now inversion contra);
@@ -167,10 +173,10 @@ Proof.
     contradiction.
 Qed.
 
-Lemma eq_leibniz (t1 t2 : t) : eq t1 t2 -> t1 = t2. 
+Lemma eq_leibniz (t1 t2: t) : eq t1 t2 -> t1 = t2. 
 Proof. auto. Qed.
 
-(** **** [shift] property *)
+(** **** [shift] properties *)
 
 Lemma shift_zero_refl (lb : lvl) (t : t) : shift lb 0 t = t.
 Proof.
@@ -246,63 +252,63 @@ Proof.
   now rewrite Resource.shift_unfold_1.
 Qed.
 
-(** **** [valid] property *)
+(** **** [Wf] properties *)
 
-#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid := _.
+#[export] Instance Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
 
-Lemma valid_weakening (k m : lvl) (t : t) : (k <= m) -> valid k t -> valid m t.
+Lemma Wf_weakening (k m : lvl) (t : t) : (k <= m) -> Wf k t -> Wf m t.
 Proof.
-  unfold valid; revert k m; induction t; simpl; intros k m Hle Hvt; 
+  unfold Wf; revert k m; induction t; simpl; intros k m Hle Hvt; 
   auto; try (inversion Hvt; subst; now eauto).
-  - inversion Hvt; subst; constructor; eapply Resource.valid_weakening; eauto.
-  - inversion Hvt; subst; apply vΛ_wh.
+  - inversion Hvt; subst; constructor; eapply Resource.Wf_weakening; eauto.
+  - inversion Hvt; subst; apply wfΛ_wh.
     -- eapply IHt1; eauto.
     -- apply IHt2 with (k := S (S k)); eauto; lia.
 Qed.
 
-Theorem shift_preserves_valid_1 (lb k m : lvl) (t : t) :
-  valid k t -> valid (k + m) (shift lb m t).
+Theorem shift_preserves_wf_1 (lb k m : lvl) (t : t) :
+  Wf k t -> Wf (k + m) (shift lb m t).
 Proof.
-  unfold valid; revert lb k m; induction t; intros lb k m Hvt; 
+  unfold Wf; revert lb k m; induction t; intros lb k m Hvt; 
   inversion Hvt; subst; simpl; auto.
-  - constructor; now apply Resource.shift_preserves_valid_1.
-  - apply vΛ_wh; auto. 
+  - constructor; now apply Resource.shift_preserves_wf_1.
+  - apply wfΛ_wh; auto. 
     replace (S (S (k + m))) with ((S (S k)) + m); auto; lia.
 Qed.
 
-Theorem shift_preserves_valid (k m : lvl) (t : t) :
-  valid k t -> valid (k + m) (shift k m t).
-Proof. intros; now apply shift_preserves_valid_1. Qed. 
+Theorem shift_preserves_wf (k m : lvl) (t : t) :
+  Wf k t -> Wf (k + m) (shift k m t).
+Proof. intros; now apply shift_preserves_wf_1. Qed. 
 
-Theorem shift_preserves_valid_zero (k : lvl) (t : t) :
-  valid k t -> valid k (shift k 0 t).
+Theorem shift_preserves_wf_zero (k : lvl) (t : t) :
+  Wf k t -> Wf k (shift k 0 t).
 Proof. 
   intro Hvt. 
-  apply shift_preserves_valid with (m := 0) in Hvt. 
+  apply shift_preserves_wf with (m := 0) in Hvt. 
   replace (k + 0) with k in Hvt; auto.
 Qed. 
 
-Lemma shift_preserves_valid_gen (lb k m n : lvl) (t : t) :
+Lemma shift_preserves_wf_gen (lb k m n : lvl) (t : t) :
     m <= n -> lb <= k -> m <= lb -> n <= k -> n - m = k - lb -> 
-    valid lb t -> valid k (shift m (n - m) t).
+    Wf lb t -> Wf k (shift m (n - m) t).
 Proof.
   revert lb k m n; induction t; 
   intros lb k m n Hlemn Hlelbk Hlemlb Hlenk Heq Hvt; simpl; 
   inversion Hvt; subst; constructor;
   try (apply IHt1 with lb; now auto);
   try (apply IHt2 with lb; now auto); try (apply IHt with lb; now auto).
-  - apply Resource.shift_preserves_valid_gen with lb; auto.
+  - apply Resource.shift_preserves_wf_gen with lb; auto.
   - apply IHt2 with (lb := S (S lb)); auto; lia.
 Qed.
 
-Lemma shift_preserves_valid_2 (m n : lvl) (t : t) :
-  m <= n -> valid m t -> valid n (shift m (n - m) t).
+Lemma shift_preserves_wf_2 (m n : lvl) (t : t) :
+  m <= n -> Wf m t -> Wf n (shift m (n - m) t).
 Proof. 
   intros Hle Hvt. 
-  eapply shift_preserves_valid_gen; eauto. 
+  eapply shift_preserves_wf_gen; eauto. 
 Qed.
 
-(** **** [multi_shift] property *)
+(** **** [multi_shift] properties *)
 
 Lemma multi_shift_unit (lbs ks : list lvl) :
   multi_shift lbs ks tm_unit = tm_unit.
@@ -461,13 +467,13 @@ End OptTerm.
 (** ** Notation - Term *)
 Module TermNotations.
 
-(** *** Scope *)
+(** *** Scopes *)
 Declare Scope term_scope.
 Declare Scope opt_term_scope.
 Delimit Scope term_scope with tm.
 Delimit Scope opt_term_scope with otm.
 
-(** *** Notation *)
+(** *** Notations *)
 Definition Λ := Term.t.
 Definition Λₒ := OptTerm.t.
 
@@ -506,18 +512,22 @@ Notation "'[⧐⧐' lb '–' k ']' t" := (Term.multi_shift lb k t)
 Notation "'[⧐' lb '–' k ']' t" := (OptTerm.shift lb k t) 
                                    (in custom wh at level 45, right associativity) : opt_term_scope.
 
-Infix "⊩" := Term.valid (at level 20, no associativity) : term_scope.   
-Infix "⊩" := OptTerm.valid (at level 20, no associativity) : opt_term_scope.   
+Infix "⊩" := Term.Wf (at level 20, no associativity) : term_scope.   
+Infix "⊩" := OptTerm.Wf (at level 20, no associativity) : opt_term_scope.   
 Infix "=" := Term.eq : term_scope.
 Infix "=" := OptTerm.eq : opt_term_scope.
 
 
-(** *** Morphism *)
+(** *** Morphisms *)
 Import Term.
 
 #[export] Instance term_leibniz_eq : Proper Logic.eq Term.eq := _.
-#[export] Instance term_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
-#[export] Instance term_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
-#[export] Instance term_multi_shift_proper : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
+
+#[export] Instance term_wf_iff :  Proper (Level.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance term_shift_eq : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+
+#[export] Instance term_multi_shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
 
 End TermNotations.

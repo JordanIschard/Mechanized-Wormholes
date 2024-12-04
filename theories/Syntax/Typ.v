@@ -11,7 +11,7 @@ Import ResourceNotations ResourcesNotations SetNotations.
 (** ** Module - Type *)
 Module Typ <: IsBdlLvlDTWL.
 
-(** *** Definition *)
+(** *** Definitions *)
 
 Open Scope resource_scope.
 Open Scope set_scope.
@@ -54,30 +54,37 @@ Definition multi_shift (lbs : list lvl) (ks : list lvl) (α : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) α (List.combine lbs ks).
 
 
-(** **** Valid property
+(** **** Well-formedness
 
-  The well-formed property, named [valid] and denoted [(⊩)], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Recall that a resource name [r] is well-formed under [k] if [r < k] and a resource set [s] is well-formed under [k] if all
+  The well-formed property, named [Wf] and denoted [(⊩)], takes a level [k] called the well-formedness level and states that all resource names in the type are well-formed under [k]. Recall that a resource name [r] is well-formed under [k] if [r < k] and a resource set [s] is well-formed under [k] if all
   [r] in [s] are well-formed under [k].
 *)
-Inductive valid' : lvl -> t -> Prop :=
-  | vΤ_unit (k : lvl): valid' k ty_unit
-  | vΤ_prod (k : lvl) (α β : t): valid' k α -> valid' k β -> valid' k (ty_prod α β)
-  | vΤ_func (k : lvl) (α β : t): valid' k α -> valid' k β -> valid' k (ty_arrow α β)
+Inductive Wf' : lvl -> t -> Prop :=
+  | vΤ_unit (k : lvl): Wf' k ty_unit
+  | vΤ_prod (k : lvl) (α β : t): Wf' k α -> Wf' k β -> Wf' k (ty_prod α β)
+  | vΤ_func (k : lvl) (α β : t): Wf' k α -> Wf' k β -> Wf' k (ty_arrow α β)
   | vΤ_reac (k : lvl) (α β : t) (R : resources): 
-                   valid' k α -> valid' k β -> k ⊩ R -> valid' k (ty_reactive α β R)
+                   Wf' k α -> Wf' k β -> k ⊩ R -> Wf' k (ty_reactive α β R)
 .
 
-Definition valid := valid'.
+Definition Wf := Wf'.
 
-#[export] Hint Constructors valid' : core.
+#[export] Hint Constructors Wf' : core.
 
-(** *** Property *)
+(** *** Properties *)
+
+(** **** [eq] properties *)
 
 #[export] Instance eq_refl : Reflexive eq := _.
+
 #[export] Instance eq_sym : Symmetric eq := _.
+
 #[export] Instance eq_trans : Transitive eq := _.
+
 #[export] Instance eq_equiv : Equivalence eq := _.
+
 #[export] Instance eq_rr : RewriteRelation eq := {}.
+
 #[export] Hint Resolve eq_refl eq_sym eq_trans : core.
 
 Lemma eq_dec (α β : t): {eq α β} + {~ eq α β}.
@@ -102,7 +109,7 @@ Proof. apply eq_dec. Qed.
 Lemma eq_leibniz (α β : t): eq α β -> α = β. 
 Proof. auto. Qed.
 
-(** **** [shift] property *)
+(** **** [shift] properties *)
 
 Lemma shift_zero_refl (k : lvl) (α : t):
   (shift k 0 α) = α.
@@ -111,11 +118,11 @@ Proof.
   apply RS.eq_leibniz; apply RS.shift_zero_refl.
 Qed.
 
-Lemma shift_valid_refl (lb k : lvl) (α : t):
-  valid lb α -> shift lb k α = α.
+Lemma shift_wf_refl (lb k : lvl) (α : t):
+  Wf lb α -> shift lb k α = α.
 Proof.
   intro Hv; induction Hv; subst; simpl; f_equal; auto.
-  apply RS.eq_leibniz; now apply RS.shift_valid_refl.
+  apply RS.eq_leibniz; now apply RS.shift_wf_refl.
 Qed.
 
 #[export] Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
@@ -179,47 +186,47 @@ Proof.
   now apply RS.shift_unfold_1.
 Qed.
 
-(** **** [valid] property *)
+(** **** [Wf] properties *)
 
-#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid := _.
+#[export] Instance Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
 
-Lemma valid_weakening (k n : lvl) (α : t): (k <= n) -> valid k α -> valid n α.
+Lemma Wf_weakening (k n : lvl) (α : t): (k <= n) -> Wf k α -> Wf n α.
 Proof.
-  unfold valid; induction α; intros Hleq Hvτ; simpl in *; inversion Hvτ; subst; eauto.
+  unfold Wf; induction α; intros Hleq Hvτ; simpl in *; inversion Hvτ; subst; eauto.
   apply vΤ_reac; eauto. 
-  eapply RS.valid_weakening; eauto.
+  eapply RS.Wf_weakening; eauto.
 Qed.
 
-Theorem shift_preserves_valid_1 (k m n : lvl) (α : t):
-  valid m α -> valid (m + n) (shift k n α).
+Theorem shift_preserves_wf_1 (k m n : lvl) (α : t):
+  Wf m α -> Wf (m + n) (shift k n α).
 Proof.
-  unfold valid; induction α; intro Hvτ; inversion Hvτ; subst; simpl; auto.
+  unfold Wf; induction α; intro Hvτ; inversion Hvτ; subst; simpl; auto.
   apply vΤ_reac; auto. 
-  now apply RS.shift_preserves_valid_1.
+  now apply RS.shift_preserves_wf_1.
 Qed.
 
-Theorem shift_preserves_valid (m n : lvl) (α : t):
-  valid m α -> valid (m + n) (shift m n α).
-Proof. now apply shift_preserves_valid_1. Qed.
+Theorem shift_preserves_wf (m n : lvl) (α : t):
+  Wf m α -> Wf (m + n) (shift m n α).
+Proof. now apply shift_preserves_wf_1. Qed.
 
-Lemma shift_preserves_valid_zero (k : lvl) (α : t): valid k α -> valid k (shift k 0 α).
+Lemma shift_preserves_wf_zero (k : lvl) (α : t): Wf k α -> Wf k (shift k 0 α).
 Proof. 
   intro Hvα; replace k with (k + 0) by auto. 
-  now apply shift_preserves_valid_1. 
+  now apply shift_preserves_wf_1. 
 Qed.
 
-Lemma shift_preserves_valid_gen (lb k m n : lvl) (α : t):
+Lemma shift_preserves_wf_gen (lb k m n : lvl) (α : t):
   m <= n -> lb <= k -> m <= lb -> n <= k -> n - m = k - lb -> 
-  valid lb α -> valid k (shift m (n - m) α).
+  Wf lb α -> Wf k (shift m (n - m) α).
 Proof.
   intros Hlemn Hlelbk Hlemlb Hlenk Heq. 
-  induction α; intros; simpl; inversion H; subst; constructor; fold valid; auto. 
-  apply RS.shift_preserves_valid_gen with lb; auto.
+  induction α; intros; simpl; inversion H; subst; constructor; fold Wf; auto. 
+  apply RS.shift_preserves_wf_gen with lb; auto.
 Qed.
 
-Lemma shift_preserves_valid_2 (m n : lvl) (α : t):
-  m <= n -> valid m α -> valid n (shift m (n - m) α).
-Proof. intros Hle Hvα; eapply shift_preserves_valid_gen; eauto. Qed.
+Lemma shift_preserves_wf_2 (m n : lvl) (α : t):
+  m <= n -> Wf m α -> Wf n (shift m (n - m) α).
+Proof. intros Hle Hvα; eapply shift_preserves_wf_gen; eauto. Qed.
 
 End Typ.
 
@@ -239,13 +246,13 @@ Module PairTyp <: IsBdlLvlETWL := IsBdlLvlPairETWL Typ Typ.
 (** ** Notation - Types *)
 Module TypNotations.
 
-(** *** Scope *)
+(** *** Scopes *)
 Declare Scope typ_scope.
 Declare Scope ptyp_scope.
 Delimit Scope typ_scope with ty.
 Delimit Scope ptyp_scope with pty.
 
-(** *** Notation *)
+(** *** Notations *)
 Definition Τ := Typ.t.
 Definition πΤ := PairTyp.t.
   
@@ -262,16 +269,20 @@ Notation "'[⧐⧐' lb '–' k ']' t" := (Typ.multi_shift lb k t)
 Notation "'[⧐' lb '–' k ']' t" := (PairTyp.shift lb k t) 
                                    (in custom wh at level 45, right associativity) : ptyp_scope.
 
-Infix "⊩"  := Typ.valid (at level 20, no associativity): typ_scope. 
-Infix "⊩"  := PairTyp.valid (at level 20, no associativity) : ptyp_scope. 
+Infix "⊩"  := Typ.Wf (at level 20, no associativity): typ_scope. 
+Infix "⊩"  := PairTyp.Wf (at level 20, no associativity) : ptyp_scope. 
 Infix "="  := Typ.eq : typ_scope.
 
-(** *** Morphism *)
+(** *** Morphisms *)
 Import Typ.
 
 #[export] Instance typ_leibniz_eq : Proper Logic.eq Typ.eq := _.
-#[export] Instance typ_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
-#[export] Instance typ_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
-#[export] Instance typ_multi_shift_proper : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
+
+#[export] Instance typ_wf_iff :  Proper (Level.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance typ_shift_eq : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+
+#[export] Instance typ_multi_shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
 
 End TypNotations.

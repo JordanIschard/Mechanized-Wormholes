@@ -202,9 +202,9 @@ Definition halts (k : lvl)  (t : Λ) : Prop :=  exists t', k ⊨ t ⟼⋆ t' /\ 
 
 (** ** Property - Evaluation *)
 
-(** *** [subst] property *)
+(** *** [subst] properties *)
 
-Lemma subst_shift_spec (lb k m n : lvl) (y : variable) (v t : Λ) :
+Lemma subst_shift (lb k m n : lvl) (y : variable) (v t : Λ) :
   lb <= k ->
   <[[⧐ lb – m] ([y := v ~ k – n] t)]> = <[[y := ([⧐ lb – m] v) ~ {k + m} – n] ([⧐ lb – m] t)]>.
 Proof.
@@ -214,13 +214,13 @@ Proof.
   - destruct (Var.eqb_spec y x); simpl; f_equal; auto.
 Qed.
 
-Lemma subst_preserves_valid (m n : lvl) (y : variable) (v t : Λ) :
+Lemma subst_preserves_Wf (m n : lvl) (y : variable) (v t : Λ) :
   m >= n -> m ⊩ t -> n ⊩ v -> m ⊩ <[[y := v ~ n – {m - n}] t]>.
 Proof.
   revert m n; induction t; intros m n Hle Hvt Hvv; auto;
-  try (unfold Term.valid in *; inversion Hvt; subst; constructor; now eauto).
+  try (unfold Term.Wf in *; inversion Hvt; subst; constructor; now eauto).
   - simpl; destruct (Var.eqb_spec y x); subst; auto.
-    now apply Term.shift_preserves_valid_2.
+    now apply Term.shift_preserves_wf_2.
   - inversion Hvt; subst. 
     simpl; destruct (Var.eqb_spec y x); subst; auto.
     constructor; apply IHt; auto.
@@ -231,14 +231,14 @@ Proof.
        apply IHt2; auto.
 Qed.
 
-Lemma subst_preserves_valid_zero (k : lvl) (x : variable) (v t : Λ) :
+Lemma subst_preserves_wf_zero (k : lvl) (x : variable) (v t : Λ) :
   k ⊩ t ->  k ⊩ v -> k ⊩ <[[x := v ~ k] t]>.
 Proof.
   replace 0 with (k - k) by lia. 
-  apply subst_preserves_valid; auto.
+  apply subst_preserves_Wf; auto.
 Qed.
 
-(** *** [evaluate] property *)
+(** *** [evaluate] properties *)
 
 Lemma evaluate_not_value (k : lvl) (t t' : Λ) : k ⊨ t ⟼ t' -> ~ (value(t)).
 Proof. intro HeT; induction HeT; intro Hvt; inversion Hvt; subst; auto. Qed.
@@ -264,41 +264,41 @@ Proof.
     -- apply evaluate_not_value in H7; contradiction.
 Qed.
 
-Lemma evaluate_preserves_valid_term (k : lvl) (t t' : Λ) :
+Lemma evaluate_preserves_wf_term (k : lvl) (t t' : Λ) :
   k ⊩ t -> k ⊨ t ⟼ t' -> k ⊩ t'.
 Proof.
   revert k t'; induction t; intros k t' Hvt HeT; inversion Hvt; subst; 
   inversion HeT; subst; try (constructor; auto); 
   try (now apply IHt); try (now apply IHt1); try (now apply IHt2).
-  - apply subst_preserves_valid_zero; auto; now inversion H2.
-  - apply subst_preserves_valid_zero; auto; now inversion H1.
+  - apply subst_preserves_wf_zero; auto; now inversion H2.
+  - apply subst_preserves_wf_zero; auto; now inversion H1.
   - now inversion Hvt; subst; inversion H4; subst.
   - now inversion Hvt; subst; inversion H4; subst.
 Qed.
 
-Lemma evaluate_valid_weakening_gen (lb k m n : lvl) (t t' : Λ) :
+Lemma evaluate_wf_weakening_gen (lb k m n : lvl) (t t' : Λ) :
   lb <= k -> m <= lb -> n <= k -> m <= n -> k - lb = n - m ->
   lb ⊨ t ⟼ t' -> k ⊨ ([⧐ m – {n - m}] t) ⟼ ([⧐ m – {n - m}] t').
 Proof.
   intros Hlelbk Hlemlb Hlenk Hlemn Heq eT.
   revert k m n Hlelbk Hlemlb Hlenk Hlemn Heq; induction eT; 
   intros; simpl; eauto; try (constructor; eauto; now apply Term.shift_value_iff).
-  - rewrite subst_shift_spec; auto; rewrite <- Heq at 3. 
+  - rewrite subst_shift; auto; rewrite <- Heq at 3. 
     replace (k + (k0 - k)) with k0 by lia.
     constructor; now apply Term.shift_value_iff.
-  - rewrite subst_shift_spec; auto; rewrite <- Heq at 2. 
+  - rewrite subst_shift; auto; rewrite <- Heq at 2. 
     replace (k + (k0 - k)) with k0 by lia.
     constructor; now apply Term.shift_value_iff.
   - constructor; try (now rewrite <- Term.shift_value_iff); apply IHeT; lia.
 Qed.
 
-Corollary evaluate_valid_weakening (m n : lvl) (t t' : Λ) :
+Corollary evaluate_wf_weakening (m n : lvl) (t t' : Λ) :
   m <= n ->
   m ⊨ t ⟼ t' -> n ⊨ ([⧐ m – {n - m}] t) ⟼ ([⧐ m – {n - m}] t').
-Proof. intros; now apply evaluate_valid_weakening_gen with (lb := m). Qed.
+Proof. intros; now apply evaluate_wf_weakening_gen with (lb := m). Qed.
 
 
-(** *** [multi] property 
+(** *** [multi] properties
 
   The reflexive transitive closure of the evaluation transition lifts [evaluate] rules. In addition, we have identity rules for variable, [unit] and [rsf] terms.
 *)
@@ -510,19 +510,19 @@ Proof.
     apply (IHHeT k); auto.
 Qed.
 
-Theorem multi_evaluate_valid_weakening_gen (lb k m n : lvl) (t t' : Λ) :
+Theorem multi_evaluate_wf_weakening_gen (lb k m n : lvl) (t t' : Λ) :
   lb <= k -> m <= lb -> n <= k -> m <= n -> k - lb = n - m ->
   lb ⊨ t ⟼⋆ t' -> k ⊨ ([⧐ m – {n - m}] t) ⟼⋆ ([⧐ m – {n - m}] t').
 Proof.
   intros; induction H4; try now constructor.
   eapply rt1n_trans with (y := <[[⧐ m – {n - m}] y ]>); auto.
-  eapply evaluate_valid_weakening_gen with (lb := lb); auto.
+  eapply evaluate_wf_weakening_gen with (lb := lb); auto.
 Qed.
 
-Corollary multi_evaluate_valid_weakening (m n : lvl) (t t' : Λ) :
+Corollary multi_evaluate_wf_weakening (m n : lvl) (t t' : Λ) :
   m <= n ->
   m ⊨ t ⟼⋆ t' -> n ⊨ ([⧐ m – {n - m}] t) ⟼⋆ ([⧐ m – {n - m}] t').
-Proof. intros; now apply multi_evaluate_valid_weakening_gen with (lb := m). Qed.
+Proof. intros; now apply multi_evaluate_wf_weakening_gen with (lb := m). Qed.
 
 (** *** [halts] property *)
 
@@ -555,7 +555,7 @@ Lemma halts_weakening (m n : lvl) (t : Λ) :
 Proof.
   unfold halts; intros. destruct H0 as [t' [HeT Hvt']].
   exists <[[⧐ m – {n - m}] t']>; split.
-  - eapply multi_evaluate_valid_weakening_gen; eauto.
+  - eapply multi_evaluate_wf_weakening_gen; eauto.
   - now apply Term.shift_value_iff.
 Qed.
 
@@ -686,7 +686,7 @@ Module RC := RContext.
 
 (** ** Preservation - Evaluation *)
 
-Hint Resolve VC.valid_empty_spec : core.
+Hint Resolve VC.Wf_empty : core.
 Hint Constructors Term.value well_typed evaluate : core.
 
 (** *** Substitution preserves typing 
@@ -720,11 +720,11 @@ Proof.
     -- rewrite VContext.add_add_2 in H3; auto.
        apply (IHt _ _ _ _ _ β y HvRe H3 Hwv Hsub).
   (* wormhole *)
-  - apply RC.Ext.new_key_Submap_spec in Hsub as Hle.
+  - apply RC.Ext.new_key_Submap in Hsub as Hle.
     replace (S (S (Re⁺ - Re1⁺))) with ((S (S (Re⁺))) - Re1⁺) by lia.
     eapply IHt2 in Hwv; eauto.
-    + erewrite <- RC.new_key_wh_spec; eauto.
-    + now apply RC.Ext.new_key_Submap_add_spec.
+    + erewrite <- RC.new_key_wh; eauto.
+    + now apply RC.Ext.new_key_Submap_add.
 Qed.
 
 Corollary subst_preserves_typing (Γ : Γ) (Re : ℜ) (y : variable) (v t : Λ) (α β : Τ) :
@@ -764,10 +764,10 @@ Proof.
     apply (subst_preserves_typing _ _ _ _ _ _ τ); auto.
   - apply wt_wh with (R' := R') (τ := τ); auto.
     apply IHwt2; auto. 
-    -- apply well_typed_implies_valid in wt1 as [_ Hvτ]; auto.
-       rewrite RC.new_key_wh_spec; apply RC.valid_wh_spec; auto;
+    -- apply well_typed_implies_Wf in wt1 as [_ Hvτ]; auto.
+       rewrite RC.new_key_wh; apply RC.Wf_wh; auto;
        repeat constructor; simpl; auto.
-    -- now rewrite RC.new_key_wh_spec.
+    -- now rewrite RC.new_key_wh.
 Qed.
 
 (** *** Multi-Evaluation preserves typing.
@@ -833,7 +833,7 @@ Proof.
     destruct H6' as [Hvt1 | [t1' HeT1']]; destruct H8' as [Hvt2 | [t2' HeT2']];
     try (left; now constructor); right.
     -- exists <[wormhole(t1;t2')]>; constructor; auto.
-       rewrite RC.new_key_wh_spec in HeT2'; auto.
+       rewrite RC.new_key_wh in HeT2'; auto.
     -- exists <[wormhole(t1';t2)]>; now constructor.
     -- exists <[wormhole(t1';t2)]>; now constructor.
 Qed.

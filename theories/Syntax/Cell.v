@@ -13,8 +13,7 @@ Module Cell <: IsLvlDTWL.
 
 Open Scope term_scope.
 
-(** *** Definition  *)
-
+(** *** Definitions  *)
 
 (** **** Type
 
@@ -73,20 +72,25 @@ Definition opt_unused (ot : option t) :=
 Definition opt_used (ot : option t) :=
   match ot with Some t => used t | _ => False end.
 
-(** **** Valid property 
+(** **** Well-formedness 
 
   A cell [c] is well-formed under a level [lb] if and only if its carried term [t] is well-formed under [lb].
 *)
-Definition valid (lb : lvl) (c : t) : Prop := lb ⊩ (extract c).
+Definition Wf (lb : lvl) (c : t) : Prop := lb ⊩ (extract c).
 
 
-(** *** Property *)
+(** *** Properties *)
 
+(** **** [eq] properties *)
 
 #[export] Instance eq_refl : Reflexive eq := _.
+
 #[export] Instance eq_sym : Symmetric eq := _.
+
 #[export] Instance eq_trans : Transitive eq := _.
+
 #[export] Instance eq_rr : RewriteRelation eq := {}.
+
 #[export] Instance eq_equiv : Equivalence eq := _.
 
 #[export] Hint Resolve eq_refl eq_sym eq_trans : core.
@@ -110,7 +114,7 @@ Proof. auto. Qed.
 #[export] Instance extract_eq : Proper (eq ==> Term.eq) extract.
 Proof. now intros c' c Heq; rewrite Heq. Qed. 
 
-(** **** [shift] property *)
+(** **** [shift] properties *)
 
 Lemma shift_zero_refl (lb : lvl) (c : t) : eq (shift lb 0 c) c.
 Proof. 
@@ -149,51 +153,51 @@ Proof.
   now apply Term.shift_unfold_1.
 Qed.
 
-(** **** [valid] property *)
+(** **** [Wf] properties *)
 
-#[export] Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
+#[export] Instance Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf.
 Proof. intros k' k Heqk c c' Heqc; subst; now rewrite Heqc. Qed.
 
-Lemma valid_weakening (k n : lvl) (c : t) : (k <= n) -> valid k c -> valid n c.
+Lemma Wf_weakening (k n : lvl) (c : t) : (k <= n) -> Wf k c -> Wf n c.
 Proof.
-  destruct c; unfold valid; simpl; intros Hlekn Hvc; 
-  now apply Term.valid_weakening with k.
+  destruct c; unfold Wf; simpl; intros Hlekn Hvc; 
+  now apply Term.Wf_weakening with k.
 Qed.
 
-Lemma shift_preserves_valid (k n : lvl) (c : t) :
-  valid k c -> valid (k + n) (shift k n c).
+Lemma shift_preserves_wf (k n : lvl) (c : t) :
+  Wf k c -> Wf (k + n) (shift k n c).
 Proof.
-  destruct c; unfold valid; simpl; intro Hvc; 
-  now apply Term.shift_preserves_valid.
+  destruct c; unfold Wf; simpl; intro Hvc; 
+  now apply Term.shift_preserves_wf.
 Qed.
 
-Lemma shift_preserves_valid_1 (lb k n : lvl) (c : t) : 
-  valid k c -> valid (k + n) (shift lb n c).
+Lemma shift_preserves_wf_1 (lb k n : lvl) (c : t) : 
+  Wf k c -> Wf (k + n) (shift lb n c).
 Proof.
-  destruct c; unfold valid; simpl; intro Hvc; 
-  now apply Term.shift_preserves_valid_1.
+  destruct c; unfold Wf; simpl; intro Hvc; 
+  now apply Term.shift_preserves_wf_1.
 Qed.
 
-Lemma shift_preserves_valid_gen (lb k m n : lvl) (c : t) :
+Lemma shift_preserves_wf_gen (lb k m n : lvl) (c : t) :
   m <= n -> lb <= k -> m <= lb -> n <= k -> n - m = k - lb -> 
-  valid lb c -> valid k (shift m (n - m) c).
+  Wf lb c -> Wf k (shift m (n - m) c).
 Proof.
-  destruct c; unfold valid; simpl; intros; 
-  now apply Term.shift_preserves_valid_gen with lb.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_gen with lb.
 Qed.
 
-Lemma shift_preserves_valid_2 (m n : lvl) (c : t) :
-  m <= n -> valid m c -> valid n (shift m (n - m) c).
+Lemma shift_preserves_wf_2 (m n : lvl) (c : t) :
+  m <= n -> Wf m c -> Wf n (shift m (n - m) c).
 Proof.
-  destruct c; unfold valid; simpl; intros; 
-  now apply Term.shift_preserves_valid_2.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_2.
 Qed.
 
-Lemma shift_preserves_valid_zero (k : lvl) (c : t) : 
-  valid k c -> valid k (shift k 0 c).
+Lemma shift_preserves_wf_zero (k : lvl) (c : t) : 
+  Wf k c -> Wf k (shift k 0 c).
 Proof.
-  destruct c; unfold valid; simpl; intros; 
-  now apply Term.shift_preserves_valid_zero.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_zero.
 Qed.
 
 End Cell.
@@ -207,21 +211,23 @@ Module CellNotations.
 Declare Scope cell_scope.
 Delimit Scope cell_scope with cl.
 
-(** ** Notation *)
+(** ** Notations *)
 Definition 𝑣 := Cell.t.
 
 Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wh, no associativity).
 Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wh, no associativity).
 Notation "'[⧐' lb '–' k ']' t" := (Cell.shift lb k t) (at level 65, right associativity) : cell_scope.
 
-Infix "⊩" := Cell.valid (at level 20, no associativity) : cell_scope. 
+Infix "⊩" := Cell.Wf (at level 20, no associativity) : cell_scope. 
 Infix "=" := Cell.eq : cell_scope.
 
-(** ** Morphism *)
+(** ** Morphisms *)
 Import Cell.
 
 #[export] Instance cell_leibniz_eq : Proper Logic.eq Cell.eq := _.
-#[export] Instance cell_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
-#[export] Instance cell_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+
+#[export] Instance cell_wf_iff :  Proper (Level.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance cell_shift_eq : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
 
 End CellNotations.

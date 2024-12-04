@@ -13,7 +13,7 @@ Module Resources <: IsBdlLvlFullOTWL.
 
 (** *** Definition *)
 
-Include Levels.
+Include MakeLVL.
 Import St.
 
 (** **** Multi shift 
@@ -24,16 +24,9 @@ Import St.
 Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
 
-(** **** New key *)
+(** *** Properties *)
 
-Definition max_key (t : t) := fold (Nat.max) t 0.
-
-Definition new_key (t : t) := 
-  if is_empty t then 0 else S (max_key t).
-
-(** *** Property *)
-
-(** **** [multi_shift] property *)
+(** **** [multi_shift] properties *)
 
 #[export] Instance multi_shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift.
 Proof.
@@ -42,168 +35,42 @@ Proof.
   now rewrite Heqr.
 Qed.
 
-(** **** [max_key] property *)
+(** **** [Wf] specific Wormholes properties *)
 
-#[export] Instance max_key_eq : Proper (eq ==> Logic.eq) max_key.
+Lemma Wf_wh (lb : lvl) (s : t):
+  Wf (S (S lb)) s -> Wf lb (diff s (add lb (add (S lb) empty))).
 Proof.
-  intros x y Heq.
-  apply eq_leibniz in Heq; now subst.
-Qed.
-
-Lemma max_key_Empty_spec (m : t) : Empty m -> max_key m = 0.
-Proof. 
-  intro HEmp; unfold max_key.
-  rewrite fold_1; auto.
-  constructor; auto.
-  intros x y z Heq Heq'; now subst.
-Qed.
-
-Lemma max_key_empty_spec : max_key empty = 0.
-Proof.
-  unfold max_key; now rewrite fold_empty.
-Qed.
-
-Lemma max_key_Add_spec (m m' : t) x :
-  ~ In x m -> Add x m m' ->
-  (max_key m' = x /\ max_key m <= x) \/ (max_key m' = max_key m /\ max_key m > x).
-Proof.
-  intros HnIn HAdd; unfold max_key.
-  apply Add_inv in HAdd; subst.
-  rewrite fold_add; eauto; try lia.
-  - constructor; auto.
-    intros w y z H H1; now subst.
-  - intros n' n Heqn p' p Heqp; now subst.
-  - intros n p q; lia.
-Qed.
-
-Lemma max_key_Add_ge_spec (m m' : t) x :
-  ~ In x m -> Add x m m' ->  max_key m <= x -> max_key m' = x.
-Proof.
-  intros HnIn HAdd Hmax.
-  apply max_key_Add_spec in HAdd; auto.
-  destruct HAdd as [[Heq Hle] | [Heq Hgt]]; auto.
-  lia.
-Qed.
-
-Lemma max_key_Add_lt_spec (m m' : t) x :
-  ~ In x m -> Add x m m' ->  max_key m > x -> max_key m' = max_key m.
-Proof.
-  intros HnIn HAdd Hmax.
-  apply max_key_Add_spec in HAdd; auto.
-  destruct HAdd as [[Heq Hle] | [Heq Hgt]]; auto.
-  lia.
-Qed.
-
-Lemma max_key_add_spec (m : t) x :
-  ~ In x m -> (max_key (add x m) = x /\ max_key m <= x) \/ 
-              (max_key (add x m) = max_key m /\ max_key m > x).
-Proof.
-  intro HnIn.
-  eapply max_key_Add_spec; auto.
-Qed.
-
-Lemma max_key_add_ge_spec (m : t) x :
-  ~ In x m -> max_key m <= x -> max_key (add x m) = x.
-Proof.
-  intro HnIn.
-  eapply max_key_Add_ge_spec; auto.
-Qed.
-
-Lemma max_key_add_lt_spec (m : t) x :
-  ~ In x m -> max_key m > x -> max_key (add x m) = max_key m.
-Proof.
-  intro HnIn.
-  eapply max_key_Add_lt_spec; auto.
-Qed.
-
-Lemma max_key_add_spec_1 (m m' : t) x :
-  ~ In x m -> ~ In x m' ->
-  max_key m = max_key m' -> max_key (add x m) = max_key (add x m').
-Proof.
-  intros HnIn HnIn'. 
-  apply max_key_add_spec in HnIn as HI. 
-  apply max_key_add_spec in HnIn' as HI'.
-  destruct HI as [[Heq1 Hleb1] | [Heq1 Hgt1]];
-  destruct HI' as [[Heq2 Hleb2] | [Heq2 Hgt2]]; subst; try lia.
-Qed.
-
-(** **** [new_key] property *)
-
-
-#[export] Instance new_key_eq : Proper (eq ==> Logic.eq) new_key.
-Proof. 
-  intros s1 s2 Heq.
-  apply eq_leibniz in Heq; now subst.
-Qed.
-
-
-Lemma new_key_empty_spec : new_key empty = 0.
-Proof. now unfold new_key; simpl. Qed.
-
-Lemma new_key_Empty_spec (t : t) : Empty t -> new_key t = 0.
-Proof. 
-  intro HEmp.
-  apply empty_is_empty_1 in HEmp.
-  rewrite HEmp.
-  now rewrite new_key_empty_spec.
-Qed.
-
-Lemma new_key_add_spec (x: lvl) (t : t) :
-  ~In x t -> (new_key (add x t) = S x /\ new_key t <= S x) \/ 
-               (new_key (add x t) = new_key t /\ new_key t > S x).
-Proof.
-  intro HnIn.
-  unfold new_key.
-  assert (is_empty (add x t) = false).
-  - apply Bool.not_true_is_false.
-    intro Hc.
-    rewrite is_empty_spec in Hc.
-    apply (Hc x).
-    apply add_spec; auto.
-  - rewrite H.
-    apply max_key_add_spec in HnIn as [[Heq Hle] | [Heq Hgt]].
-    -- left; split; auto.
-       destruct (is_empty t); lia.
-    -- rewrite Heq.
-       destruct (is_empty t) eqn:Hemp.
-       + rewrite max_key_Empty_spec in Hgt; try lia.
-         now rewrite <- is_empty_spec.
-       + right; split; auto; lia.
-Qed.
-
-Lemma new_key_add_lt_spec (x: lvl) (t : t) :
-  ~ In x t -> new_key t > S x -> new_key (add x t) = new_key t.
-Proof.
-  intros HnIn Hgt.
-  apply new_key_add_spec in HnIn as [[Heq Hlt] | [Heq Hgt']]; auto.
-  lia.
-Qed. 
-
-Lemma new_key_add_ge_spec (x: lvl) (t : t) :
-  ~ In x t -> new_key t <= S x -> new_key (add x t) = S x.
-Proof.
-  intros HnIn Hgt.
-  apply new_key_add_spec in HnIn as [[Heq Hlt] | [Heq Hgt']]; auto.
-  lia.
-Qed.
-
-Lemma new_key_max_spec (x: lvl) (t : t) :
-  ~ In x t -> new_key (add x t) = max (new_key t) (S x).
-Proof.
-  intro HnIn.
-  apply new_key_add_spec in HnIn as [[Heq Hlt] | [Heq Hgt']]; lia.
-Qed.
-
-(** **** [valid] Wormholes specification *)
-
-Lemma valid_wh_spec (lb : lvl) (s : t):
-  valid (S (S lb)) s -> valid lb (diff s (add lb (add (S lb) empty))).
-Proof.
-  intros; rewrite valid_unfold in *; unfold For_all in *; 
+  intros; rewrite Wf_unfold in *; unfold For_all in *; 
   intros. rewrite diff_spec in H0; destruct H0.
   rewrite add_notin_spec in H1; destruct H1; 
   rewrite add_notin_spec in H2; destruct H2; clear H3.
-  unfold Level.valid in *; apply H in H0; lia.
+  unfold Level.Wf in *; apply H in H0; lia.
+Qed.
+
+(** **** [new_key] properties *)
+
+Lemma new_key_union (s s': t) :
+  new_key (union s s') = max (new_key s) (new_key s').
+Proof.
+  revert s'.
+  induction s using set_induction; intro s'.
+  - rewrite empty_union_1; auto.
+    rewrite (new_key_Empty s); auto; lia.
+  - apply Add_inv in H0; subst.
+    rewrite union_add.
+    do 2 rewrite new_key_add_max.
+    rewrite IHs1; lia.
+Qed.
+
+Lemma new_key_Wf (k: lvl) (s: t) : Wf k s -> new_key s <= k.
+Proof.
+  induction s using set_induction; intro Hwf.
+  - rewrite new_key_Empty; auto; lia.
+  - apply Add_inv in H0; subst.
+    apply Wf_add_iff in Hwf as [Hwfx Hwf]; auto.
+    apply IHs1 in Hwf.
+    unfold Resource.Wf in Hwfx.
+    rewrite new_key_add_max; lia.
 Qed.
 
 End Resources.
@@ -217,7 +84,7 @@ Module SetNotations.
 Declare Scope set_scope.
 Delimit Scope set_scope with s.
 
-(** *** Notation *)
+(** *** Notations *)
 
 Notation "∅" := (Resources.St.empty) : set_scope.
 Notation "'\{{' x '}}'" := (Resources.St.singleton x).
@@ -247,22 +114,28 @@ Declare Scope resources_scope.
 Delimit Scope resources_scope with rs.
 
 
-(** *** Notation *)
+(** *** Notations *)
 Definition resources := Resources.t.
 
-Infix "⊩" := Resources.valid (at level 20, no associativity) : resources_scope. 
+Infix "⊩" := Resources.Wf (at level 20, no associativity) : resources_scope. 
 Notation "t '⁺'" := (Resources.new_key t) (at level 16) : resources_scope.
 Notation "'[⧐' lb '–' k ']' t" := (Resources.shift lb k t) (at level 65, right associativity) : resources_scope.
 Notation "'[⧐⧐' lb '–' k ']' t" := (Resources.multi_shift lb k t) (at level 65, right associativity) : resources_scope.
 
 
-(** *** Morphism *)
+(** *** Morphisms *)
 Import Resources.
 
 #[export] Instance resources_leibniz_eq : Proper Logic.eq eq := _.
-#[export] Instance resources_valid_proper :  Proper (Level.eq ==> eq ==> iff) valid := _.
-#[export] Instance resources_shift_proper : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
-#[export] Instance resources_multi_shift_proper : Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
-#[export] Instance resources_new_key_proper : Proper (eq ==> Logic.eq) new_key := _.
+
+#[export] Instance resources_Wf_iff :  Proper (Level.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance resources_shift_eq :
+  Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+
+#[export] Instance resources_multi_shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> Logic.eq) multi_shift := _.
+
+#[export] Instance resources_new_key_eq : Proper (eq ==> Logic.eq) new_key := _.
 
 End ResourcesNotations.

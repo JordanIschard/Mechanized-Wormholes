@@ -1,6 +1,6 @@
 From Coq Require Import Classes.Morphisms.
 From Mecha Require Import Resource Typ Var.
-From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel.
+From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevelD.
 
 (** * Context - Variable Context 
 
@@ -10,29 +10,27 @@ From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevel.
 (** ** Module - Variable Context *)
 Module VContext <: IsBdlLvlET.
 
-(** *** Definition *)
-
-Include MapD.MakeBdlLvlMapD Var Typ.
+Include MakeBdlLvlMapD Var Typ.
 Import Raw Ext.
 
-(** *** Property *)
+(** *** Properties *)
 
-#[export] Instance in_vctx : Proper (Logic.eq ==> eq ==> iff) In.
+#[export] Instance vcontext_in_iff : Proper (Logic.eq ==> eq ==> iff) In.
 Proof. intros x y Heqx c c' Heqc; subst; now rewrite Heqc. Qed.
 
-#[export] Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) find.
+#[export] Instance vcontext_find_eq : Proper (Logic.eq ==> eq ==> Logic.eq) find.
 Proof. repeat red; intros; subst. now rewrite H0. Qed.
 
-#[export] Instance Empty_vctx : Proper (eq ==> iff) Empty.
+#[export] Instance vcontext_Empty_iff : Proper (eq ==> iff) Empty.
 Proof. intros c c' Heq; now rewrite Heq. Qed.
 
-#[export] Instance add_vctx : Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@add Typ.t).
+#[export] Instance vcontext_add_eq : Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@add Typ.t).
 Proof.
   intros x x' HeqV ty ty' HeqT c c' Heq.
   now rewrite HeqV; rewrite HeqT; rewrite Heq.
 Qed. 
 
-#[export] Instance Add_vctx : Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@Add Typ.t).
+#[export] Instance vcontext_Add_eq : Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@Add Typ.t).
 Proof. 
   intros x x' HeqV ty ty' HeqT c c' Heq c1 c1' Heq1.
   rewrite HeqV; rewrite HeqT.
@@ -51,7 +49,7 @@ Module VContextNotations.
 Declare Scope vcontext_scope.
 Delimit Scope vcontext_scope with vc.
 
-(** *** Notation *)
+(** *** Notations *)
 Definition Γ := VContext.t.
 
 Notation "r '∉' t" := (~ (VContext.Raw.In r t)) (at level 75, no associativity) : vcontext_scope. 
@@ -69,22 +67,31 @@ Infix "⊆" := VContext.Submap (at level 60, no associativity) : vcontext_scope.
 Infix "∈" := VContext.Raw.In (at level 60, no associativity) : vcontext_scope. 
 Infix "=" := VContext.eq : vcontext_scope.
 
-Infix "⊩" := VContext.valid (at level 20, no associativity) : vcontext_scope.
+Infix "⊩" := VContext.Wf (at level 20, no associativity) : vcontext_scope.
 
 (** *** Morphism *)
 
 Import VContext.
 
-#[export] Instance eq_equiv_vctx : Equivalence eq := _.
-#[export] Instance in_vctx : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
-#[export] Instance find_vctx : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
-#[export] Instance Empty_vctx : Proper (eq ==> iff) (Empty) := _.
-#[export] Instance Add_vctx : 
+#[export] Instance vcontext_eq_equiv : Equivalence eq := _.
+
+#[export] Instance vcontext_in_iff : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
+
+#[export] Instance vcontext_find_eq : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
+
+#[export] Instance vcontext_Empty_iff : Proper (eq ==> iff) (Empty) := _.
+
+#[export] Instance vcontext_Add_iff : 
   Proper (Var.eq ==> Typ.eq ==> eq ==> eq ==> iff) (@VContext.Add Typ.t) := _.
-#[export] Instance add_vctx : Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@Raw.add Typ.t) := _.
-#[export] Instance Submap_vctx : Proper (eq ==> eq ==> iff) Submap := _.
-#[export] Instance valid_vctx : Proper (Logic.eq ==> eq ==> iff) valid := _.
-#[export] Instance shift_vctx : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
-#[export] Instance Submap_vctx_po : PreOrder Submap := _.
+
+#[export] Instance vcontext_add_eq : Proper (Var.eq ==> Typ.eq ==> eq ==> eq) (@Raw.add Typ.t) := _.
+
+#[export] Instance vcontext_Submap_iff : Proper (eq ==> eq ==> iff) Submap := _.
+
+#[export] Instance vcontext_Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance vcontext_shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
+
+#[export] Instance vcontext_Submap_po : PreOrder Submap := _.
 
 End VContextNotations.

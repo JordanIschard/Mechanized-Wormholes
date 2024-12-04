@@ -111,7 +111,7 @@ Hint Constructors well_typed : core.
 
 Open Scope term_scope.
 
-#[export] Instance well_typed_rc : 
+#[export] Instance well_typed_iff : 
   Proper (VC.eq ==> RC.eq ==> Term.eq ==> Typ.eq ==> iff) well_typed.
 Proof.
   intros Γ Γ' HGeq Re Re1 HReq t' t HTmeq α β HTyeq.
@@ -161,7 +161,7 @@ Proof.
     apply Resources.St.diff_spec in HIn as [HIn HnIn].
     eapply IHt2 in H12; eauto. 
     (repeat rewrite Resources.St.add_notin_spec in HnIn); destruct HnIn as [Hneq [Hneq' _]].
-    (repeat rewrite RContext.add_in_iff in H12). 
+    (repeat rewrite RC.add_in_iff in H12). 
     destruct H12 as [Heq | [Heq | HIn']]; subst; try contradiction; assumption. 
 Qed.
 
@@ -169,7 +169,7 @@ Qed.
 
   Suppose a term [t], well typed by [τ] under contexts [Γ] and [Re] (3), knowing that both contexts are well formed under [Re⁺] (1,2). We can prove that [t] and [τ] are also well formed under [Re⁺] (4,5).
 *)
-Theorem well_typed_implies_valid (Γ : Γ) (Re : ℜ) (t : Λ) (τ : Τ) :
+Theorem well_typed_implies_Wf (Γ : Γ) (Re : ℜ) (t : Λ) (τ : Τ) :
 
        (* (1) *) (Re⁺ ⊩ Γ)%vc ->  (* (2) *) (Re⁺ ⊩ Re)%rc -> (* (3) *) Γ ⋅ Re ⊢ t ∈ τ ->
   (* -------------------------------------------------------------------------------------- *)
@@ -181,11 +181,11 @@ Proof.
   - repeat constructor.
   (* variable *)
   - split; try constructor. 
-    now apply (VC.valid_find_spec (Re⁺)) in H2.
+    now apply (VC.Wf_find (Re⁺)) in H2.
   (* abstraction *)
   - apply (IHt (⌈x ⤆ α⌉ Γ)%vc _ β) in HvRe as [Hvt Hvf]; auto.
     -- split; auto; constructor; assumption.
-    -- now apply VContext.valid_add_spec.
+    -- now apply VContext.Wf_add.
   (* application *)
   - apply IHt1 in H3 as [Hvt1 Hvf]; eauto.
     apply IHt2 in H5 as [Hvt2 _]; eauto.
@@ -198,20 +198,20 @@ Proof.
   - apply IHt in H0 as [Hvt Hvf]; auto; inversion Hvf; subst.
     repeat constructor; auto.
   (* rsf *)
-  - apply RContext.valid_find_spec with (lb := Re⁺) in H2 as [Hvr Hvf]; auto.
+  - apply RC.Wf_find with (lb := Re⁺) in H2 as [Hvr Hvf]; auto.
     inversion Hvf; simpl in *; repeat constructor; auto.
-    now apply Resources.valid_singleton_iff.
+    now apply Resources.Wf_singleton_iff.
   (* comp *)
   - apply IHt1 in H1 as [Hvt1 Hvα]; apply IHt2 in H5 as [Hvt2 Hvβ]; auto.
     inversion Hvα; inversion Hvβ; subst; repeat constructor; auto.
-    rewrite H2; rewrite Resources.valid_union_iff; now split.
+    rewrite H2; rewrite Resources.Wf_union_iff; now split.
   (* wormhole *)
   - apply IHt1 in H6 as [Hvt1 Hvτ]; auto.
-    apply IHt2 in H8 as [Hvt2 Hvf]; rewrite RC.new_key_wh_spec in *.
+    apply IHt2 in H8 as [Hvt2 Hvf]; rewrite RC.new_key_wh in *.
     -- inversion Hvf; subst; repeat constructor; auto. 
-       rewrite H1; now apply Resources.valid_wh_spec.
-    -- apply VC.valid_weakening with (k := Re⁺); auto.
-    -- apply RC.valid_wh_spec; auto; now repeat constructor; simpl.
+       rewrite H1; now apply Resources.Wf_wh.
+    -- apply VC.Wf_weakening with (k := Re⁺); auto.
+    -- apply RC.Wf_wh; auto; now repeat constructor; simpl.
 Qed.
 
 (** *** Variable context weakening 
@@ -226,9 +226,9 @@ Theorem weakening_Γ (Γ Γ' : Γ) (Re : ℜ) (t : Λ) (τ : Τ) :
 Proof.
   intros Hsub wt; revert Γ' Hsub; induction wt; intros; auto;
   try (econstructor; now eauto).
-  - constructor; now apply (VC.Submap_find_spec Γ0).
+  - constructor; now apply (VC.Submap_find _ _ Γ0).
   - apply wt_abs; auto; apply IHwt. 
-    now apply VC.Submap_add_spec.
+    now apply VC.Submap_add.
 Qed.
 
 Open Scope typ_scope.
@@ -251,13 +251,13 @@ Proof.
   - constructor; now apply VC.shift_find_iff.
   (* abstraction *)
   - constructor.
-    -- rewrite <- VC.shift_add_spec; now apply IHwt.
+    -- rewrite <- VC.shift_add; now apply IHwt.
     -- assert (Re⁺ <= Re1⁺).
        { 
-         apply RC.Ext.new_key_Submap_spec in Hsub. 
-         now rewrite <- RC.shift_new_key_le_spec in Hsub.
+         apply RC.Ext.new_key_Submap in Hsub. 
+         now rewrite <- RC.shift_new_key_le in Hsub.
        }
-       apply (Typ.shift_preserves_valid_gen (Re⁺)); auto; lia. 
+       apply (Typ.shift_preserves_wf_gen (Re⁺)); auto; lia. 
   (* application *)
   - apply wt_app with (α := <[[⧐n – {m - n}] α]>); auto.
   (* fst *)
@@ -268,54 +268,53 @@ Proof.
   - econstructor; eauto. 
     assert (Re⁺ <= Re1⁺).
     { 
-      apply RC.Ext.new_key_Submap_spec in Hsub. 
-      now rewrite <- RC.shift_new_key_le_spec in Hsub.
+      apply RC.Ext.new_key_Submap in Hsub. 
+      now rewrite <- RC.shift_new_key_le in Hsub.
     }
-    apply Typ.shift_preserves_valid_gen with (Re⁺); auto; lia.
+    apply Typ.shift_preserves_wf_gen with (Re⁺); auto; lia.
   (* comp *)
   - econstructor; eauto.
-    -- apply Resources.eq_leibniz in H; subst.
-       now rewrite Resources.shift_union_spec.
-    -- rewrite <- Resources.shift_inter_spec; rewrite <- H0. 
-       now rewrite Resources.shift_empty_spec.
+    -- rewrite <- Resources.shift_union.
+       now rewrite H.
+    -- rewrite <- Resources.shift_inter; rewrite <- H0. 
+       now rewrite Resources.shift_empty.
   (* rsf *)
-  - rewrite Resources.shift_singleton_spec; constructor.
-    apply RC.Submap_find_spec with (m :=  ([⧐ n – m - n] Re)); auto.
+  - rewrite Resources.shift_singleton; constructor.
+    apply RC.Submap_find with (m :=  ([⧐ n – m - n] Re)); auto.
     apply RC.shift_find_iff with (lb := n) (k := m - n) in H; auto.
   (* wormhole *)
   - assert (Hle1 : Re⁺ <= Re1⁺). 
     { 
-      apply RC.Ext.new_key_Submap_spec in Hsub. 
-      now rewrite <- RC.shift_new_key_le_spec in Hsub.
+      apply RC.Ext.new_key_Submap in Hsub. 
+      now rewrite <- RC.shift_new_key_le in Hsub.
     }
     eapply wt_wh with (τ := <[[⧐ n – {m - n}] τ]>) (R' := ([⧐ n – m - n] R')%rs); auto.
-    -- rewrite H; rewrite Resources.shift_diff_spec.
-       repeat rewrite Resources.shift_add_notin_spec.
+    -- rewrite H; rewrite Resources.shift_diff.
+       repeat rewrite Resources.shift_add_notin.
        + unfold Resource.shift. 
          rewrite <- Nat.leb_le in Hle; rewrite Hle.
          replace (n <=? S (Re⁺)) with true.
-         ++ rewrite Resources.shift_empty_spec. 
+         ++ rewrite Resources.shift_empty. 
             rewrite Heq; simpl.
             now replace (Re⁺ + (Re1⁺ - Re⁺)) with (Re1⁺) by lia.
         ++ symmetry; rewrite Nat.leb_le in *; lia.
       + intro HIn; inversion HIn.
       + rewrite Resources.St.add_notin_spec; split; auto. 
         intro HIn; inversion HIn.
-    -- apply Typ.shift_preserves_valid_gen with (Re⁺); auto; lia.
-    -- apply Typ.shift_preserves_valid_gen with (Re⁺); auto; lia.
-    -- apply IHwt2; rewrite RC.new_key_wh_spec in *; try lia. 
-       + repeat rewrite RC.shift_add_notin_spec.
+    -- apply Typ.shift_preserves_wf_gen with (Re⁺); auto; lia.
+    -- apply Typ.shift_preserves_wf_gen with (Re⁺); auto; lia.
+    -- apply IHwt2; rewrite RC.new_key_wh in *; try lia. 
+       + repeat rewrite RC.shift_add_notin.
          ++ unfold PairTyp.shift; simpl; unfold Resource.shift.
            replace (n <=? S (Re⁺)) with true; replace (n <=? Re⁺) with true;
            try (symmetry; rewrite Nat.leb_le; lia).
            replace (Re⁺ + (m - n)) with (Re1⁺) by lia.
            replace (S (Re ⁺) + (m - n)) with (S (Re1⁺)) by lia.
-           now repeat apply RC.Submap_add_spec.
-        ++ apply RC.Ext.new_key_notin_spec; lia.
-        ++ apply RC.Ext.new_key_notin_spec.
-           rewrite RC.Ext.new_key_add_ge_spec; auto.
-           apply RC.Ext.new_key_notin_spec; lia.
-      + rewrite RC.new_key_wh_spec; lia.
+           now repeat apply RC.Submap_add.
+        ++ apply RC.Ext.new_key_notin; lia.
+        ++ apply RC.Ext.new_key_notin.
+           rewrite RC.Ext.new_key_add_max; lia.
+      + rewrite RC.new_key_wh; lia.
 Qed.
 
 (** *** Weakening corollaries *)
@@ -335,8 +334,8 @@ Corollary weakening_ℜ_1 (Γ : Γ) (Re Re1 : ℜ) (t : Λ) (τ : Τ) :
                {Term.shift (Re⁺) (Re1⁺ - Re⁺) t} ∈ ([⧐ {Re⁺} – {Re1⁺ - Re⁺}] τ)%ty.
 Proof. 
   intros HvRe Hsub Hwt; apply weakening_ℜ_gen with (Re := Re); auto.
-  - now apply RC.Ext.new_key_Submap_spec.
-  - rewrite RC.shift_valid_refl; auto.
+  - now apply RC.Ext.new_key_Submap.
+  - rewrite RC.shift_wf_refl; auto.
 Qed.
 
 Corollary weakening_ℜ (Γ : Γ) (Re Re1 : ℜ) (t : Λ) (τ : Τ) :
@@ -347,9 +346,9 @@ Corollary weakening_ℜ (Γ : Γ) (Re Re1 : ℜ) (t : Λ) (τ : Τ) :
 Proof.
   intros HvΓ HvRe Hsub Hwt.
   apply (weakening_ℜ_1 _ _ Re1) in Hwt as Hwt'; auto.
-  rewrite VC.shift_valid_refl in Hwt'; auto.
-  apply well_typed_implies_valid in Hwt as [_ Hvτ]; auto.
-  now rewrite Typ.shift_valid_refl in Hwt'. 
+  rewrite VC.shift_wf_refl in Hwt'; auto.
+  apply well_typed_implies_Wf in Hwt as [_ Hvτ]; auto.
+  now rewrite Typ.shift_wf_refl in Hwt'. 
 Qed.
 
 Corollary weakening_ℜ_2 (k k' : lvl) (Γ : Γ) (Re Re1 : ℜ) (t : Λ) (τ : Τ) :
@@ -368,6 +367,6 @@ Corollary weakening_ℜ_wh (Γ : Γ) (Re : ℜ) (t : Λ) (α β τ : Τ) :
 Proof.
   intros HvΓ HvRe Hwt.
   apply (weakening_ℜ_2 _ _ _ Re); auto.
-  - rewrite RC.new_key_wh_spec; lia.
-  - apply RC.Submap_wh_spec.
+  - rewrite RC.new_key_wh; lia.
+  - apply RC.Submap_wh.
 Qed.
