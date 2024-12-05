@@ -222,7 +222,6 @@ Notation "∅" := RContext.Raw.empty (at level 0, no associativity) : rcontext_s
 Notation "t '⁺'" := (RContext.Ext.new_key t) (at level 16) : rcontext_scope.
 Notation "r '∉' t" := (~ (RContext.Raw.In r t)) (at level 75, no associativity) : rcontext_scope. 
 Notation "'isEmpty(' t ')'" := (RContext.Empty t) (at level 20, no associativity) : rcontext_scope. 
-Notation "'Add'" := (RContext.Add) (at level 20, no associativity) : rcontext_scope. 
 Notation "t '⌊' x '⌋'"  := (RContext.Raw.find x t) (at level 15, x constr) : rcontext_scope.
 Notation "'max(' t ')'" := (RContext.Ext.max_key t) (at level 15) : rcontext_scope.
 Notation "⌈ x ⤆ v '⌉' t" := (RContext.Raw.add x v t) 

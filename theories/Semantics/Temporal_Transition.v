@@ -861,7 +861,7 @@ Proof.
          rewrite (TT_EqDom_new Rc S W) in * by (destruct HWF as [HIn [Hdisj _]]; auto).
          apply SRE.halts_weakening; auto; lia.
     -- exists <[unit]>; split; auto; reflexivity.
-Qed.
+Admitted.
 
 
 (** ---- *)

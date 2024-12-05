@@ -804,7 +804,6 @@ Notation "t '⁺'" := (SREnvironment.Ext.new_key t) (at level 16) : srenv_scope.
 Notation "∅" := SREnvironment.Raw.empty (at level 0, no associativity) : srenv_scope. 
 Notation "r '∉' t" := (~ (SREnvironment.Raw.In r t)) (at level 75, no associativity) : srenv_scope. 
 Notation "'isEmpty(' t ')'" := (SREnvironment.Empty t) (at level 20, no associativity) : srenv_scope. 
-Notation "'Add'" := (SREnvironment.Add) (at level 20, no associativity) : srenv_scope. 
 Notation "t '⌊' x '⌋'"  := (SREnvironment.Raw.find x t) (at level 15, x constr) : srenv_scope.
 Notation "'max(' t ')'"  := (SREnvironment.Ext.max_key t) (at level 15) : srenv_scope.
 Notation "⌈ x ⤆ v '⌉' t" := (SREnvironment.Raw.add x v t) 

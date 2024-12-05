@@ -56,7 +56,6 @@ Notation "r '∉' t" := (~ (VContext.Raw.In r t)) (at level 75, no associativity
 Notation "∅" := VContext.Raw.empty (at level 0, no associativity) : vcontext_scope. 
 Notation "'isEmpty(' t ')'" := (VContext.Empty t) 
                                 (at level 20, no associativity) : vcontext_scope. 
-Notation "'Add'" := (VContext.Add) (at level 20, no associativity) : vcontext_scope. 
 Notation "t '⌊' x '⌋'"  := (VContext.Raw.find x t) (at level 15, x constr) : vcontext_scope.
 Notation "⌈ x ⤆ v '⌉' t"  := (VContext.Raw.add x v t) 
                              (at level 15, x constr, v constr) : vcontext_scope.

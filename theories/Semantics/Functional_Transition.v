@@ -15,18 +15,12 @@ Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
 
 Open Scope renvironment_scope.
 
-(** *** Domain equality 
-
-  We define the domain equality as follows: for all key [k], [k] is in the resource context if and only if [k] is in the resource environment. This property is already define in [MMaps], however we need it for maps with different data and the one in [MMaps] library does not match.
-*)
-Definition eqDom (Re : ℜ) (V : 𝐕) := forall (r : resource), (r ∈ Re)%rc <-> r ∈ V.
-
 (** *** Well-formed environment-context 
 
   For subsequent proofs we define a well-formed property between the resource context ([Re]) and the resource environment ([V]). They need four property: (1) their domain matches; (2,3) they are both well-formed under their new key; (4) and each pair (types, cell) is well-typed under the empty variable context and the resource context [Re].
 *)
 Definition well_formed_ec (Re : ℜ) (V : 𝐕) :=
-  (* (1) *) eqDom Re V /\ 
+  (* (1) *) REnvironment.eqDom Re V /\ 
   (* (2) *) (Re⁺ ⊩ Re)%rc /\  (* (3) *) V⁺ ⊩ V /\
   (* (4) *) (forall (r : resource) (α β : Τ) (v : 𝑣),
                 Re⌊r⌋%rc = Some (α,β) -> V⌊r⌋ = Some v -> 
@@ -134,122 +128,6 @@ Proof.
   apply fT_eT_sv with (st' := y); auto.
 Qed.
 
-(** *** [eqDom] properties *)
-
-#[export] Instance eqDom_iff : Proper (RC.eq ==> RE.eq ==> iff) eqDom.
-Proof.
-  intros Re Re1 HeqRe V V1 HeqV; unfold eqDom; split; intros.
-  - rewrite <- HeqRe; rewrite <- HeqV; auto.
-  - rewrite HeqRe; rewrite HeqV; auto.
-Qed.
-
-Fact fT_eqDom_In (r : resource) (Re : ℜ) (V : 𝐕):
-  eqDom Re V -> (r ∈ Re)%rc <-> r ∈ V.
-Proof. unfold eqDom; intro HeqDom; auto. Qed.
-
-Fact fT_eqDom_MapsTo (r : resource) (α β : Τ) (Re : ℜ) (V : 𝐕) :
-  eqDom Re V -> RC.Raw.MapsTo r (α,β) Re -> exists (v : 𝑣), RE.Raw.MapsTo r v V.
-Proof. 
-  intros HeqDom HM.
-  assert (HIn : r ∈ V).
-  { 
-    rewrite <- (fT_eqDom_In _ Re); auto.
-    now exists (α,β). 
-  }
-  destruct HIn as [v HM']; now exists v.
-Qed.
-
-Fact fT_eqDom_Empty (Re : ℜ) (V : 𝐕):
- eqDom Re V -> (isEmpty(Re))%rc <-> isEmpty(V).
-Proof.
-  intro HeqDom; split; intros HEmp r v HM.
-  - assert (HnIn : (r ∉ Re)%rc).
-    { intros [v' HM']; now apply (HEmp r v'). }
-    apply HnIn. 
-    rewrite (fT_eqDom_In _ _ V); auto. 
-    now exists v.
-  - assert (HnIn : (r ∉ V)).
-    { intros [v' HM']; now apply (HEmp r v'). }
-    apply HnIn. 
-    rewrite <- (fT_eqDom_In _ Re V); auto. 
-    now exists v.
-Qed.
-  
-Fact fT_eqDom_is_empty (Re : ℜ) (V : 𝐕):
-  eqDom Re V -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
-Proof.
-  intro HeqDom.
-  destruct (RC.Raw.is_empty Re) eqn:HisEmp;
-  destruct (RE.Raw.is_empty V) eqn:HisEmp'; auto; exfalso.
-  - apply RC.is_empty_2 in HisEmp.
-    rewrite (fT_eqDom_Empty _ V) in HisEmp; auto.
-    apply RE.is_empty_1 in HisEmp.
-    rewrite HisEmp' in *; inversion HisEmp.
-  - exfalso.  
-    apply RE.is_empty_2 in HisEmp'.
-    rewrite <- fT_eqDom_Empty in HisEmp'; eauto.
-    apply RC.is_empty_1 in HisEmp'.
-    rewrite HisEmp in *. inversion HisEmp'.
-Qed.
-
-Fact fT_eqDom_find (Re : ℜ) (V : 𝐕):
-  eqDom Re V -> 
-  forall (r : resource) (α β : Τ), Re⌊r⌋%rc = Some (α, β) -> exists v, (V⌊r⌋ = Some v)%type.
-Proof. 
-  intros HeqDom r α β HfRe.
-  apply RC.find_2 in HfRe.
-  apply fT_eqDom_MapsTo with (V := V) in HfRe as [v HM]; auto.
-  now exists v; apply RE.find_1.
-Qed.
-
-Fact fT_eqDom_max (Re : ℜ) (V : 𝐕):
-  eqDom Re V -> max(Re)%rc = max(V).
-Proof.
-  revert V; induction Re using RC.map_induction; intros V HeqDom.
-  - rewrite RC.Ext.max_key_Empty; auto.
-    rewrite (fT_eqDom_Empty Re V HeqDom) in H.
-    rewrite RE.Ext.max_key_Empty; auto.
-  - assert (HIn : x ∈ V). 
-    { 
-      unfold eqDom in *; rewrite <- HeqDom. 
-      unfold RC.Add in *; rewrite H0.
-      rewrite RC.add_in_iff; auto. 
-    }
-    assert (HIn': x ∈ V) by auto.
-    destruct HIn as [v Hfi].
-    apply RE.find_1 in Hfi.
-    apply RE.add_id in Hfi as Heq; rewrite <- Heq.
-    rewrite <- RE.add_remove_1.
-    unfold RC.Add in H0; rewrite H0 in *; clear H0 Heq.
-    rewrite RC.Ext.max_key_add_max.
-    rewrite RE.Ext.max_key_add_max.
-
-    assert (HeqDom': eqDom Re1 (RE.Raw.remove x V)%re).
-    {
-     intro r; split; intro HIn.
-     - destruct (Resource.eq_dec r x); subst; auto.
-       -- contradiction.
-       -- rewrite RE.remove_in_iff; split; auto.
-          apply HeqDom.
-          rewrite RC.add_in_iff; auto.
-     - apply RE.remove_in_iff in HIn as [Hneq HIn].
-       apply HeqDom in HIn.
-       apply RC.add_in_iff in HIn as [| HIn]; subst; auto.
-       contradiction.
-    }
-    rewrite <- IHRe1; auto.
-Qed.
-
-Fact fT_eqDom_new (Re : ℜ) (V : 𝐕):
-  eqDom Re V -> Re⁺%rc = V⁺.
-Proof.
-  unfold RC.Ext.new_key,RE.Ext.new_key; intro HeqDom.
-  apply fT_eqDom_is_empty in HeqDom as HisEmp.
-  destruct (RC.Raw.is_empty Re) eqn:HEmp.
-  - now rewrite <- HisEmp.
-  - rewrite <- HisEmp; f_equal; now apply fT_eqDom_max.
-Qed.
-
 (** *** [well_formed_ec] properties *)
 
 
@@ -290,27 +168,27 @@ Qed.
 
 Corollary WF_ec_Empty (Re : ℜ) (V : 𝐕):
   WF(Re,V) -> isEmpty(Re)%rc <-> isEmpty(V).
-Proof. intros [HeqDom _]; now apply fT_eqDom_Empty. Qed.
+Proof. intros [HeqDom _]; now apply RE.eqDom_Empty. Qed.
 
 Corollary WF_ec_is_empty (Re : ℜ) (V : 𝐕):
   WF(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
-Proof. intros [HeqDom _]; now apply fT_eqDom_is_empty. Qed.
+Proof. intros [HeqDom _]; now apply RE.eqDom_is_empty. Qed.
 
 Corollary WF_ec_find (Re : ℜ) (V : 𝐕):
   WF(Re,V) -> forall r α β, 
   Re⌊r⌋%rc = Some(α, β) -> exists v, (V⌊r⌋ = Some v)%type.
 Proof. 
   intros [HeqDom _] r α β HfRe.
-  now apply (fT_eqDom_find Re _ HeqDom r α β).
+  now apply (RE.eqDom_find Re _ HeqDom r α β).
 Qed.
 
 Corollary WF_ec_max (Re : ℜ) (V : 𝐕):
   WF(Re,V) -> max(Re)%rc = max(V).
-Proof. intros [HeqDom _]; now apply fT_eqDom_max. Qed.
+Proof. intros [HeqDom _]; now apply RE.eqDom_max. Qed.
 
 Corollary WF_ec_new (Re : ℜ) (V : 𝐕):
   WF(Re,V) -> Re⁺%rc = V⁺.
-Proof. intros [HeqDom _]; now apply fT_eqDom_new. Qed.
+Proof. intros [HeqDom _]; now apply RE.eqDom_new. Qed.
 
 
 Lemma WF_ec_wh (Re : ℜ) (V : 𝐕) (α : Τ) (i : Λ) :
@@ -403,10 +281,10 @@ Proof.
          destruct (Resource.eq_dec (S r) (V⁺)).
          ++ rewrite e; simpl.
             rewrite Resource.max_l; auto.
-            rewrite <- (fT_eqDom_new Rc V); auto.
+            rewrite <- (RE.eqDom_new Rc V); auto.
             apply well_typed_implies_Wf in Hwti as []; auto.
          ++ rewrite Resource.max_r; auto; simpl.
-            rewrite <- (fT_eqDom_new Rc V); auto.
+            rewrite <- (RE.eqDom_new Rc V); auto.
             apply well_typed_implies_Wf in Hwti as []; auto.
     -- intros r' ty ty' v' HfiRc' HfiV'.
        destruct (Resource.eq_dec r r') as [| Hneq]; subst.
@@ -884,7 +762,7 @@ Hypothesis all_arrow_halting : forall Re t α β,
           (* properties of [W] *)
           ((Rc1⁺)%rc ⊩ W)%sk /\
           (~ Stock.Empty W -> (Rc1⁺)%rc = (W⁺)%sk) /\
-          (forall (r : resource), (r ∈ (RC.diff Rc1 Rc))%rc <-> (r ∈ W)%sk) /\
+          (Stock.eqDom (RC.diff Rc1 Rc) W) /\
           (forall (r : resource) (v : Λ) (α β : Τ), 
                     W⌊r⌋%sk = Some v -> Rc1⌊r⌋%rc = Some (β,α) -> ∅%vc ⋅ Rc1 ⊢ v ∈ α) /\
 
@@ -1194,7 +1072,7 @@ Proof.
                      apply (RC.Ext.Submap_find _ _ _ Rc'') in Hfi; auto.
                   ** assert (x ∈ W')%sk.
                      { 
-                      rewrite <- HInRcW2.
+                      rewrite <- (Stock.eqDom_In _ (RC.diff Rc'' Rc') _ HInRcW2).
                       rewrite RC.diff_in_iff; split; auto.
                      }
                      apply Stock.Empty_notin_1 in H; auto.
@@ -1241,19 +1119,19 @@ Proof.
       - rewrite RC.diff_in_iff.
         apply Stock.union_in_iff in HIn as [HIn | HIn].
         -- rewrite Stock.Wf_in_iff in HIn; auto.
-           rewrite <- HInRcW1 in HIn.
+           rewrite <- (Stock.eqDom_In _ (RC.diff Rc' Rc) _ HInRcW1) in HIn.
            apply RC.diff_in_iff in HIn as [HIn HnIn]. 
            split; auto.
            apply (RC.Ext.Submap_in _ Rc'); auto.
 
         -- assert (HIn': (r ∈ W')%sk) by assumption.
           
-            rewrite <- HInRcW2 in HIn'.
-            apply RC.diff_in_iff in HIn' as [HIn' HnIn'].
-            split; auto.
-            intro Hc.
+           rewrite <- (Stock.eqDom_In _ (RC.diff Rc'' Rc') _ HInRcW2) in HIn'.
+           apply RC.diff_in_iff in HIn' as [HIn' HnIn'].
+           split; auto.
+           intro Hc.
 
-            apply (RC.Ext.Submap_in _ _ Rc') in Hc; auto.
+           apply (RC.Ext.Submap_in _ _ Rc') in Hc; auto.
     }
     split.
     { 
@@ -1495,9 +1373,7 @@ Proof.
       do 2 rewrite RC.Ext.new_key_add_max.
       rewrite Stock.new_key_add_max; rewrite <- Hnew.
       replace (Nat.max (S (Rc ⁺)%rc) (Rc ⁺)%rc) with (S (Rc ⁺)%rc) by lia.
-      assert ((RC.diff Rc' (⌈S (Rc⁺) ⤆ (τ, <[𝟙]>)⌉ (⌈Rc⁺ ⤆ (<[𝟙]>, τ)⌉ Rc))⁺)%rc = (W ⁺)%sk).
-      { admit. }
-      rewrite H; lia.
+      apply Stock.eqDom_new_key in HInRcW1; rewrite HInRcW1; lia.
     }
     split.
     {
@@ -1525,7 +1401,7 @@ Proof.
              do 2 rewrite RC.add_in_iff; auto.
            + rewrite <- Hnew.
              apply RC.Ext.new_key_notin; lia.
-        -- rewrite <- HInRcW1 in HIn.
+        -- erewrite <- (Stock.eqDom_In) in HIn; eauto.
            apply RC.diff_in_iff in HIn as [HIn HnIn].
            split; auto.
            do 2 rewrite RC.add_in_iff in HnIn.
@@ -1573,8 +1449,7 @@ Proof.
            + rewrite Hnew.
              apply RE.Ext.new_key_notin; auto.
     }
-(* Qed. *)
-Admitted.
+Qed.
 
 End preservation.
 

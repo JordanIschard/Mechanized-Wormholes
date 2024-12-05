@@ -1,10 +1,9 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop Morphisms SetoidList.
-From Mecha Require Import Resource Resources Term Cell.
+From Mecha Require Import Resource Resources Term Typ Cell RContext.
 From Mecha Require Evaluation_Transition.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevelLVLD MapExtInterface MapExt.
-Import ResourceNotations TermNotations CellNotations 
-       ResourcesNotations SetNotations.
-
+Import ResourceNotations TermNotations CellNotations TypNotations 
+       ResourcesNotations SetNotations RContextNotations.
 
 
 (** * Environment - Resource Environment
@@ -24,6 +23,7 @@ Open Scope term_scope.
 
 Module ET := Evaluation_Transition.
 Module RS := Resources.St.
+Module RC := RContext.
 
 (** **** Initialize an environment
 
@@ -40,14 +40,137 @@ Definition init_writers (rs: resources) (V: t) := RS.fold (init_writers_func) rs
 *)
 Definition halts (k : lvl) := For_all (fun _ d => ET.halts k (Cell.extract d)).
 
-(** *** To be used or not to be *)
+(** **** To be used or not to be *)
 
 Definition   used r (V: t) : Prop := Cell.opt_used (find r V). 
 Definition unused r (V: t) : Prop := Cell.opt_unused (find r V).
 
+(** **** Domain equality with [RContext]
+
+  We define the domain equality as follows: for all key [k], [k] is in the resource context if and only if [k] is in the resource environment. This property is already define in [MMaps], however we need it for maps with different data and the one in [MMaps] library does not match.
+*)
+Definition eqDom (Rc : ℜ) (V : t) := forall (r : resource), (r ∈ Rc)%rc <-> In r V.
+
 (** *** Properties *)
 
-(** **** [unused] and [used] properties *)
+(** **** [eqDom] properties *)
+
+#[export] Instance eqDom_iff : Proper (RC.eq ==> eq ==> iff) eqDom.
+Proof.
+  intros Re Re1 HeqRe V V1 HeqV; unfold eqDom; split; intros.
+  - rewrite <- HeqRe; rewrite <- HeqV; auto.
+  - rewrite HeqRe; rewrite HeqV; auto.
+Qed.
+
+Lemma eqDom_In (r: resource) (Rc: ℜ) (V: t) :
+  eqDom Rc V -> (r ∈ Rc)%rc <-> In r V.
+Proof. unfold eqDom; intro HeqDom; auto. Qed.
+
+Lemma eqDom_MapsTo (r: resource) (α β: Τ) (Rc: ℜ) (V: t) :
+  eqDom Rc V -> RC.Raw.MapsTo r (α,β) Rc -> exists (v : 𝑣), MapsTo r v V.
+Proof. 
+  intros HeqDom HM.
+  assert (HIn : In r V).
+  { 
+    rewrite <- (eqDom_In _ Rc); auto.
+    now exists (α,β). 
+  }
+  destruct HIn as [v HM']; now exists v.
+Qed.
+
+Lemma eqDom_Empty (Rc : ℜ) (V: t):
+ eqDom Rc V -> (isEmpty(Rc))%rc <-> Empty V.
+Proof.
+  intro HeqDom; split; intros HEmp r v HM.
+  - assert (HnIn : (r ∉ Rc)%rc).
+    { intros [v' HM']; now apply (HEmp r v'). }
+    apply HnIn. 
+    rewrite (eqDom_In _ _ V); auto. 
+    now exists v.
+  - assert (HnIn : ~ (In r V)).
+    { intros [v' HM']; now apply (HEmp r v'). }
+    apply HnIn. 
+    rewrite <- (eqDom_In _ Rc V); auto. 
+    now exists v.
+Qed.
+
+Lemma eqDom_is_empty (Rc : ℜ) (V: t):
+  eqDom Rc V -> RC.Raw.is_empty Rc = is_empty V.
+Proof.
+  intro HeqDom.
+  destruct (RC.Raw.is_empty Rc) eqn:HisEmp;
+  destruct (is_empty V) eqn:HisEmp'; auto; exfalso.
+  - apply RC.is_empty_2 in HisEmp.
+    rewrite (eqDom_Empty _ V) in HisEmp; auto.
+    apply is_empty_1 in HisEmp.
+    rewrite HisEmp' in *; inversion HisEmp.
+  - exfalso.  
+    apply is_empty_2 in HisEmp'.
+    rewrite <- eqDom_Empty in HisEmp'; eauto.
+    apply RC.is_empty_1 in HisEmp'.
+    rewrite HisEmp in *. inversion HisEmp'.
+Qed.
+
+Lemma eqDom_find (Rc : ℜ) (V: t):
+  eqDom Rc V -> 
+  forall (r : resource) (α β : Τ), Rc⌊r⌋%rc = Some (α, β) -> exists v, (find r V = Some v)%type.
+Proof. 
+  intros HeqDom r α β HfiRc.
+  apply RC.find_2 in HfiRc.
+  apply eqDom_MapsTo with (V := V) in HfiRc as [v HM]; auto.
+  now exists v; apply find_1.
+Qed.
+
+Lemma eqDom_max (Rc : ℜ) (V: t):
+  eqDom Rc V -> max(Rc)%rc = max_key V.
+Proof.
+  revert V; induction Rc using RC.map_induction; intros V HeqDom.
+  - rewrite RC.Ext.max_key_Empty; auto.
+    rewrite (eqDom_Empty Rc V HeqDom) in H.
+    rewrite max_key_Empty; auto.
+  - assert (HIn: In x V). 
+    { 
+      unfold eqDom in *; rewrite <- HeqDom. 
+      unfold RC.Add in *; rewrite H0.
+      rewrite RC.add_in_iff; auto. 
+    }
+    assert (HIn': In x V) by auto.
+    destruct HIn as [v Hfi].
+    apply find_1 in Hfi.
+    apply add_id in Hfi as Heq; rewrite <- Heq.
+    rewrite <- add_remove_1.
+    unfold RC.Add in H0; rewrite H0 in *; clear H0 Heq.
+    rewrite RC.Ext.max_key_add_max.
+    rewrite max_key_add_max.
+
+    assert (HeqDom': eqDom Rc1 (remove x V)).
+    {
+     intro r; split; intro HIn.
+     - destruct (Resource.eq_dec r x); subst; auto.
+       -- contradiction.
+       -- rewrite remove_in_iff; split; auto.
+          apply HeqDom.
+          rewrite RC.add_in_iff; auto.
+     - apply remove_in_iff in HIn as [Hneq HIn].
+       apply HeqDom in HIn.
+       apply RC.add_in_iff in HIn as [| HIn]; subst; auto.
+       contradiction.
+    }
+    rewrite <- IHRc1; auto.
+Qed.
+
+Lemma eqDom_new (Rc : ℜ) (V: t):
+  eqDom Rc V -> Rc⁺%rc = new_key V.
+Proof.
+  unfold RC.Ext.new_key, new_key; intro HeqDom.
+  apply eqDom_is_empty in HeqDom as HisEmp.
+  destruct (RC.Raw.is_empty Rc) eqn:HEmp.
+  - now rewrite <- HisEmp.
+  - rewrite <- HisEmp; f_equal; now apply eqDom_max.
+Qed.
+
+
+(** **** [unused] properties *)
 
 #[export] Instance unused_iff : Proper (Logic.eq ==> eq ==> iff) unused.
 Proof.
@@ -149,6 +272,8 @@ Proof.
   - exists r0; now apply find_2.
   - inversion H.
 Qed.
+
+(** **** [used] properties *)
 
 #[export] Instance used_iff : Proper (Logic.eq ==> eq ==> iff) used.
 Proof.
@@ -654,7 +779,6 @@ Notation "t '⁺'" := (REnvironment.Ext.new_key t) (at level 16) : renvironment_
 Notation "r '∉' t" := (~ (REnvironment.Raw.In r t)) 
                        (at level 75, no associativity) : renvironment_scope. 
 Notation "'isEmpty(' t ')'" := (REnvironment.Empty t) (at level 20, no associativity) : renvironment_scope. 
-Notation "'Add'" := (REnvironment.Add) (at level 20, no associativity) : renvironment_scope. 
 Notation "t '⌊' x '⌋'"  := (REnvironment.Raw.find x t) (at level 15, x constr) : renvironment_scope.
 Notation "'max(' t ')'"  := (REnvironment.Ext.max_key t) (at level 15) : renvironment_scope.
 Notation "⌈ x ⤆ v '⌉' t"  := (REnvironment.Raw.add x v t) 
@@ -705,5 +829,7 @@ Import REnvironment.
 #[export] Instance renvionment_unused_iff : Proper (Logic.eq ==> eq ==> iff) unused := _.
 
 #[export] Instance renvionment_used_iff : Proper (Logic.eq ==> eq ==> iff) used := _.
+
+#[export] Instance renvironment_eqDom_iff : Proper (RC.eq ==> eq ==> iff) eqDom := _.
 
 End REnvironmentNotations.

@@ -303,7 +303,6 @@ Notation "t '⁺'" := (OREnvironment.Ext.new_key t) (at level 16) : orenv_scope.
 Notation "∅" := OREnvironment.Raw.empty (at level 0, no associativity) : orenv_scope. 
 Notation "r '∉' t" := (~ (OREnvironment.Raw.In r t)) (at level 75, no associativity) : orenv_scope. 
 Notation "'isEmpty(' t ')'" := (OREnvironment.Empty t) (at level 20, no associativity) : orenv_scope. 
-Notation "'Add'" := (OREnvironment.Add) (at level 20, no associativity) : orenv_scope. 
 Notation "t '⌊' x '⌋'"  := (OREnvironment.Raw.find x t) (at level 15, x constr) : orenv_scope.
 Notation "'max(' t ')'"  := (OREnvironment.Ext.max_key t) (at level 15) : orenv_scope.
 Notation "⌈ x ⤆ v '⌉' t" := (OREnvironment.Raw.add x v t) 
