@@ -17,26 +17,26 @@ Open Scope renvironment_scope.
 
 (** *** Well-formed environment-context 
 
-  For subsequent proofs we define a well-formed property between the resource context ([Re]) and the resource environment ([V]). They need four property: (1) their domain matches; (2,3) they are both well-formed under their new key; (4) and each pair (types, cell) is well-typed under the empty variable context and the resource context [Re].
+  For subsequent proofs we define a well-formed property between the resource context ([Rc]) and the resource environment ([V]). They need four property: (1) their domain matches; (2,3) they are both well-formed under their new key; (4) and each pair (types, cell) is well-typed under the empty variable context and the resource context [Rc].
 *)
-Definition well_formed_ec (Re : ℜ) (V : 𝐕) :=
-  (* (1) *) REnvironment.eqDom Re V /\ 
-  (* (2) *) (Re⁺ ⊩ Re)%rc /\  (* (3) *) V⁺ ⊩ V /\
+Definition well_formed_ec (Rc : ℜ) (V : 𝐕) :=
+  (* (1) *) REnvironment.eqDom Rc V /\ 
+  (* (2) *) (Rc⁺ ⊩ Rc)%rc /\  (* (3) *) V⁺ ⊩ V /\
   (* (4) *) (forall (r : resource) (α β : Τ) (v : 𝑣),
-                Re⌊r⌋%rc = Some (α,β) -> V⌊r⌋ = Some v -> 
+                Rc⌊r⌋%rc = Some (α,β) -> V⌊r⌋ = Some v -> 
                 match v with
-                  | (⩽ v' … ⩾) => (∅)%vc ⋅ Re ⊢ v' ∈ β
-                  | (⩽ … v' ⩾) => (∅)%vc ⋅ Re ⊢ v' ∈ α
+                  | (⩽ v' … ⩾) => (∅)%vc ⋅ Rc ⊢ v' ∈ β
+                  | (⩽ … v' ⩾) => (∅)%vc ⋅ Rc ⊢ v' ∈ α
                 end).
 
-Notation "'WF(' Re , V )" := (well_formed_ec Re V) (at level 50).
+Notation "'WF(' Rc , V )" := (well_formed_ec Rc V) (at level 50).
 
 
-Definition fT_inputs_halts (Rc: ℜ) (V: 𝐕) (t1 t2: Λ) :=
-  REnvironment.halts (Rc⁺)%rc V /\ halts (Rc⁺)%rc t1 /\ halts (Rc⁺)%rc t2.
+Definition fT_inputs_halts (m: lvl) (V: 𝐕) (t1 t2: Λ) :=
+  REnvironment.halts m V /\ halts m t1 /\ halts m t2.
 
-Definition fT_outputs_halts (Rc: ℜ) (V: 𝐕) (W: 𝐖) (t1 t2: Λ) :=
-  REnvironment.halts (Rc⁺)%rc V /\ Stock.halts (Rc⁺)%rc W /\ halts (Rc⁺)%rc t1 /\ halts (Rc⁺)%rc t2.
+Definition fT_outputs_halts (m: lvl) (V: 𝐕) (W: 𝐖) (t1 t2: Λ) :=
+  REnvironment.halts m V /\ Stock.halts m W /\ halts m t1 /\ halts m t2.
 
 (** *** Functional transition 
 
@@ -131,21 +131,21 @@ Qed.
 (** *** [well_formed_ec] properties *)
 
 
-Fact WF_ec_In (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> forall r, (r ∈ Re)%rc <-> r ∈ V.
+Fact WF_ec_In (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> forall r, (r ∈ Rc)%rc <-> r ∈ V.
 Proof. now intros [HeqDom _]. Qed.
 
-Fact WF_ec_Wf (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> (Re⁺ ⊩ Re)%rc /\ V⁺ ⊩ V.
+Fact WF_ec_Wf (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> (Rc⁺ ⊩ Rc)%rc /\ V⁺ ⊩ V.
 Proof. intros [_ [HvRe [HvV _]]]; now split. Qed.
 
-Fact WF_ec_well_typed (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> 
+Fact WF_ec_well_typed (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> 
   forall (r : resource) (α β : Τ) (v : 𝑣),
-    Re⌊r⌋%rc = Some (α,β) ->  V⌊r⌋ = Some v  -> 
+    Rc⌊r⌋%rc = Some (α,β) ->  V⌊r⌋ = Some v  -> 
     match v with
-      | (⩽ v' … ⩾) => ∅%vc ⋅ Re ⊢ v' ∈ β
-      | (⩽ … v' ⩾) => ∅%vc ⋅ Re ⊢ v' ∈ α
+      | (⩽ v' … ⩾) => ∅%vc ⋅ Rc ⊢ v' ∈ β
+      | (⩽ … v' ⩾) => ∅%vc ⋅ Rc ⊢ v' ∈ α
     end.
 Proof. 
   intros [_ [_ [_ Hwt]]] r v α β HfRe HfV. 
@@ -154,7 +154,7 @@ Qed.
 
 #[export] Instance WF_ec_iff : Proper (RC.eq ==> RE.eq ==> iff) well_formed_ec.
 Proof.
-  intros Re Re1 HeqRe V V1 HeqV; unfold well_formed_ec. 
+  intros Rc Re1 HeqRe V V1 HeqV; unfold well_formed_ec. 
   split; intros [HeqDom [HvRe [HvV Hwt]]].
   - rewrite <- HeqRe, <- HeqV; repeat (split; auto).
     intros r α β v Hfi Hfi'; destruct v;
@@ -166,48 +166,48 @@ Proof.
     eapply Hwt in Hfi'; eauto.
 Qed.
 
-Corollary WF_ec_Empty (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> isEmpty(Re)%rc <-> isEmpty(V).
+Corollary WF_ec_Empty (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> isEmpty(Rc)%rc <-> isEmpty(V).
 Proof. intros [HeqDom _]; now apply RE.eqDom_Empty. Qed.
 
-Corollary WF_ec_is_empty (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> RC.Raw.is_empty Re = RE.Raw.is_empty V.
+Corollary WF_ec_is_empty (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> RC.Raw.is_empty Rc = RE.Raw.is_empty V.
 Proof. intros [HeqDom _]; now apply RE.eqDom_is_empty. Qed.
 
-Corollary WF_ec_find (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> forall r α β, 
-  Re⌊r⌋%rc = Some(α, β) -> exists v, (V⌊r⌋ = Some v)%type.
+Corollary WF_ec_find (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> forall r α β, 
+  Rc⌊r⌋%rc = Some(α, β) -> exists v, (V⌊r⌋ = Some v)%type.
 Proof. 
   intros [HeqDom _] r α β HfRe.
-  now apply (RE.eqDom_find Re _ HeqDom r α β).
+  now apply (RE.eqDom_find Rc _ HeqDom r α β).
 Qed.
 
-Corollary WF_ec_max (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> max(Re)%rc = max(V).
+Corollary WF_ec_max (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> max(Rc)%rc = max(V).
 Proof. intros [HeqDom _]; now apply RE.eqDom_max. Qed.
 
-Corollary WF_ec_new (Re : ℜ) (V : 𝐕):
-  WF(Re,V) -> Re⁺%rc = V⁺.
+Corollary WF_ec_new (Rc : ℜ) (V : 𝐕):
+  WF(Rc,V) -> Rc⁺%rc = V⁺.
 Proof. intros [HeqDom _]; now apply RE.eqDom_new. Qed.
 
 
-Lemma WF_ec_wh (Re : ℜ) (V : 𝐕) (α : Τ) (i : Λ) :
-  (Re⁺%rc ⊩ α)%ty -> (Re⁺%rc ⊩ i)%tm -> ∅%vc ⋅ Re ⊢ i ∈ α ->
-  WF(Re,V) ->
-  WF((RC.Raw.add (S (Re⁺)%rc) (α,<[𝟙]>) (RC.Raw.add (Re⁺)%rc (<[𝟙]>,α) Re)),
+Lemma WF_ec_wh (Rc : ℜ) (V : 𝐕) (α : Τ) (i : Λ) :
+  (Rc⁺%rc ⊩ α)%ty -> (Rc⁺%rc ⊩ i)%tm -> ∅%vc ⋅ Rc ⊢ i ∈ α ->
+  WF(Rc,V) ->
+  WF((RC.Raw.add (S (Rc⁺)%rc) (α,<[𝟙]>) (RC.Raw.add (Rc⁺)%rc (<[𝟙]>,α) Rc)),
        (RE.Raw.add (S  (V⁺)) (Cell.inp <[unit]>) 
              (RE.Raw.add (V⁺) (Cell.shift (V⁺) 2 (Cell.inp i)) ([⧐ (V⁺) – 2] V)))).
 Proof.
   intros Hvτ Hvi Hwti Hwf. 
-  apply (WF_ec_new Re V) in Hwf as Hnew.
-  apply (WF_ec_Wf Re V) in Hwf as Hv.
+  apply (WF_ec_new Rc V) in Hwf as Hnew.
+  apply (WF_ec_Wf Rc V) in Hwf as Hv.
   destruct Hv as [HvRe HvV].
   repeat split.
   - intro HIn. 
     repeat rewrite RE.add_in_iff.  
     repeat apply RC.add_in_iff in HIn as [Heq' | HIn]; subst; auto.
     repeat right.
-    rewrite (WF_ec_In Re V) in HIn; auto.
+    rewrite (WF_ec_In Rc V) in HIn; auto.
     apply RE.Wf_in with (lb := V⁺) in HIn as Hvr; auto.
     rewrite <- (Resource.shift_wf_refl (V⁺) 2 r); auto.
     now apply RE.shift_in_iff.
@@ -220,25 +220,25 @@ Proof.
     apply RE.shift_in_iff in HIn.
     apply RE.Wf_in with (lb := V⁺) in HIn as Hvr; auto.
     rewrite (Resource.shift_wf_refl (V⁺) 2 r'); auto.
-    now apply (WF_ec_In Re V).
+    now apply (WF_ec_In Rc V).
   - apply RC.Wf_wh_full; auto; 
     split; unfold Cell.Wf; simpl; auto; constructor.
   - apply RE.Wf_wh_full; auto; 
     unfold Cell.Wf; simpl; try constructor.
     now rewrite <- Hnew.
   - intros r τ β v HfRe HfV.
-    destruct (Resource.eq_dec r (S (Re⁺)%rc)); subst.
+    destruct (Resource.eq_dec r (S (Rc⁺)%rc)); subst.
     -- rewrite RE.add_eq_o in HfV; auto.
        rewrite RC.add_eq_o in HfRe; auto.
        inversion HfRe; inversion HfV; subst; clear HfV HfRe.
        constructor.
-    -- destruct (Resource.eq_dec r (Re⁺)%rc) as [| Hneq]; subst.
+    -- destruct (Resource.eq_dec r (Rc⁺)%rc) as [| Hneq]; subst.
        + rewrite RE.add_neq_o in HfV; try lia.
          rewrite RE.add_eq_o in HfV; auto.
          rewrite RC.add_neq_o in HfRe; try lia.
          rewrite RC.add_eq_o in HfRe; auto.
          inversion HfRe; inversion HfV; subst; clear HfV HfRe.
-         apply (weakening_ℜ_2 _ _ _ Re); auto.
+         apply (weakening_ℜ_2 _ _ _ Rc); auto.
          ++ rewrite RC.new_key_wh; lia.
          ++ apply RC.Submap_wh.
        + do 2 rewrite RE.add_neq_o in HfV; try lia.
@@ -249,7 +249,7 @@ Proof.
          apply RE.Wf_find with (lb := V⁺) in HfV as Hvr'; auto.
          destruct Hvr' as [Hvr' _].
          rewrite Resource.shift_wf_refl in HfRe; auto.
-         apply (WF_ec_well_typed Re V Hwf r' _ _ v') in HfRe as Hwv'; auto.
+         apply (WF_ec_well_typed Rc V Hwf r' _ _ v') in HfRe as Hwv'; auto.
          destruct v' as [v' | v']; auto; simpl; 
          rewrite <- Hnew; now apply weakening_ℜ_wh.
 Qed.
@@ -298,16 +298,16 @@ Qed.
 
 (** *** [fT_inputs_halts] properties *)
 
-Lemma fT_inputs_halts_Λ_2 (Rc: ℜ) (V: 𝐕) (t1 t2 t2': Λ) :
-  fT_inputs_halts Rc V t1 t2 -> (Rc ⁺)%rc ⊨ t2 ⟼ t2' -> fT_inputs_halts Rc V t1 t2'.
+Lemma fT_inputs_halts_eT_r (Rc: ℜ) (V: 𝐕) (t1 t2 t2': Λ) :
+  fT_inputs_halts (Rc⁺)%rc V t1 t2 -> (Rc⁺)%rc ⊨ t2 ⟼ t2' -> fT_inputs_halts (Rc⁺)%rc V t1 t2'.
 Proof.
   intros [HltV [Hlt1 Hlt2]] HeT; do 2 (split; auto).
   apply evaluate_preserves_halting in HeT.
   now rewrite <- HeT.
 Qed.
 
-Lemma fT_inputs_halts_Λ_1 (Rc: ℜ) (V: 𝐕) (t1 t1' t2: Λ) :
-  fT_inputs_halts Rc V t1 t2 -> (Rc ⁺)%rc ⊨ t1 ⟼ t1' -> fT_inputs_halts Rc V t1' t2.
+Lemma fT_inputs_halts_eT_l (Rc: ℜ) (V: 𝐕) (t1 t1' t2: Λ) :
+  fT_inputs_halts (Rc⁺)%rc V t1 t2 -> (Rc ⁺)%rc ⊨ t1 ⟼ t1' -> fT_inputs_halts (Rc⁺)%rc V t1' t2.
 Proof.
   intros [HltV [Hlt1 Hlt2]] HeT; do 2 (split; auto).
   apply evaluate_preserves_halting in HeT.
@@ -315,7 +315,7 @@ Proof.
 Qed.
 
 Lemma fT_inputs_halts_first (Rc: ℜ) (V: 𝐕) (t1 t2 t3: Λ) :
-  fT_inputs_halts Rc V <[⟨t1, t2⟩]> <[first(t3)]> -> fT_inputs_halts Rc V t1 t3.
+  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(t3)]> -> fT_inputs_halts (Rc⁺)%rc V t1 t3.
 Proof.
   intros [HltV [Hltpair Hltfirst]]. 
   do 2 (split; auto).
@@ -324,7 +324,7 @@ Proof.
 Qed.
 
 Lemma fT_inputs_halts_comp_l (Rc: ℜ) (V: 𝐕) (t1 t2 t3: Λ) :
-  fT_inputs_halts Rc V t1 <[t2 >>> t3]> -> fT_inputs_halts Rc V t1 t2.
+  fT_inputs_halts (Rc⁺)%rc V t1 <[t2 >>> t3]> -> fT_inputs_halts (Rc⁺)%rc V t1 t2.
 Proof.
   intros [HltV [Hltpair Hltfirst]]. 
   do 2 (split; auto).
@@ -333,9 +333,9 @@ Qed.
 
 Lemma fT_inputs_halts_comp_r (Rc Rc': ℜ) (V V': 𝐕) (W: 𝐖) (t1 t1' t2 t2' t3: Λ) :
   (Rc ⊆ Rc')%rc -> 
-  fT_inputs_halts Rc V t1 <[t2 >>> t3]> -> 
-  fT_outputs_halts Rc' V' W t1' t2' -> 
-  fT_inputs_halts Rc' V' t1'  <[ [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t3]>.
+  fT_inputs_halts (Rc⁺)%rc V t1 <[t2 >>> t3]> -> 
+  fT_outputs_halts (Rc'⁺)%rc V' W t1' t2' -> 
+  fT_inputs_halts (Rc'⁺)%rc V' t1'  <[ [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t3]>.
 Proof.
   intros Hsub [HltV [Hltpair Hltcomp]] [HltV' [HltW [Hlt1' Hlt2']]]. 
   do 2 (split; auto).
@@ -346,8 +346,8 @@ Qed.
 
 Lemma fT_inputs_halts_wh  (Rc: ℜ) (V: 𝐕) (τ: Τ) (t1 t2 t3: Λ) :
   (Rc⁺)%rc = V⁺ ->
-  fT_inputs_halts Rc V t1 <[wormhole(t2;t3)]> ->
-  fT_inputs_halts (⌈S (Rc⁺) ⤆ (τ, <[𝟙]>)⌉ (⌈Rc⁺ ⤆ (<[𝟙]>, τ)⌉ Rc))%rc
+  fT_inputs_halts (Rc⁺)%rc V t1 <[wormhole(t2;t3)]> ->
+  fT_inputs_halts ((⌈S (Rc⁺) ⤆ (τ, <[𝟙]>)⌉ (⌈Rc⁺ ⤆ (<[𝟙]>, τ)⌉ Rc))⁺)%rc
                   (⌈S (V⁺) ⤆ ⩽ unit … ⩾⌉ (⌈V⁺ ⤆ ([⧐V ⁺ – 2] ⩽ t2 … ⩾)%cl⌉ 
                   ([⧐ V⁺ – 2] V))) <[[⧐ {V⁺} – 2] t1]> t3.
 Proof.
@@ -374,8 +374,8 @@ Qed.
 
 (** *** [fT_outputs_halts] properties *)
 
-Lemma fT_outputs_halts_Λ_2 (Rc: ℜ) (V: 𝐕) (W: 𝐖) (t1 t2 t2': Λ) :
-  fT_outputs_halts Rc V W t1 t2' -> (Rc ⁺)%rc ⊨ t2 ⟼ t2' -> fT_outputs_halts Rc V W t1 t2.
+Lemma fT_outputs_halts_eT_r (Rc: ℜ) (V: 𝐕) (W: 𝐖) (t1 t2 t2': Λ) :
+  fT_outputs_halts (Rc⁺)%rc V W t1 t2' -> (Rc ⁺)%rc ⊨ t2 ⟼ t2' -> fT_outputs_halts (Rc⁺)%rc V W t1 t2.
 Proof.
   intros [HltV [HltW [Hlt1 Hlt2]]] HeT; do 3 (split; auto).
   apply evaluate_preserves_halting in HeT.
@@ -383,8 +383,8 @@ Proof.
 Qed.
 
 Lemma fT_outputs_halts_arr (Rc: ℜ) (V: 𝐕) (t1 t2: Λ) :
-  fT_inputs_halts Rc V t1 <[arr(t2)]> -> 
-  halts (Rc⁺)%rc <[t2 t1]> -> fT_outputs_halts Rc V (∅)%sk <[t2 t1]> <[arr(t2)]>.
+  fT_inputs_halts (Rc⁺)%rc V t1 <[arr(t2)]> -> 
+  halts (Rc⁺)%rc <[t2 t1]> -> fT_outputs_halts (Rc⁺)%rc V (∅)%sk <[t2 t1]> <[arr(t2)]>.
 Proof.
   intros [HltV [Hlt1 Hltarr]] Hltapp.
   repeat split; auto.
@@ -394,9 +394,9 @@ Qed.
 
 Lemma fT_outputs_halts_first (Rc Rc': ℜ) (V V': 𝐕) (W: 𝐖) (t1 t1' t2 t3 t3': Λ) :
   (Rc ⊆ Rc')%rc -> 
-  fT_inputs_halts Rc V <[⟨t1, t2⟩]> <[first(t3)]> ->
-  fT_outputs_halts Rc' V' W t1' t3' ->
-  fT_outputs_halts Rc' V' W <[⟨t1', [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t2⟩]> <[first(t3')]>.
+  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(t3)]> ->
+  fT_outputs_halts (Rc'⁺)%rc V' W t1' t3' ->
+  fT_outputs_halts (Rc'⁺)%rc V' W <[⟨t1', [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t2⟩]> <[first(t3')]>.
 Proof.
   intros Hsub [_ [Hltpair Hltfirst]] [HltV [HltW [Hlt1' Hlt3']]].
   repeat split; auto.
@@ -409,9 +409,9 @@ Qed.
 
 Lemma fT_outputs_halts_comp (Rc Rc': ℜ) (V V': 𝐕) (W W': 𝐖) (t1 t1' t2 t3: Λ) :
   (Rc ⊆ Rc')%rc -> 
-  fT_outputs_halts Rc V W t1 t2 ->
-  fT_outputs_halts Rc' V' W' t1' t3 ->
-  fT_outputs_halts Rc' V' (([⧐ (Rc⁺)%rc – (Rc'⁺)%rc - (Rc⁺)%rc] W) ∪ W')%sk 
+  fT_outputs_halts (Rc⁺)%rc V W t1 t2 ->
+  fT_outputs_halts (Rc'⁺)%rc V' W' t1' t3 ->
+  fT_outputs_halts (Rc'⁺)%rc V' (([⧐ (Rc⁺)%rc – (Rc'⁺)%rc - (Rc⁺)%rc] W) ∪ W')%sk 
                    t1' <[([⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t2) >>> t3]> .
 Proof.
   intros Hsub [HltV [HltW [Hlt1 Hlt2]]] [HltV' [HltW' [Hlt1' Hlt3]]].
@@ -425,8 +425,8 @@ Proof.
 Qed.
 
 Lemma fT_outputs_halts_rsf (r: resource) (Rc : ℜ) (V: 𝐕) (t1 t2: Λ) :
-  fT_inputs_halts Rc V t1 <[rsf[r]]> -> V⌊r⌋ = Some (⩽ t2 … ⩾) -> 
-  fT_outputs_halts Rc (⌈r ⤆ ⩽ … t1 ⩾⌉ V) ∅%sk t2 <[rsf[r]]>.
+  fT_inputs_halts (Rc⁺)%rc V t1 <[rsf[r]]> -> V⌊r⌋ = Some (⩽ t2 … ⩾) -> 
+  fT_outputs_halts (Rc⁺)%rc (⌈r ⤆ ⩽ … t1 ⩾⌉ V) ∅%sk t2 <[rsf[r]]>.
 Proof.
   intros [HltV [Hlt1 _]] HfiV.
   repeat split.
@@ -442,8 +442,8 @@ Lemma fT_outputs_halts_wh (Rc Rc': ℜ) (V V': 𝐕) (W W': 𝐖) (t1 t2 t3: Λ)
   (Rc⁺)%rc = V⁺ ->
   (Rc'⁺)%rc = V'⁺ ->
   halts (Rc⁺)%rc t3 ->
-  fT_outputs_halts Rc' V' W t1 t2 ->
-  fT_outputs_halts Rc' V' 
+  fT_outputs_halts (Rc'⁺)%rc V' W t1 t2 ->
+  fT_outputs_halts (Rc'⁺)%rc V' 
                    (⌈(V⁺)%re ~ S (V⁺)%re ⤆ <[[⧐ {V⁺%re} – {(V'⁺)%re - (V⁺)%re}] t3]>⌉ W)%sk t1 t2.
 Proof.
   intros Hsub Heq Heq' Hlt [HltV [HltW [Hlt1 Hlt2]]].
@@ -707,17 +707,17 @@ Proof.
 Qed.
 
 
-Hypothesis all_arrow_halting : forall Re t α β,
-  ∅%vc ⋅ Re ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊢ v ∈ α -> halts (Re⁺)%rc <[t v]>.
+Hypothesis all_arrow_halting : forall Rc t α β,
+  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
 
 (** *** Typing preservation through functional transition
 
-  Suppose well-typed expression [sv], [sf], that halt, under [Re] (1,2,4,5). In addition, suppose that [V] halts (3) and is well-formed regards of [Re] (7). If there is a transition (6), then we can prove the following properties:
+  Suppose well-typed expression [sv], [sf], that halt, under [Rc] (1,2,4,5). In addition, suppose that [V] halts (3) and is well-formed regards of [Rc] (7). If there is a transition (6), then we can prove the following properties:
   - each data mapped with a resource name present in [R] has to be unused in [V] (8);
   - each data mapped with a resource name not present in [R'] but present in [V] 
     has to be unchanged in [V1] (9);
   - we can found a context [Re1] and a resource set [R'] such as :
-    - the resource context [Re] is a subset of [Re1] (10);
+    - the resource context [Rc] is a subset of [Re1] (10);
     - the resources set [R] is a subset of [R'] (11);
     - [Re1] and [V1] are well-formed (12); 
     - all term stored in [W] are well typed regards of the new context [Re1] (13);
@@ -733,7 +733,7 @@ Hypothesis all_arrow_halting : forall Re t α β,
   Theorem functional_preserves_typing_gen (Rc : ℜ) (V V1 : 𝐕) (W : 𝐖) (st st' t t' : Λ) 
                                                                       (α β : Τ) (R : resources) :
 
-                fT_inputs_halts Rc V st t ->
+                fT_inputs_halts (Rc⁺)%rc V st t ->
 
            (* (4) *) ∅%vc ⋅ Rc ⊢ t ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Rc ⊢ st ∈ α -> 
           (* (6) *) ⪡ V ; st ; t ⪢ ⭆ ⪡ V1 ; st' ; t' ; W ⪢ -> (* (7) *) WF(Rc,V) ->
@@ -751,7 +751,7 @@ Hypothesis all_arrow_halting : forall Re t α β,
           (R ⊆ R')%s /\
 
           (* outputs halts *)
-          fT_outputs_halts Rc1 V1 W st' t' /\
+          fT_outputs_halts (Rc1⁺)%rc V1 W st' t' /\
 
           (* typing preserved *)
           ∅%vc ⋅ Rc1 ⊢ st' ∈ β /\ ∅%vc ⋅ Rc1 ⊢ t' ∈ (α ⟿ β ∣ R') /\
@@ -786,7 +786,7 @@ Proof.
 
     rewrite <- Hnew in HeT.
     apply evaluate_preserves_typing with (t' := t') in Hwt as Hwt'; auto.
-    apply fT_inputs_halts_Λ_2 with (t2' := t') in Hltinp; auto.
+    apply fT_inputs_halts_eT_r with (t2' := t') in Hltinp; auto.
     
   (* fT_eT_sv *)
   - 
@@ -803,7 +803,7 @@ Proof.
     (* clean *)
 
     apply IHfT; auto.
-    apply fT_inputs_halts_Λ_1 with (t1 := st); auto.
+    apply fT_inputs_halts_eT_l with (t1 := st); auto.
 
   (* fT_arr *)
   - 
@@ -924,6 +924,7 @@ Proof.
     apply (fT_inputs_halts_comp_r Rc _ V _ _ st _ t1 _ t2) in Hltout as Hltinp''; auto.
     apply (weakening_ℜ _ _ Rc') in Hwt2 as Hwt2''; auto.
     rewrite Hnew, Hnew' in Hltinp'', Hwt2''.
+    rewrite <- Hnew' in Hltinp'' at 1.
     apply IHfT2 with (R := R2) (β := β) in Hwst' as IH2; auto; clear IHfT2.
 
     destruct IH2 as [Hunsd2 [Hlcl2 [Rc'' [R2' [HsubRc' [HsubR2 [Hltout' [Hwst'' [Hwt2' 
@@ -1274,7 +1275,7 @@ Proof.
     move Hwt after Hwst; move Hwi after Hwt.
     (* clean *)
 
-    assert (Hltinp': fT_inputs_halts Rc V st <[wormhole(i;t)]>) by auto.
+    assert (Hltinp': fT_inputs_halts (Rc⁺)%rc V st <[wormhole(i;t)]>) by auto.
     destruct Hltinp' as [HltV [Hltst Hltwh]].
     apply halts_wh in Hltwh as [Hlti Hlt'].
     apply weakening_ℜ_wh with (α := <[𝟙]>) (β := τ) in Hwst as Hwst'; auto.
@@ -1460,131 +1461,254 @@ Section progress.
 
 Hint Resolve VContext.Wf_empty Stock.Wf_empty Resources.Wf_empty : core.
 
-Hypothesis all_arrow_halting : forall Re t α β,
-  ∅%vc ⋅ Re ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊢ v ∈ α -> halts (Re⁺)%rc <[t v]>.
+Hypothesis all_arrow_halting : forall Rc t α β,
+  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
 
 
-Lemma progress_of_functional_value_gen (Re : ℜ) (m n : list lvl) (V : 𝐕) (tv sf : Λ) (α β : Τ) (R : resources) :
+Lemma progress_of_functional_value_gen (Rc: ℜ) (m n: list lvl) (V : 𝐕) (tv t: Λ) (α β : Τ) (R : resources) :
 
-       (* (1) *) value(sf) -> (* (2) *) halts (Re⁺)%rc tv -> (* (3) *) RE.halts (Re⁺)%rc V -> 
+       (* (1) *) value(t) -> (* (2) *) halts (Rc⁺)%rc tv -> (* (3) *) RE.halts (Rc⁺)%rc V -> 
 
-       (* (4) *) ∅%vc ⋅ Re ⊢ [⧐⧐ m – n] sf ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Re ⊢ tv ∈ α ->
+       (* (4) *) ∅%vc ⋅ Rc ⊢ [⧐⧐ m – n] t ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Rc ⊢ tv ∈ α ->
 
-       (* (6) *) WF(Re,V) -> (* (7) *)(forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
+       (* (6) *) WF(Rc,V) -> (* (7) *)(forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
   (* ------------------------------------------------------------------------------------------ *)
-       exists (V1 : 𝐕) (tv' sf' : Λ) (W : 𝐖),
-                                      ⪡ V ; tv ; [⧐⧐ m – n] sf ⪢ ⭆ ⪡ V1 ; tv' ; sf' ; W ⪢.
+       exists (V1 : 𝐕) (tv' t' : Λ) (W : 𝐖),
+                                      ⪡ V ; tv ; [⧐⧐ m – n] t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢.
 Proof.
-  (*
-  revert Re m n V tv α β R; induction sf;
-  intros Re m n V tv τ1 τ1' R Hvalsf Hltv HlV Hwsf Hwtv Hwf Hunsd;
-  inversion Hvalsf; subst.
+  revert Rc m n V tv α β R.
+  induction t;
+  intros Rc m n V tv τ1 τ1' R Hvalt Hltv HltV Hwt Hwtv HWF Hunsd;
+  inversion Hvalt; subst; clear Hvalt.
 
-  - rewrite Term.multi_shift_unit in *; inversion Hwsf.  
-  - rewrite Term.multi_shift_abs in *. inversion Hwsf; subst.
-  - rewrite Term.multi_shift_pair in *. inversion Hwsf; subst.
+  - rewrite Term.multi_shift_unit in *; inversion Hwt.
+  - rewrite Term.multi_shift_abs  in *; inversion Hwt.
+  - rewrite Term.multi_shift_pair in *; inversion Hwt.
  
-  - rewrite Term.multi_shift_arr in *. inversion Hwsf; subst.
-    exists V, <[([⧐⧐ m – n] sf) tv]>, <[arr([⧐⧐ m – n] sf)]>, (∅%sk).
-    simpl. now constructor.
+  (* [arr] term *)
+  - rewrite Term.multi_shift_arr in *.
+    inversion Hwt; subst.
+    exists V, <[([⧐⧐ m – n] t) tv]>, <[arr([⧐⧐ m – n] t)]>, (∅%sk).
+    now constructor.
  
-  - rewrite Term.multi_shift_first in *. inversion Hwsf; subst.
+  (* [first] term *)
+  - 
+    (* clean *)
+    move Rc after t; move m before t; move n before m; move V before Rc;
+    move tv before t; move τ1 before tv; move τ1' before τ1; move R before Rc.
+    rename H0 into Hvt; move Hvt before HltV; move Hunsd after Hltv.
+    (* clean *)
+
+    rewrite Term.multi_shift_first in *. 
+    inversion Hwt; subst.
     destruct Hltv as [tv' [HmeT Hvtv']].
+    apply WF_ec_Wf in HWF as HI.
+    destruct HI as [HwfRc HwfV].
     apply multi_preserves_typing with (t' := tv') in Hwtv as Hwtv'; auto.
-    -- inversion Hvtv'; subst; inversion Hwtv'; subst.
-      apply (IHsf Re m n V v1 _ β R) in H9 as HfT; auto.
-      + destruct HfT as [V1 [v1' [sf1 [W fT]]]].
-        exists V1, <[⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩]>, <[first(sf1)]>, W.
-        apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>).
-        ++ rewrite <- (WF_ec_new Re V); auto.
-        ++ simpl. now constructor.
-      + inversion Hvtv'; subst; exists v1; split; now auto.
-    -- eapply WF_ec_Wf; eauto.
-  
-  - rewrite Term.multi_shift_rsf in *; inversion Hwsf; subst.
-    assert (RE.unused ([⧐⧐m – n] r)%r V).
+
+    (* clean *)
+    move α before tv; move τ before α; move β before α; clear Hwt;
+    rename H4 into Hwt; move Hwt before Hwtv; rename H6 into Hwfτ;
+    move tv' before tv; move Hwtv' before Hwtv.
+    (* clean *)
+
+    inversion Hvtv'; subst; inversion Hwtv'; subst.
+
+    (* clean *)
+    rename H into Hv1; rename H0 into Hv2; move Hv1 before Hvt;
+    clear Hvtv'; move Hv2 before Hv1; rename H6 into Hwtv1;
+    rename H8 into Hwtv2; move Hwtv1 before Hwtv'; clear Hwtv';
+    move Hwtv2 before Hwtv1; move v1 before t; move v2 before v1.
+    (* clean *)
+
+    apply (IHt Rc m n V v1 α β R Hvt) in Hwtv1 as HI; auto; clear IHt.
+    -- destruct HI as [V1 [v1' [t' [W fT]]]].
+       
+       (* clean *)
+       move V1 before V; move v1' before tv; move t' before v1';
+       move W before V1.
+       (* clean *)
+
+       exists V1, <[⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩]>, <[first(t')]>, W.
+       rewrite (WF_ec_new Rc V) in HmeT; auto.
+       apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>); auto.
+       now constructor.
+    -- exists v1; split; auto; reflexivity.
+
+  (* [rsf] term *)
+  - rewrite Term.multi_shift_rsf in *.
+    inversion Hwt; subst.
+
+    (* clean *)
+    clear Hwt; rename H3 into Hfi; move HWF after Hfi.
+    (* clean *)
+
+    assert (Hunsd': RE.unused ([⧐⧐m – n] r)%r V).
     -- apply Hunsd. 
        now apply RS.singleton_spec.
-    -- apply RE.unused_find_e in H as [v Hfi].
-  
-       exists (⌈([⧐⧐ m – n] r)%r ⤆ ⩽ … tv ⩾ ⌉ V), v. 
-       exists <[rsf[([⧐⧐ m – n] r)%r]]>, ∅%sk.
+    -- clear Hunsd. 
+       apply RE.unused_find_e in Hunsd' as [v Hfi'].
+
+       exists (⌈([⧐⧐ m – n] r)%r ⤆ ⩽ … tv ⩾ ⌉ V), v, <[rsf[([⧐⧐ m – n] r)%r]]>, ∅%sk.
        now constructor.
 
-  - rewrite Term.multi_shift_comp in *. inversion Hwsf; subst.
-    apply (IHsf1 Re m n V tv τ1 τ R1) in Hwtv as HfT; auto.
-    -- clear IHsf1; destruct HfT as [V1 [tv' [sf1' [W1 fT1]]]].
-       apply functional_preserves_typing_gen
-       with (Rc := Re) (α := τ1) (β := τ) (R := R1) in fT1 as Hfpt; auto.
-       + destruct Hfpt as [Hunsd1 [Hlcl1 [Rc' [R1' [HsubRc [HsubR1 [Hltout [Hwst' [Hwt1' 
-                      [HWF' [HwfW1 (*[HnEmpW1*) [HInRcW1 [HwtW1 [HInRW1 Husd1]]]]]]]]]]]]]](*]*).
-         apply weakening_ℜ with (Re1 := Rc') in H10 as Hwsf2bis; 
-         auto; try (eapply (WF_ec_Wf Re V); now auto).
-         rewrite <- Term.multi_shift_cons in Hwsf2bis.
+  (* [comp] term *)
+  - rewrite Term.multi_shift_comp in *. 
+    inversion Hwt; subst.
 
-         apply (IHsf2 Rc' (Re⁺ :: m)%rc ((Rc'⁺ - Re⁺) :: n)%rc V1 tv' τ τ1' R2) in Hwst' as HfT; auto.
-         ++ destruct HfT as [V2 [tv'' [sf2' [W2 fT2]]]].
-            exists V2, tv'', <[([⧐ {V1⁺} – {V2⁺ - V1⁺}] sf1') >>> sf2']>, 
-                   (([⧐ (V1⁺)%re – (V2⁺ - V1⁺)%re] W1) ∪ W2)%sk.
-            eapply fT_comp; eauto.
-            rewrite <- (WF_ec_new Rc' V1); auto.
-            rewrite <- (WF_ec_new Re V); auto.
-         ++ intros.
-            clear all_arrow_halting IHsf2.
-            apply typing_Re_R with (r := r) in H10 as HInRe1; auto.
-            * rewrite (WF_ec_In Re V) in HInRe1; auto.
+    (* clean *)
+    move Rc after t1; move m before t1; move n before m; move V before Rc;
+    move tv before t1; move τ1 before tv; move τ1' before τ1; move R before Rc;
+    move R1 before R; move R2 before R1; move τ before τ1; move t2 before t1;
+    move Hunsd after Hltv; clear Hwt; rename H1 into Hvt1; rename H2 into Hvt2;
+    rename H8 into Hwt1; rename H9 into HeqR; move Hwt1 after Hwtv;
+    rename H10 into Hwt2; move Hwt2 before Hwt1; rename H11 into HneqR12.
+    (* clean *)
+
+    assert (Hunsd1: forall r : resource, (r ∈ R1)%s -> RE.unused r V).
+    { 
+      intros r HIn.
+      apply Hunsd; rewrite HeqR.
+      rewrite RS.union_spec; auto. 
+    }
+    assert (Hunsd2: forall r : resource, (r ∈ R2)%s -> RE.unused r V).
+    { 
+      intros r HIn.
+      apply Hunsd; rewrite HeqR.
+      rewrite RS.union_spec; auto. 
+    }
+
+    (* clean *)
+    move Hunsd1 before Hunsd; move Hunsd2 before Hunsd1; clear Hunsd.
+    (* clean *)
+  
+    apply (IHt1 Rc m n V tv τ1 τ R1) in Hwtv as HfT; clear IHt1; auto.
+    destruct HfT as [V1 [tv' [t1' [W1 fT1]]]].
+
+    (* clean *)
+    move V1 before V; move tv' before tv; move t1' before t2; move W1 before V1.
+    (* clean *)
+
+    apply (functional_preserves_typing_gen all_arrow_halting Rc _ _ _ _ _ _ _ τ1 τ R1) 
+    in fT1 as HI; auto.
+    -- destruct HI as [_ [HfiVV1 [Rc' [R1' [HsubRc [HsubR1 [Hltout [Hwtv' [Hwt1'
+                      [HWF' [_ [_ [_ _]]]]]]]]]]]]].
+                      
+       (* clean *)
+       move Rc' before Rc; move R1' before R1; move fT1 before IHt2;
+       move Hltout before Hunsd2; move Hwtv' before Hwtv; move Hwt1' before Hwt1;
+       move HWF' before HWF; move HfiVV1 after Hunsd1.
+       (* clean *)
+
+       apply (WF_ec_Wf Rc V) in HWF as HI.
+       destruct HI as [HwfRc HwfV].
+       apply (weakening_ℜ _ _ Rc') in Hwt2 as Hwt2'; auto.
+       rewrite <- Term.multi_shift_cons in Hwt2'.
+       destruct Hltout as [HltV1 [HltW1 [Hltv' Hlt1']]].
+
+       (* clean *)
+       move Hwt2' before Hwt2.
+       (* clean *)
+
+       apply (IHt2 Rc' (Rc⁺ :: m)%rc ((Rc'⁺ - Rc⁺) :: n)%rc V1 tv' τ τ1' R2) in Hwtv' as HfT; auto.
+       + destruct HfT as [V2 [tv'' [t2' [W2 fT2]]]].
+
+         (* clean *)
+         move V2 before V1; move tv'' before tv'; move t2' before t1'; move W2 before W1.
+         move fT2 before fT1; clear all_arrow_halting IHt2.
+         (* clean *)
+
+         rewrite (WF_ec_new Rc' V1) in fT2; auto.
+         rewrite (WF_ec_new Rc V) in fT2; auto.
+         
+         exists V2, tv'', <[([⧐ {V1⁺} – {V2⁺ - V1⁺}] t1') >>> t2']>, 
+                         (([⧐ (V1⁺)%re – (V2⁺ - V1⁺)%re] W1) ∪ W2)%sk.
+         apply (fT_comp _ tv'); auto.       
+
+       + intros r HIn.
+         apply Hunsd2 in HIn as Hunsd.
+         apply RE.unused_find_e in Hunsd as [v Hfi].
+
+         (* clean *)
+         move r before tv'; move v before tv'.
+         (* clean *)
+
+         apply typing_Re_R with (r := r) in Hwt2 as HIn'; auto.
+         ++ rewrite (WF_ec_In Rc V) in HIn'; auto.
+            destruct (RS.In_dec r R1) as [HInR1 | HnInR1].
+            * exfalso.
               assert (r ∉ ∅)%s. { intro c. inversion c. }
-              assert (r ∉ R1)%s. 
-              { intro HInR1. apply H0. rewrite H11. rewrite RS.inter_spec; now split. }
-              assert (RE.unused r V).
-              { 
-                apply Hunsd. 
-                rewrite H9. 
-                now rewrite RS.union_spec; right.
-              }
-              apply RE.unused_find_e in H4 as [v Hfi].
+              apply H; clear H.
+              rewrite HneqR12.
+              rewrite RS.inter_spec; split; auto.
+            * apply (RE.Wf_in (V⁺)) in HIn' as Hwfr; auto.
               rewrite (RE.shift_find_iff (V⁺) (V1⁺ - V⁺)) in Hfi.
-              apply RE.Ext.new_key_in in HInRe1 as Hlt.
               rewrite Resource.shift_wf_refl in Hfi; auto.
-              rewrite HeqVV1 in Hfi; auto. 
-              apply RE.Wf_in with (lb := V⁺) in HInRe1 as HvV.
-              ** now apply RE.unused_find in Hfi.
-              ** eapply (WF_ec_Wf Re V); auto.
-            * now apply Term.multi_shift_value_iff.
-       + exists <[[⧐⧐ m – n] sf1]>; split; auto.
-         ++ reflexivity.
+              simpl in Hfi.
+              rewrite HfiVV1 in Hfi; auto.
+              apply (RE.unused_find _ <[[⧐{V ⁺} – {V1 ⁺ - V ⁺}] v]>); auto.
          ++ now apply Term.multi_shift_value_iff.
-    -- intros. apply Hunsd. rewrite H9.
-       rewrite RS.union_spec; now left.
 
-  - clear IHsf1. rewrite Term.multi_shift_wh in *; inversion Hwsf; subst.
-    apply WF_ec_Wf in Hwf as H; destruct H as [HvRe HvV].
-    apply weakening_ℜ_wh with (β := τ) (α := <[ 𝟙 ]>) in Hwtv; auto.
-    apply (IHsf2 _ m n
-                  (⌈S (V⁺) ⤆ ⩽<[unit]> … ⩾⌉ (⌈V⁺ ⤆ ([⧐ V⁺ – 2] ⩽ ([⧐⧐ m – n] sf1) … ⩾)%cl⌉ 
+    -- repeat split; auto. 
+       exists <[[⧐⧐ m – n] t1]>; split; try reflexivity.
+       now apply Term.multi_shift_value_iff.
+
+  (* [wormhole] term *)
+  - 
+    (* clean *)
+    move Rc before all_arrow_halting; move m before t2; move n before m;
+    move V before Rc; move tv before t2; move τ1 before tv; move τ1' before τ1;
+    move R before Rc; clear IHt1; rename H1 into Hvt1; rename H2 into Hvt2;
+    move Hunsd before IHt2.
+    (* clean *)
+
+    rewrite Term.multi_shift_wh in *. 
+    inversion Hwt; subst.
+    apply WF_ec_Wf in HWF as H; destruct H as [HwfRe HwfV].
+
+    (* clean *)
+    move R' before R; move τ before τ1'; rename H6 into HeqR;
+    rename H7 into Hwfτ1; rename H8 into Hwfτ1'; rename H9 into Hwt1;
+    move Hwt1 before Hwt; rename H10 into Hwt2; move Hwt2 before Hwt1;
+    clear Hwt.  
+    (* clean *)
+
+    apply (weakening_ℜ_wh _ _ _ <[𝟙]> τ) in Hwtv; auto.
+    apply (IHt2 _ m n
+                  (⌈S (V⁺) ⤆ ⩽<[unit]> … ⩾⌉ (⌈V⁺ ⤆ ([⧐ V⁺ – 2] ⩽ ([⧐⧐ m – n] t1) … ⩾)%cl⌉ 
                     ([⧐ V⁺ – 2] V)))
     ) with (β := τ1') (R := R') in Hwtv as HfT; auto. 
-    -- destruct HfT as [V1 [tv' [sf' [W fT]]]]; clear IHsf2.
-       exists V1, tv', sf', 
-              (⌈(V⁺)%re ~ S (V⁺)%re ⤆ <[[⧐ {(V⁺)%re} – {(V1⁺ - V⁺)%re}] ([⧐⧐ m – n] sf1)]>⌉ W)%sk.
-       apply fT_wh. 
-       rewrite (WF_ec_new Re V) in fT; auto.
+    -- destruct HfT as [V1 [tv' [t2' [W fT]]]]. 
+    
+       (* clean *)
+       clear IHt2; move V1 before V; move tv' before tv; move t2' before tv';
+       move W before V1; move fT before n.
+       (* clean *)
+
+       exists V1, tv', t2', 
+              (⌈(V⁺)%re ~ S (V⁺)%re ⤆ <[[⧐ {(V⁺)%re} – {(V1⁺ - V⁺)%re}] ([⧐⧐ m – n] t1)]>⌉ W)%sk.
+       rewrite (WF_ec_new Rc V) in fT; auto.
+       now apply fT_wh.
+
     -- rewrite RC.new_key_wh.
-       replace (S (S (Re⁺)%rc)) with ((Re⁺)%rc + 2) by lia.
+       replace (S (S (Rc⁺)%rc)) with ((Rc⁺)%rc + 2) by lia.
        now apply halts_weakening_1.
+
     -- rewrite RC.new_key_wh.
        apply RE.halts_add; split; simpl.
        + exists <[unit]>; split; now auto.
        + apply RE.halts_add; split; simpl.
-         ++ exists <[ [⧐ {V⁺} – 2] [⧐⧐ m – n] sf1 ]>; split; auto.
+         ++ exists <[ [⧐ {V⁺} – 2] [⧐⧐ m – n] t1 ]>; split; auto.
             * reflexivity.
             * apply Term.shift_value_iff.
               now apply Term.multi_shift_value_iff.
-         ++ replace (S (S (Re⁺)%rc)) with ((Re⁺)%rc + 2) by lia.
-            rewrite (WF_ec_new Re V) in *; auto.
+         ++ replace (S (S (Rc⁺)%rc)) with ((Rc⁺)%rc + 2) by lia.
+            rewrite (WF_ec_new Rc V) in *; auto.
             now apply RE.halts_weakening_1.
-    -- apply well_typed_implies_Wf in H11 as Hv; auto.
-       destruct Hv; apply WF_ec_wh; auto. 
+
+    -- apply well_typed_implies_Wf in Hwt1 as Hv; auto.
+       destruct Hv; apply WF_ec_wh; auto.
+
     -- intros r HIn.
        destruct (Resource.eq_dec r (S (V⁺))) as [| Hneq]; subst.
        + apply RE.unused_add_eq; auto; now simpl.
@@ -1593,60 +1717,54 @@ Proof.
          ++ apply RE.unused_add_eq; auto; now simpl.
          ++ apply RE.unused_add_neq; auto.
             rewrite RE.unused_shift_Wf; auto.
-            apply Hunsd; rewrite H8.
+            apply Hunsd; rewrite HeqR.
             apply RS.diff_spec; split; auto.
-            rewrite (WF_ec_new Re V); auto.
+            rewrite (WF_ec_new Rc V); auto.
             do 2 (apply RS.add_notin_spec; split; auto).
             intro c; inversion c.
 Qed.
-*)
-Admitted.
 
 (** *** Progress of the functional transition 
 
-  Suppose well-typed expressions [t] and [tv], which halt (1,2), under [Re] (4,5). In addition, suppose that [V] halts (3) and is well-formed regards of [Re] (6). If all resources used by [t] is unused at the beginning (7), then it exists a functional transition (8) where its outputs halt (9,10,11).
+  Suppose well-typed expressions [t] and [tv], which halt (1,2), under [Rc] (4,5). In addition, suppose that [V] halts (3) and is well-formed regards of [Rc] (6). If all resources used by [t] is unused at the beginning (7), then it exists a functional transition (8) where its outputs halt (9,10,11).
 *)
-Theorem progress_of_functional(Re : ℜ) (V : 𝐕) (tv t : Λ) (α β : Τ) (R : resources) :
+Theorem progress_of_functional(Rc : ℜ) (V : 𝐕) (tv t : Λ) (α β : Τ) (R : resources) :
 
-                 (* (1) *) halts (Re⁺)%rc t -> (* (2) *) halts (Re⁺)%rc tv -> 
-                              (* (3) *) RE.halts (Re⁺)%rc V ->
+                 (* (1) *) fT_inputs_halts (Rc⁺)%rc V tv t ->
 
-            (* (4) *) ∅%vc ⋅ Re ⊢ t ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Re ⊢ tv ∈ α ->
-       (* (6) *) WF(Re,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
+            (* (4) *) ∅%vc ⋅ Rc ⊢ t ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Rc ⊢ tv ∈ α ->
+       (* (6) *) WF(Rc,V) -> (* (7) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
 
   (* ------------------------------------------------------------------------------------------ *)
        (exists (V1 : 𝐕) (tv' t' : Λ) (W : 𝐖), 
        (*  (8) *) ⪡ V ; tv ; t ⪢ ⭆ ⪡ V1 ; tv' ; t' ; W ⪢ /\
-       (*  (9) *) halts (V1⁺) t' /\ (* (10) *) halts (V1⁺) tv'/\ (* (11) *) RE.halts (V1⁺) V1).
+       (*  (9) *) fT_outputs_halts (V1⁺) V1 W tv' t').
 Proof. 
-  (*
-  intros Hlt. 
-  destruct Hlt as [t' [meT Hvt']]; revert V tv α β R Hvt'.
-  induction meT as [t | t t1 t' HeT]; 
-  intros V tv α β R Hvt' Hltv HltV Hwt Hwtv Hwf Hunsd.
+  intros [HltV [Hltv Hlt]].
+  destruct Hlt as [t' [meT Hvt']]; revert V tv α β R HltV Hltv Hvt'.
+  induction meT as [t | t t1 t' HeT];
+  intros V tv α β R HltV Hltv Hvt Hwt Hwtv HWF Hunsd.
   (* t is a value *)
   - rewrite <- (Term.multi_shift_nil t) in Hwt.
     apply (progress_of_functional_value_gen _ _ _ V tv t α β R) in Hwt as fT; auto.    
     destruct fT as [V1 [tv' [t' [W fT]]]].
     rewrite Term.multi_shift_nil in *.
     exists V1, tv', t', W; split; auto.
-    apply (functional_preserves_typing_gen all_arrow_halting Re _ _ _ _ _ _ _ α β R) in fT; auto.
-    -- destruct fT as [_ [_ [Re1 [R' [_ [_ [Hwf1 [_ [_ [_ [_ 
-                      [_ [Ht'' [Hltv' [HlV' HlW]]]]]]]]]]]]]]].
-       rewrite <- (WF_ec_new Re1 V1); auto.
-    -- exists t; split; now auto.
+    apply (functional_preserves_typing_gen all_arrow_halting Rc _ _ _ _ _ _ _ α β R) in fT; auto.
+    -- destruct fT as [_ [_ [Rc1 [R' [_ [_ [Hltout [_ [_ [HWF' _]]]]]]]]]].
+       rewrite <- (WF_ec_new Rc1 V1); auto.
+    -- repeat split; auto.
+       exists t; split; now auto.
   (* t can be reduced at least one time *)
   - clear meT.
-    apply WF_ec_Wf in Hwf as Hv; destruct Hv as [HvRe HvV].
+    apply WF_ec_Wf in HWF as Hv; destruct Hv as [HvRe HvV].
     apply evaluate_preserves_typing with (t' := t1) in Hwt as Hwt1; auto.
     apply (IHmeT V tv α β) in Hwt1 as IH; auto.
-    destruct IH as [V1 [tv' [t1' [W [HfT [Hlt1' [Hltv' HltV']]]]]]].
+    destruct IH as [V1 [tv' [t1' [W [HfT Hltout]]]]].
     exists V1, tv', t1', W; split; auto. 
     apply fT_eT_sf with (t' := t1); auto.
-    now rewrite <- (WF_ec_new Re V).
+    now rewrite <- (WF_ec_new Rc V).
 Qed.
-*)
-Admitted.
 
 End progress.
 
@@ -1655,25 +1773,24 @@ End progress.
 (** ** Safey - Functional *)
 Section safety.
 
-Hypothesis all_arrow_halting : forall Re t α β,
-  ∅%vc ⋅ Re ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Re ⊢ v ∈ α -> halts (Re⁺)%rc <[t v]>.
+Hypothesis all_arrow_halting : forall Rc t α β,
+  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
 
 (** *** Resources safety 
 
-  Suppose well-typed expressions [t] and [tv], which halt (1,2), under [Re] (6,7). In addition, [V] halts (3) and is well-formed regards of [Re] (4), and all resources used by [t] is unused at the beginning (5). We can state that:
+  Suppose well-typed expressions [t] and [tv], which halt (1,2), under [Rc] (6,7). In addition, [V] halts (3) and is well-formed regards of [Rc] (4), and all resources used by [t] is unused at the beginning (5). We can state that:
   - it exists a functional transition (8), i.e. there are no stuck situation and consequently no multiple interations with the same resource;
   - used resources are still in the set at the end (9);
   - all resources not in [R] are unused during the functional transition (10);
   - all resources in [R'\R] are new and stored in [W] (11);
   - all resources in [R] are used during the functional transition (12).
 *)
-Theorem safety_resources_interaction (Re : ℜ) (V : 𝐕) (t tv : Λ) (α β : Τ) (R : resources) :
+Theorem safety_resources_interaction (Rc : ℜ) (V : 𝐕) (t tv : Λ) (α β : Τ) (R : resources) :
 
-                   (* (1) *) halts (Re⁺)%rc t -> (* (2) *) halts (Re⁺)%rc tv -> 
-                              (* (3) *) RE.halts (Re⁺)%rc V ->
+                   (* (1) *) fT_inputs_halts (Rc⁺)%rc V tv t ->
 
-      (* (4) *) WF(Re,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
-             (* (6) *) ∅%vc ⋅ Re ⊢ t ∈ (α ⟿ β ∣ R) -> (* (7) *) ∅%vc ⋅ Re ⊢ tv ∈ α -> 
+      (* (4) *) WF(Rc,V) -> (* (5) *) (forall (r : resource), (r ∈ R)%s -> RE.unused r V) ->
+             (* (6) *) ∅%vc ⋅ Rc ⊢ t ∈ (α ⟿ β ∣ R) -> (* (7) *) ∅%vc ⋅ Rc ⊢ tv ∈ α -> 
   (* ------------------------------------------------------------------------------------------ *)
 
        exists (R' : resources) (V1 : 𝐕) (tv' t' : Λ) (W: 𝐖), 
@@ -1685,22 +1802,20 @@ Theorem safety_resources_interaction (Re : ℜ) (V : 𝐕) (t tv : Λ) (α β : 
             (* (11) *) (forall (r : resource), (r ∈ (R' \ R))%s -> (r ∈ W)%sk /\ (r ∉ V)) /\ 
             (* (12) *) (forall (r : resource), (r ∈ R)%s -> RE.used r V1).
 Proof.
-  (*
-  intros Hlt Hltv HltV Hwf Hunsd Hwt Hwtv.
-  apply (progress_of_functional all_arrow_halting Re V tv t _ β R) in Hwtv as fT; auto.
-  destruct fT as [V1 [tv' [t' [W [HfT [Hlt' [Hltv' HltV1]]]]]]].
+  intros Hltinp Hwf Hunsd Hwt Hwtv.
+  apply (progress_of_functional all_arrow_halting Rc V tv t _ β R) in Hwtv as fT; auto.
+  destruct fT as [V1 [tv' [t' [W [HfT Hltout]]]]].
 
   (* clean *)
   move tv before t; move tv' before tv; move t' before t; move V1 before V;
-  move HltV1 before HltV; move Hlt' before Hlt; move Hltv' before Hltv; move Hwt before Hwtv;
-  move Hunsd after HfT; move Hwf before Hunsd.
+  move W before V1.
   (* clean *)
 
-  apply (functional_preserves_typing_gen all_arrow_halting Re V V1 W _ tv' t t' _ β R) in Hwtv as preserve; auto.
-  destruct preserve as [_ [HeqVV1 [_  [R' [_ [Hsub [_ [_ [HW [Husd _]]]]]]]]]].
-  exists R', V1, tv', t', W; repeat split; auto; now eapply HW.
+  apply (functional_preserves_typing_gen all_arrow_halting Rc V V1 W _ tv' t t' _ β R) in Hwtv as preserve; auto.
+  destruct preserve as [_ [HeqVV1 [_ [R' 
+                       [_ [HsubR' [_ [_ [_ [_ [_ [_ [_ [_ [HIn Hunsd']]]]]]]]]]]]]]].
+  exists R', V1, tv', t', W. 
+  repeat (split; auto).
 Qed.
-*)
-Admitted.
 
 End safety.
