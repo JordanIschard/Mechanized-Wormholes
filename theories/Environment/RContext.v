@@ -115,7 +115,6 @@ Proof.
     -- unfold Add; reflexivity.
 Qed.
 
-
 (** **** specific Wormholes properties *)
 
 Lemma Submap_wh (m : t) (v v' : πΤ) :

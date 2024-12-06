@@ -245,6 +245,24 @@ Proof.
     now apply SRE.update_readers_Empty.
 Qed.
 
+Lemma update_locals_new_key (V : 𝐕) (t : t) :
+  new_key (update_locals t V) = new_key t.
+Proof.
+  destruct t; unfold update_locals, new_key; simpl.
+  rewrite SRE.update_readers_new_key.
+  lia.
+Qed.
+
+Lemma update_locals_Wf (k: lvl) (V : 𝐕) (W: t) :
+  Wf k W /\ (k ⊩ V)%re -> Wf k (update_locals W V).
+Proof.
+  destruct W as [rW wW].
+  unfold Wf, update_locals; simpl.
+  intros [[Hwfr Hwfw] HwfV].
+  split; auto.
+  apply SRE.update_readers_Wf; auto.
+Qed.
+
 (** **** [In] properties  *)
 
 Lemma empty_in (r : resource) : ~ In r empty.

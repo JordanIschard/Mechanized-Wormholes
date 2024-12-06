@@ -38,7 +38,11 @@ Definition well_formed_in_ec (Rc : ℜ) (S : 𝐄) (W : 𝐖) :=
 Definition well_formed_out_ec (Rc : ℜ) (S : o𝐄) (W : 𝐖) :=
   (* (1) *) (forall (r : resource), (r ∈ Rc)%rc <-> (r ∈ W)%sk \/ (r ∈ S)%or) /\
   (* (2) *) (forall (r : resource), ((r ∈ W)%sk -> (r ∉ S)%or) /\ ((r ∈ S)%or -> (r ∉ W)%sk)) /\
-  (* (3) *) (Rc⁺ ⊩ Rc)%rc /\ ((Rc⁺)%rc ⊩ S)%or /\ (W⁺ ⊩ W)%sk.
+  (* (3) *) (Rc⁺ ⊩ Rc)%rc /\ ((Rc⁺)%rc ⊩ S)%or /\ (W⁺ ⊩ W)%sk /\
+            (forall (r : resource) (α : πΤ) (v : Λ), Rc⌊r⌋%rc = Some α -> 
+              (W⌊r⌋%sk = Some v -> (∅)%vc ⋅ Rc ⊢ v ∈ {snd α})) /\
+            (forall (r : resource) (α : πΤ), 
+                    (r ∈ (ST.writers W))%s -> Rc⌊r⌋%rc = Some α -> (snd α) = <[𝟙]>).
   (* (4) (forall (r : resource) (α : πΤ), Rc⌊r⌋%rc = Some α -> 
                 match S⌊r⌋%or with
                   | Some v => OptTerm.prop_opt (fun v => (∅)%vc ⋅ Rc ⊢ {Term.shift (S⁺)%or ((W⁺)%sk - (S⁺)%or) v} ∈ {fst α}) v
@@ -689,6 +693,19 @@ Proof.
               apply (Hwt' r πα).
 Qed.
 
+Lemma WF_in_ec_new (Rc : ℜ) (S : 𝐄) (W : 𝐖) :
+  WFᵢₙ(Rc, S, W) -> (Rc⁺)%rc = max (S⁺)%sr (W⁺)%sk.
+Proof.
+  intros [HeqDom _].
+  now apply TT_EqDom_new.
+Qed.
+
+Lemma WF_in_ec_Wf (Rc : ℜ) (S : 𝐄) (W : 𝐖) :
+  WFᵢₙ(Rc, S, W) -> (Rc⁺ ⊩ Rc)%rc /\ (S⁺ ⊩ S)%sr /\ (W⁺ ⊩ W)%sk.
+Proof.
+  intros [_ [_ [HwfRc [HwfS [HwfW _]]]]]; auto.
+Qed.
+
 Lemma WF_in_ec_to_WF_ec (Rc : ℜ) (S : 𝐄) (W : 𝐖) :
   WFᵢₙ(Rc, S, W) -> WF(Rc,init_input_env S W).
 Proof.
@@ -762,8 +779,8 @@ Hypothesis all_arrow_halting : forall Rc t α β,
 
 Theorem temporal_preserves_typing (Rc : ℜ) (S : 𝐄) (S' : o𝐄) (W W' : 𝐖) (P P' : Λ) (R : resources) :
 
-                    (* (1) *) halts (Rc⁺)%rc P -> (* (2) *) SRE.halts (S⁺)%sr S -> 
-                     (* (3) *) ST.halts (W⁺)%sk W -> (* (4) *) WFᵢₙ(Rc,S,W) ->
+               (* (1) *) halts (Rc⁺)%rc P -> (* (2) *) SRE.halts (S⁺)%sr S -> 
+                 (* (3) *) ST.halts (W⁺)%sk W -> (* (4) *) WFᵢₙ(Rc,S,W) ->
 
        (* (1) *) ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) -> (* (3) *) ⟦ S ; W ; P ⟧ ⟾ ⟦ S' ; W' ; P' ⟧ ->
   (* -------------------------------------------------------------------------------------------- *)
@@ -771,27 +788,39 @@ Theorem temporal_preserves_typing (Rc : ℜ) (S : 𝐄) (S' : o𝐄) (W W' : �
           (* (4) *) (R ⊆ R')%s /\ 
           (* (5) *) (Rc ⊆ Rc1)%rc /\ 
           (* (6) *) WFₒᵤₜ(Rc1,S',W') /\
+                   (~ ST.Empty W' -> (W'⁺)%sk > (S⁺)%sr) /\
           (* (7) *) ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ R') /\ 
      
           (* (9) *) halts (Rc1⁺)%rc P' /\ (* (10) *) ORE.halts (Rc1⁺)%rc S' /\ 
-          (* (10) *) ST.halts (Rc1⁺)%rc W'.
+          (* (10) *) ST.halts (W'⁺)%sk W'.
 Proof.
   intros HltP HltS HltW HWF HwtP HTT.
   destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
 
+  (* clean *)
   move Vout before R; move Wnew before W'; 
   move _tv before P'; move fT before HwtP.
+  (* clean *)
 
   apply WF_in_ec_to_WF_ec in HWF as HWF'.
   apply (functional_preserves_typing_gen 
               all_arrow_halting Rc _ _ _ _ _ _ _ <[𝟙]> <[𝟙]> R) in fT as IH; auto.
-  - destruct IH as [Hunsd [Hlcl [Rc' [R' [HsubRc [HsubR [[HwfVout [HwfW [_ HwfP']]] [Hwst' [Hwt' 
-                      [HWF'' [HwfW1 [HInRcW1 [HwtW1 [HInRW1 Husd1]]]]]]]]]]]]]].
+  - destruct IH as [Hunsd [Hlcl [Rc' [R' [HsubRc [HsubR [[HltVout [HltWnew [_ HltP']]] [Hwtv'
+                   [HwtP' [HWF'' [HwfW1 [HInRcW1 [HwtW1 [HInRW1 [HInR Husd1]]]]]]]]]]]]]]].
+
+    (* clean *)
+    move Rc' before Rc; move R' before R; move HltVout before HltP;
+    move HltWnew before HltW; move HltP' before HltP; move Hwtv' before HwtP;
+    move HwtP' before HwtP.
+    (* clean *)
+
     exists Rc', R'.
+
     do 2 (split; auto); split.
     {
       split.
-      - intro r.
+      {
+        intro r.
         rewrite HeqS', HeqW'.
         rewrite ST.update_locals_in_iff.
         rewrite ST.union_in_iff.
@@ -804,10 +833,162 @@ Proof.
         rewrite <- HwtW1.
         rewrite RC.diff_Submap_in; eauto.
         rewrite HeqD; split.
-        -- intros [|[|]]; auto.
-        -- intros [[|]|]; auto.
-      - admit.
+        - intros [|[|]]; auto.
+        - intros [[|]|]; auto.
+      }
+      apply WF_in_ec_new in HWF as Hnew'.
+      apply WF_in_ec_Wf in HWF as HI.
+      destruct HI as [HwfRc [HwfS HwfW]]; split.
+      { 
+        intro r. 
+        rewrite HeqS', HeqW'.
+        rewrite ST.update_locals_in_iff.
+        rewrite ST.union_in_iff.
+        rewrite ST.shift_new_key_in_iff.
+        rewrite <- ORE.update_globals_in_iff.
+        rewrite SRE.shift_in_new_key.
+
+        destruct HWF as [_ [HInWS _]].
+        specialize (HInWS r).
+        destruct HInWS as [HInWS HInSW].
+           
+        split. 
+        - intros [| HIn]; auto.
+          apply consistency_V_W with (r := r) in fT as [HnIn _]; auto.
+          rewrite <- init_input_env_in_iff in HnIn.
+          intro; apply HnIn; now right.
+        - intros HIn [HInW | HInWnew].
+          -- revert HInW.
+             now apply HInSW.
+          -- apply consistency_V_W with (r := r) in fT as [HnIn _]; auto.
+             rewrite <- init_input_env_in_iff in HnIn.
+             apply HnIn; now right.
+      }
+      apply (WF_ec_Wf Rc' Vout) in HWF'' as HI.
+      destruct HI as [HwfRc' HwfVout].
+      do 2 (split; auto).
+      {
+        rewrite HeqS'.
+        apply (WF_ec_new Rc' Vout) in HWF'' as Hnew.
+        apply ORE.update_globals_Wf; split.
+        - rewrite <- Hnew.
+          apply SRE.shift_preserves_wf_2; auto.
+          apply RC.Ext.new_key_Submap in HsubRc; lia.
+        - now rewrite Hnew.
+      }
+      split.
+      {
+        rewrite HeqW'.
+        destruct (Stock.is_empty W) eqn:Hemp'.
+        - destruct (Stock.is_empty Wnew) eqn:Hemp.
+          -- apply Stock.Empty_is_empty in Hemp, Hemp'.
+             apply ST.Wf_Empty.
+             apply ST.update_locals_Empty.
+             apply ST.Empty_union; split; auto.
+             apply ST.shift_Empty_iff; auto.
+
+          -- apply ST.Empty_is_empty in Hemp'.
+             apply ST.not_Empty_is_empty in Hemp.
+             apply HInRcW1 in Hemp.
+
+             rewrite ST.update_locals_new_key.
+             rewrite ST.new_key_union.
+             rewrite ST.shift_new_refl; auto.
+             rewrite ST.new_key_Empty at 1; auto; simpl.
+             rewrite <- Hemp.
+             rewrite (WF_ec_new Rc' Vout); auto.
+
+             apply ST.update_locals_Wf; split; auto.
+             rewrite <- (WF_ec_new Rc' Vout); auto.
+             apply ST.Wf_union; split; auto.
+             apply ST.shift_preserves_wf_2; auto.
+
+             rewrite (WF_ec_new Rc' Vout); auto.
+             apply RC.Ext.new_key_Submap in HsubRc.
+             rewrite (WF_ec_new Rc _ HWF') in HsubRc; auto.
+             rewrite (WF_ec_new Rc' Vout) in HsubRc; auto.
+             rewrite init_input_env_new_key in HsubRc; lia.
+        - apply ST.not_Empty_is_empty in Hemp'.
+          rewrite ST.update_locals_new_key.
+          rewrite ST.new_key_union.
+          rewrite ST.shift_new_refl; auto.
+          destruct (Stock.is_empty Wnew) eqn:Hemp.
+          -- apply Stock.Empty_is_empty in Hemp.
+             rewrite (Stock.new_key_Empty Wnew); auto.
+             rewrite Resource.max_l; try lia.
+
+             assert (forall r, r ∈ Rc <-> r ∈ Rc')%rc.
+             {
+              intro r; split; intro HIn.
+              - apply (RC.Submap_in _ Rc); auto.
+              -  destruct (RC.In_dec Rc r) as [| HnIn]; auto.
+                exfalso.
+                apply Stock.Empty_unfold in Hemp.
+                apply Hemp.
+                exists r.
+                rewrite <- (Stock.eqDom_In _ _ _ HwtW1).
+                rewrite RC.diff_in_iff; auto. 
+             }
+             assert (Vout⁺ = (init_input_env S W)⁺).
+             {  
+              apply RE.new_key_in_eqDom.
+              intro r.
+              rewrite <- (WF_ec_In Rc' Vout); auto.
+              rewrite <- (WF_ec_In Rc); auto.
+              symmetry; auto.
+             }
+             rewrite H0.
+             rewrite init_input_env_new_key.
+
+             destruct HWF as [_ [_ [_ [_ [_ [_ [Hgt _]]]]]]].
+             apply Hgt in Hemp'.
+             rewrite Resource.max_r by lia.
+             replace (W⁺ - W⁺)%sk with 0 by lia.
+             apply ST.update_locals_Wf; split.
+
+             + apply ST.Wf_union; split. 
+               ++ rewrite ST.shift_zero_refl; auto.
+               ++ now apply ST.Wf_Empty.
+             + rewrite init_input_env_new_key in H0.
+               rewrite Resource.max_r in H0 by lia.
+               rewrite <- H0; auto.
+          -- apply ST.not_Empty_is_empty in Hemp.
+             apply HInRcW1 in Hemp.
+             rewrite <- Hemp.
+             apply WF_ec_new in HWF'' as Hnew''.
+             rewrite Hnew''.
+             apply functional_preserves_Wf in fT as [_ [_ [_ [_ Hle]]]]; auto.
+             + rewrite init_input_env_new_key in Hle.
+               rewrite max_r by lia.
+               apply ST.update_locals_Wf; split; auto.
+               apply ST.Wf_union; split.
+               ++ apply ST.shift_preserves_wf_2; auto; lia.
+               ++ rewrite <- Hnew''; auto.
+             + destruct HWF' as [_ [_ [H _]]]; auto. 
+             + constructor.
+             + rewrite init_input_env_new_key.
+              rewrite <- Hnew'.
+              apply well_typed_implies_Wf in HwtP as []; auto.
+      }
+      split.
+      {
+        intros r [α β] v HfiRc HfiW.
+        rewrite HeqW' in HfiW.
+        admit.
+      }
+      admit.
     }
+    split.
+    {
+      rewrite HeqW'.
+      intros HnEmp.
+      rewrite ST.update_locals_Empty in HnEmp.
+      rewrite ST.Empty_union in HnEmp.
+      apply Classical_Prop.not_and_or in HnEmp as [HnEmp | HnEmp].
+      - admit.
+      - admit. 
+    }
+   
     do 2 (split; auto); split.
     {
       rewrite HeqS'.
@@ -819,32 +1000,84 @@ Proof.
       destruct HWF as [HIn [Hdisj _]]; auto.
     }
     rewrite HeqW'.
-    apply ST.halts_update_locals; auto.
-    apply ST.halts_union; split; auto.
-    rewrite (WF_ec_new Rc' Vout); auto.
-    apply ST.halts_weakening; auto.
-    apply functional_preserves_Wf in fT as [_ [_ [_ [_ Hle]]]]; auto.
-    -- rewrite init_input_env_new_key in Hle; lia.
-    -- rewrite init_input_env_new_key.
-      unfold init_input_env.
-      apply ST.init_locals_Wf; auto; split.
-      + destruct (ST.is_empty W) eqn:Heq.
-        ++ apply ST.Empty_is_empty in Heq.
-            apply ST.Wf_Empty; auto.
-        ++ apply ST.not_Empty_is_empty in Heq.
-            destruct HWF as [_ [_ [_ [_ [HvW [_ [HEmp _]]]]]]].
-            apply HEmp in Heq.
-            replace (Init.Nat.max (S⁺)%sr (W⁺)%sk) with (W⁺)%sk by lia.
-            assumption.
-      + apply SRE.init_globals_Wf.
-        apply SRE.shift_preserves_wf_2; try lia.
-        destruct HWF as [_ [_ [_ [HvS _]]]]; auto.
-    -- constructor.
-    -- apply well_typed_implies_Wf in HwtP as [HvP _]; auto.
-      + rewrite init_input_env_new_key.
-        rewrite <- (TT_EqDom_new Rc); auto;
-        destruct HWF as [HIn [Hdisj _]]; auto.
-      + apply WF_ec_Wf in HWF' as [HvRe _]; auto.
+    rewrite ST.update_locals_new_key.
+    rewrite ST.new_key_union.
+    rewrite ST.shift_new_refl; auto.
+
+    destruct (Stock.is_empty W) eqn:Hemp'.
+    -- apply ST.Empty_is_empty in Hemp'.
+       rewrite ST.new_key_Empty at 1; simpl; auto. 
+       destruct (Stock.is_empty Wnew) eqn:Hemp.
+       + apply ST.Empty_is_empty in Hemp.
+         apply ST.halts_Empty.
+         apply ST.update_locals_Empty.
+         apply ST.Empty_union; split; auto.
+         apply ST.shift_Empty_iff; auto.
+       + apply ST.not_Empty_is_empty in Hemp.
+         apply HInRcW1 in Hemp.
+         rewrite <- Hemp.
+
+         apply ST.halts_update_locals; auto.
+         apply ST.halts_union; split; auto.
+         rewrite <- (WF_ec_new Rc' Vout); auto.
+         apply ST.halts_weakening; auto.
+
+         apply RC.Ext.new_key_Submap in HsubRc.
+         rewrite (WF_ec_new Rc _ HWF') in HsubRc; auto.
+         rewrite init_input_env_new_key in HsubRc; lia.
+    -- apply ST.not_Empty_is_empty in Hemp'.
+       destruct (Stock.is_empty Wnew) eqn:Hemp.
+       + apply ST.Empty_is_empty in Hemp.
+         rewrite (Stock.new_key_Empty Wnew); auto.
+         rewrite Resource.max_l; try lia.
+
+         assert (forall r, r ∈ Rc <-> r ∈ Rc')%rc.
+         {
+           intro r; split; intro HIn.
+           - apply (RC.Submap_in _ Rc); auto.
+           -  destruct (RC.In_dec Rc r) as [| HnIn]; auto.
+             exfalso.
+             apply Stock.Empty_unfold in Hemp.
+             apply Hemp.
+             exists r.
+             rewrite <- (Stock.eqDom_In _ _ _ HwtW1).
+             rewrite RC.diff_in_iff; auto. 
+         }
+         assert (Vout⁺ = (init_input_env S W)⁺).
+         {  
+           apply RE.new_key_in_eqDom.
+           intro r.
+           rewrite <- (WF_ec_In Rc' Vout); auto.
+           rewrite <- (WF_ec_In Rc); auto.
+           symmetry; auto.
+         }
+         rewrite H0.
+         rewrite init_input_env_new_key. 
+
+         destruct HWF as [_ [_ [_ [_ [_ [_ [Hgt _]]]]]]].
+         apply Hgt in Hemp'.
+         rewrite Resource.max_r by lia.
+         replace (W⁺ - W⁺)%sk with 0 by lia.
+         apply ST.halts_update_locals.
+         ++ rewrite init_input_env_new_key in H0.
+            rewrite Resource.max_r in H0 by lia.
+            rewrite <- H0; auto.
+            rewrite <- (WF_ec_new Rc'); auto.
+         ++ apply ST.halts_union; split. 
+            { rewrite ST.shift_zero_refl; auto. }
+            { now apply ST.halts_Empty. }
+        + apply ST.not_Empty_is_empty in Hemp.
+          apply HInRcW1 in Hemp.
+          rewrite <- Hemp.
+          assert ((W ⁺)%sk <= (Rc' ⁺)%rc).
+          ++ apply RC.Ext.new_key_Submap in HsubRc.
+              rewrite (WF_ec_new Rc _ HWF') in HsubRc; auto.
+              rewrite init_input_env_new_key in HsubRc; lia.
+          ++ rewrite Resource.max_r by lia.
+              apply ST.halts_update_locals; auto.
+              apply ST.halts_union; split; auto.
+              rewrite <- (WF_ec_new Rc' Vout); auto.
+              apply ST.halts_weakening; auto.
   - repeat split; auto.
     -- unfold init_input_env.
        apply ST.halts_init_locals; auto.

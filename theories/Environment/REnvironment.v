@@ -424,7 +424,6 @@ Proof.
     rewrite remove_add_1; lia.
 Qed.
 
-
 Lemma new_key_in_remove_1 (x: lvl) (t: t) :
   In x t -> new_key t = max (S x) (new_key (remove x t)).
 Proof.
@@ -440,6 +439,44 @@ Proof.
   - rewrite remove_in_iff; intros []; auto.
   - rewrite new_key_add_max.
     rewrite remove_add_1; lia.
+Qed.
+
+Lemma new_key_in_eqDom (t1 t2: t) :
+  (forall x, In x t1 <-> In x t2) -> new_key t1 = new_key t2.
+Proof.
+  revert t2.
+  induction t1 using map_induction; intros t2 HeqDom.
+  - do 2 (rewrite new_key_Empty; auto).
+    intros k v HM.
+    assert (In k t2) by now exists v.
+    rewrite <- HeqDom in H0.
+    destruct H0 as [v' HM'].
+    now apply (H k v').
+  - unfold Add in *; rewrite H0 in *.
+    assert (HIn: In x t1_2).
+    { rewrite H0; rewrite add_in_iff; auto. }
+    apply HeqDom in HIn as HIn'.
+    destruct HIn' as [v Hfi].
+    apply find_1 in Hfi.
+    apply add_id in Hfi.
+    rewrite <- add_remove_1 in Hfi.
+    rewrite <- Hfi.
+    do 2 rewrite new_key_add_max.
+    rewrite (IHt1_1 (remove x t2)); auto.
+    intro y.
+    split; rewrite remove_in_iff.
+    -- intro HIn'.
+       destruct (Resource.eq_dec x y); subst.
+       + contradiction.
+       + split; auto.
+         rewrite <- HeqDom.
+         rewrite H0.
+         rewrite add_in_iff; auto.
+    -- intros [Hneq HIn'].
+       rewrite <- HeqDom in HIn'.
+       rewrite H0 in HIn'.
+       apply add_in_iff in HIn' as [|]; auto. 
+       subst; contradiction.
 Qed.
 
 (** **** [Wf] properties *)

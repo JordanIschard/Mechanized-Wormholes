@@ -673,6 +673,46 @@ Proof.
        right; now rewrite IHsr1.
 Qed.
 
+Lemma update_readers_new_key (V : 𝐕) (sr: t) :
+  new_key (update_readers sr V) = (new_key sr).
+Proof.
+  induction sr using map_induction.
+  - rewrite update_readers_Empty_iff; auto.
+    symmetry.
+    do 2 (rewrite new_key_Empty; auto).
+  - unfold Add in *; rewrite H0 in *; clear H0.
+    rewrite new_key_add_max, <- IHsr1.
+
+    destruct (V⌊x⌋)%re eqn:Hfi.
+    -- destruct r.
+       + rewrite (update_readers_add_some_inp _ _ λ); auto.
+         now rewrite new_key_add_max.
+       + rewrite (update_readers_add_some_out _ _ λ); auto.
+         now rewrite new_key_add_max.
+    -- rewrite update_readers_add_none; auto.
+       now rewrite new_key_add_max.
+Qed.
+
+Lemma update_readers_Wf (k: lvl) (V : 𝐕) (sr: t) :
+  Wf k sr /\ (k ⊩ V)%re -> Wf k (update_readers sr V).
+Proof.
+  intros [Hwf HwfV]; revert Hwf.
+  induction sr using map_induction; intro Hwf.
+  - rewrite update_readers_Empty_iff; auto.
+    apply Wf_empty.
+  - unfold Add in H0; rewrite H0 in *; clear H0.
+    apply Wf_add_notin in Hwf as [Hwfx [Hwfe Hwf]]; auto.
+     destruct (V⌊x⌋)%re eqn:Hfi.
+    -- destruct r.
+       + rewrite (update_readers_add_some_inp _ _ λ); auto.
+         apply Wf_add; auto.
+       + rewrite (update_readers_add_some_out _ _ λ); auto.
+         apply Wf_add; repeat split; auto.
+         apply (RE.Wf_find k) in Hfi as []; auto.
+    -- rewrite update_readers_add_none; auto.
+       apply Wf_add; auto.
+Qed.
+
 (** **** [halts] properties *)
 
 Lemma halts_Empty (k: lvl) (t: t) : Empty t -> halts k t.

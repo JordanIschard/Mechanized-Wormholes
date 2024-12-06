@@ -70,8 +70,6 @@ Proof.
   rewrite SRE.fold_Empty; now auto.
 Qed.
 
-
-
 Lemma update_globals_Add (r : resource) (v : Λ) (e e' : 𝐄) (V : 𝐕) : 
   ~ (r ∈ e)%sr -> SRE.Add r v e e' -> 
   eq (update_globals e' V) ((update_globals_func V) r v (update_globals e V)).
@@ -138,6 +136,33 @@ Proof.
          auto; right; now rewrite IHe1.
        + rewrite add_in_iff; intros [| HIn];
          auto; right; now rewrite IHe1.
+Qed.
+
+Lemma update_globals_Wf (k : lvl) (e : 𝐄) (V : 𝐕) :
+  (k ⊩ e)%sr /\ (k ⊩ V)%re -> Wf k (update_globals e V).
+Proof.
+  revert V.
+  induction e using SRE.map_induction; intros V [Hwfe HwfV].
+  - rewrite update_globals_Empty; auto.
+    apply Wf_empty.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite update_globals_add_notin; auto.
+    unfold update_globals_func.
+    apply SRE.Wf_add_notin in Hwfe as [Hwfx [Hwfe3 Hwfe1]]; auto.
+    destruct (V⌊x⌋) eqn:Hfi.
+    -- destruct r.
+       + apply Wf_add; split; auto.
+         split.
+         ++ now simpl.
+         ++ apply IHe1; split; auto.
+       + apply Wf_add; split; auto.
+         split.
+         ++ apply (RE.Wf_find k) in Hfi as []; auto.
+         ++ apply IHe1; split; auto.
+    -- apply Wf_add; split; auto.
+       split.
+       + now simpl.
+       + apply IHe1; split; auto.
 Qed.
 
 
