@@ -761,7 +761,7 @@ Hypothesis all_arrow_halting : forall Rc t α β,
 
           (* properties of [W] *)
           ((Rc1⁺)%rc ⊩ W)%sk /\
-          (~ Stock.Empty W -> (Rc1⁺)%rc = (W⁺)%sk) /\
+          (~ Stock.Empty W -> (Rc1⁺)%rc = (W⁺)%sk /\ (W⁺)%sk > (Rc⁺)%rc) /\
           (Stock.eqDom (RC.diff Rc1 Rc) W) /\
           (forall (r : resource) (v : Λ) (α β : Τ), 
                     W⌊r⌋%sk = Some v -> Rc1⌊r⌋%rc = Some (β,α) -> ∅%vc ⋅ Rc1 ⊢ v ∈ α) /\
@@ -1058,7 +1058,7 @@ Proof.
       rewrite Stock.shift_new_refl; auto.
       - apply Classical_Prop.not_and_or in HEmpW as [HEmpW | HEmpW].
         -- rewrite <- Stock.shift_Empty_iff in HEmpW.
-           apply HnEmpW1 in HEmpW.
+           apply HnEmpW1 in HEmpW as [HEmpW Hgt].
            destruct (Stock.is_empty W') eqn:Hemp.
            + apply Stock.Empty_is_empty in Hemp.
              rewrite (Stock.new_key_Empty W'); auto.
@@ -1085,16 +1085,17 @@ Proof.
                      now rewrite HnIn', HnIn.
              ++ now rewrite H.
            + apply Stock.not_Empty_is_empty in Hemp.
-             apply HnEmpW2 in Hemp.
+             apply HnEmpW2 in Hemp as [Hemp Hgt'].
              rewrite <- HEmpW. 
              rewrite <- Hemp.
              apply RC.Ext.new_key_Submap in HsubRc'; lia.
-        -- apply HnEmpW2 in HEmpW as Heq.
+        -- apply HnEmpW2 in HEmpW as [Heq Hgt].
            destruct (Stock.is_empty W) eqn:Hemp.
            + apply Stock.Empty_is_empty in Hemp.
-             rewrite Stock.new_key_Empty; auto.
+             rewrite Stock.new_key_Empty; auto; simpl.
+             apply RC.Ext.new_key_Submap in HsubRc; lia.
            + apply Stock.not_Empty_is_empty in Hemp.
-             apply HnEmpW1 in Hemp.
+             apply HnEmpW1 in Hemp as [Hemp Hgt'].
              rewrite <- Heq. 
              rewrite <- Hemp.
              apply RC.Ext.new_key_Submap in HsubRc'; lia.

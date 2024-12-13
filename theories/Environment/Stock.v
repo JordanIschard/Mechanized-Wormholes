@@ -263,6 +263,15 @@ Proof.
   apply SRE.update_readers_Wf; auto.
 Qed.
 
+Lemma update_locals_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
+  find r (update_locals W V) = Some v ->
+  find r W = Some v \/ V⌊r⌋%re = Some (Cell.out v).
+Proof.
+  unfold find, update_locals.
+  destruct W as [rW wW]; simpl.
+  apply SRE.update_readers_find.
+Qed.
+
 (** **** [In] properties  *)
 
 Lemma empty_in (r : resource) : ~ In r empty.

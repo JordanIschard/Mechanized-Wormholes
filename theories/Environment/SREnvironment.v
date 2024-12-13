@@ -713,6 +713,34 @@ Proof.
        apply Wf_add; auto.
 Qed.
 
+Lemma update_readers_find (r: resource) (v: Λ) (V: 𝐕) (sr: t) :
+  find r (update_readers sr V) = Some v ->
+  find r sr = Some v \/ V⌊r⌋%re = Some (Cell.out v).
+Proof.
+  revert r v V. 
+  induction sr using map_induction; intros r v V Hfi.
+  - rewrite update_readers_Empty_iff in Hfi; auto.
+    inversion Hfi.
+  - unfold Add in H0; rewrite H0 in *; clear H0. 
+    destruct ((V ⌊x⌋)%re) eqn:Hfi'.
+    -- destruct r0 as [v' | v'].
+       + rewrite (update_readers_add_some_inp _ _ v') in Hfi; auto.
+         destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+         ++ left.
+            rewrite add_eq_o in *; auto.
+         ++ rewrite add_neq_o in *; auto.
+       + rewrite (update_readers_add_some_out _ _ v') in Hfi; auto.
+         destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+         ++ rewrite add_eq_o in Hfi; auto.
+            inversion Hfi; subst; auto.
+         ++ rewrite add_neq_o in *; auto.
+    -- rewrite update_readers_add_none in Hfi; auto.
+       destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+       + left.
+         rewrite add_eq_o in *; auto.
+       + rewrite add_neq_o in *; auto.
+Qed.
+
 (** **** [halts] properties *)
 
 Lemma halts_Empty (k: lvl) (t: t) : Empty t -> halts k t.
