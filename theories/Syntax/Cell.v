@@ -1,260 +1,233 @@
 From Coq Require Import Classes.Morphisms Bool.Bool Classical_Prop Classes.RelationClasses.
-From DeBrLevel Require Import LevelInterface.
+From DeBrLevel Require Import LevelInterface Level.
 From Mecha Require Import Resource Term.
+Import ResourceNotations TermNotations.
 
 (** * Syntax - Cell 
 
-  Resource environment is composed of cells with two possible pattern:
-  - the first one is the input pattern. It represents the value mapped to the resource
-    at the beginning of the instant and means that is not used yet;
-  - the second one is the output pattern. It represents the value mapped to the resource
-    after a resource signal function. It means that the initial value is consumed, the output
-    is stocked for the update done at the end of this instant by the [temporal] transition and
-    the resource is used.
+  A local memory cell is used in the resource environment, defined in [REnvironment.v]. It has two states: unused, used. For each states, the cell carries a term. However, its meaning differs. Indeed, when a cell is unused, then the term in it is the input term available during the instant. If the cell is used, then the term is the output term which will be given to the global environment at the end of the instant.
 *)
-Module Cell <: IsLvlFullDTWL.
 
-(** *** Definition  *)
+(** ** Module - Cell *)
+Module Cell <: IsLvlDTWL.
 
-(** **** Type *)
+Open Scope term_scope.
 
-(** 
-  An element in the environment can be used only once. Thus the term is
-  embedded in a type that differs unused and used value.
+(** *** Definitions  *)
+
+(** **** Type
+
+  A cell has two disjoints states structurally represented by  [<t .>], for unused state, and [<. t>], for used state, where [t] is a term.
 *)
 Inductive raw : Type := 
-  | inp  : Λ -> raw
-  | out : Λ -> raw
-. 
+  | inp : Λ -> raw
+  | out : Λ -> raw. 
 
 Definition t := raw.
-
-(** **** Equality *)
-
-Definition eq := @Logic.eq t.
-
-Definition eqb (p p' : t) := 
-  match (p,p') with
-    | (inp p1,inp p2) => (p1 =? p2)%tm
-    | (out p1,out p2) => (p1 =? p2)%tm
-    | _ => false
-  end
-.
+Definition eq := @eq t.
 
 (** **** Shift function 
 
-  Cell carries a term then the [shift] function acts like a bind operator
-  with the shift function of term.
+  A cell is a container for a term. Consequently, we apply the [shift] function for terms on the term carried while maintaining the shape of the cell.
 *)
-Definition shift (lb : Lvl.t) (k : Lvl.t) (c : t) : t := 
+Definition shift (lb k : lvl) (c : t) : t := 
   match c with
-    | inp tm => inp <[[⧐ₜₘ lb ≤ k] tm]>
-    | out tm => out <[[⧐ₜₘ lb ≤ k] tm]>
+    | inp tm => inp <[[⧐ lb – k] tm]>
+    | out tm => out <[[⧐ lb – k] tm]>
   end.
 
-(** **** Others *)
 
-Definition embed (e : Λ) := inp e.
+(** **** Constructor 
 
-Definition extract (e : t) :=
-  match e with
+  We define a function denoted [embed] which takes a term [t] and produces an unused cell which contains [t].
+*)
+Definition embed (t : Λ) := inp t.
+
+(** **** Destructor 
+
+  We define a function [extract] which opens the cell and returns its inner term.
+*)
+Definition extract (t : t) :=
+  match t with
     | inp t => t
     | out t => t
-  end
-.
+  end.
 
-Definition unused (e : t) :=
-  match e with
+(** **** Status checker *)
+Definition unused (t : t) :=
+  match t with
     | inp _ => True
     | _ => False
-  end
-.
+  end.
 
-Definition used (e : t) :=
-  match e with
+Definition used (t : t) :=
+  match t with
     | out _ => True
     | _ => False
-  end
-.
+  end.
 
+Definition opt_unused (ot : option t) :=
+  match ot with Some t => unused t | _ => False end.
 
-(** **** Valid function 
+Definition opt_used (ot : option t) :=
+  match ot with Some t => used t | _ => False end.
 
- A cell is valid if the term encapsulated in it is valid.
+(** **** Well-formedness 
+
+  A cell [c] is well-formed under a level [lb] if and only if its carried term [t] is well-formed under [lb].
 *)
-Definition valid (lb : Lvl.t) (c : t) : Prop := lb ⊩ₜₘ (extract c).
-Definition validb (lb : Lvl.t) (c : t) : bool := lb ⊩?ₜₘ (extract c).
+Definition Wf (lb : lvl) (c : t) : Prop := lb ⊩ (extract c).
 
-(** *** Equality *)
 
-Lemma eq_refl : Reflexive eq.
-Proof. unfold Reflexive, eq; intro x; destruct x; simpl; auto. Qed.
+(** *** Properties *)
 
-Lemma eq_sym : Symmetric eq.
-Proof. 
-  unfold Symmetric,eq; intros x y; destruct x,y; simpl; intro; auto. 
-Qed.
+(** **** [eq] properties *)
 
-Lemma eq_trans : Transitive eq.
-Proof. 
-  unfold Transitive,eq; intros x y z Hxy Hyz; destruct x,y,z; simpl in *;
-  try now transitivity (inp λ0). now transitivity (out λ0). 
-Qed.
+#[export] Instance eq_refl : Reflexive eq := _.
 
-#[global] 
-Hint Resolve eq_refl eq_sym eq_trans : core.
+#[export] Instance eq_sym : Symmetric eq := _.
 
-#[global] 
-Instance eq_rr : RewriteRelation eq := {}.
-#[global] 
-Instance eq_equiv : Equivalence eq.
-          Proof. split; auto. Qed.
+#[export] Instance eq_trans : Transitive eq := _.
 
-Lemma eqb_refl : forall p, eqb p p = true.
-Proof. 
-  intros; unfold eqb; destruct p; apply Term.eqb_refl. 
-Qed.
+#[export] Instance eq_rr : RewriteRelation eq := {}.
 
-Lemma eqb_eq : forall p p', eqb p p' = true <-> eq p p'.
+#[export] Instance eq_equiv : Equivalence eq := _.
+
+#[export] Hint Resolve eq_refl eq_sym eq_trans : core.
+
+Lemma eq_dec (c c' : t) : {eq c c'} + {~ eq c c'}.
 Proof.
-  intros; split.
-  - unfold eq,eqb in *; destruct p,p'; simpl in *; intro; try (now inversion H);
-    f_equal; now apply Term.eqb_eq.
-  - unfold eq; intro; subst; apply eqb_refl.
-Qed.
-
-Lemma eqb_neq : forall p p', eqb p p' = false <-> ~ eq p p'.
-Proof.
-  split.
-  - rewrite <- eqb_eq; intros. rewrite H; intro; inversion H0.
-  - intros; apply not_true_is_false; intro; apply H; now rewrite <- eqb_eq.
-Qed.
-
-Lemma eq_dec : forall (p p' : t), {eq p p'} + {~ eq p p'}.
-Proof.
-  unfold eq; intros p p'; destruct p,p'; simpl;
+  unfold eq; destruct c,c'; simpl;
   destruct (Term.eq_dec λ λ0); unfold Term.eq in *; subst; auto;
   try (right; intro; inversion H; subst; clear H; now apply n).
 Qed.
 
-Lemma eq_dec' : forall (p p' : t), {p = p'} + {p <> p'}.
+Lemma eq_dec' (c c' : t) : {c = c'} + {c <> c'}.
 Proof.
-  intros p p'; destruct p,p'; destruct (Term.eq_dec λ λ0); unfold Term.eq in *;
-  subst; auto;
-  right; intro c; inversion c; subst; apply n; auto. 
+  destruct c,c'; destruct (Term.eq_dec λ λ0); unfold Term.eq in *;
+  subst; auto; right; intro c; inversion c; subst; apply n; auto. 
 Qed.
 
-Lemma eq_leibniz : forall p p', eq p p' -> p = p'. 
-Proof. intros; auto. Qed.
+Lemma eq_leibniz (c c' : t) : eq c c' -> c = c'. 
+Proof. auto. Qed. 
 
+#[export] Instance extract_eq : Proper (eq ==> Term.eq) extract.
+Proof. now intros c' c Heq; rewrite Heq. Qed. 
 
-(** *** Shift *)
+(** **** [shift] properties *)
 
-Lemma shift_refl : forall lb t, eq (shift lb 0 t) t.
-Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_refl. Qed.
+Lemma shift_zero_refl (lb : lvl) (c : t) : eq (shift lb 0 c) c.
+Proof. 
+  unfold eq; destruct c; simpl; f_equal;
+  now apply Term.shift_zero_refl. 
+Qed.
 
-#[global]
-Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
-Proof. repeat red; intros; subst. now rewrite H1. Qed.
+#[export] Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift.
+Proof. intros m' m Heqm n' n Heqn c c' Heqc; subst; now rewrite Heqc. Qed.
 
-Lemma shift_eq_iff : forall lb k t t1,
-  t = t1 <-> (shift lb k t) = (shift lb k t1).
+Lemma shift_eq_iff (lb k : lvl) (c c' : t) :
+  eq c c' <-> eq (shift lb k c) (shift lb k c').
 Proof.
-  intros; destruct t0, t1; simpl in *; split;
-  intro H; inversion H; subst; f_equal;
+  destruct c,c'; simpl; unfold eq; split; intro Heq;
+  inversion Heq; subst; auto; f_equal;
   eapply Term.shift_eq_iff; eauto.
 Qed.
 
-Lemma shift_trans : forall lb k k' t, 
-  eq (shift lb k (shift lb k' t)) (shift lb (k + k') t).
-Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_trans. Qed.
+Lemma shift_trans (k m n : lvl) (c : t) : 
+  eq (shift k m (shift k n c)) (shift k (m + n) c).
+Proof. unfold shift,eq; destruct c; f_equal; now apply Term.shift_trans. Qed.
 
-Lemma shift_permute : forall lb k k' t, 
-  eq (shift lb k (shift lb k' t)) (shift lb k' (shift lb k t)).
-Proof. intros; unfold shift,eq; destruct t0; f_equal; now apply Term.shift_permute. Qed.
+Lemma shift_permute (k m n : lvl) (c : t) : 
+  eq (shift k m (shift k n c)) (shift k n (shift k m c)).
+Proof. unfold shift,eq; destruct c; f_equal; now apply Term.shift_permute. Qed.
 
-Lemma shift_unfold : forall lb k k' t,
-  eq (shift lb (k + k') t) (shift (lb + k) k' (shift lb k t)). 
+Lemma shift_unfold (k m n : lvl) (c : t) :
+  eq (shift k (m + n) c) (shift (k + m) n (shift k m c)). 
+Proof. unfold shift,eq; destruct c; f_equal; apply Term.shift_unfold. Qed.
+
+Lemma shift_unfold_1 (k m n : lvl) (c : t) :
+    k <= m -> m <= n -> 
+    eq (shift m (n - m) (shift k  (m - k) c)) (shift k (n - k) c).
 Proof.
-  intros lb k k' t; unfold shift,eq; destruct t; f_equal; apply Term.shift_unfold.
+  intros Hlt Hlt'; unfold shift,eq; destruct c; f_equal; 
+  now apply Term.shift_unfold_1.
 Qed.
 
-Lemma shift_unfold_1 : forall k k1 k2 t,
-    k <= k1 -> k1 <= k2 -> eq (shift k1 (k2 - k1) (shift k  (k1 - k) t)) (shift k (k2 - k) t).
+(** **** [Wf] properties *)
+
+#[export] Instance Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf.
+Proof. intros k' k Heqk c c' Heqc; subst; now rewrite Heqc. Qed.
+
+Lemma Wf_weakening (k n : lvl) (c : t) : (k <= n) -> Wf k c -> Wf n c.
 Proof.
-  intros k k1 k2 t Hlt Hlt'; unfold shift,eq; destruct t; f_equal; 
-  apply Term.shift_unfold_1; auto.
+  destruct c; unfold Wf; simpl; intros Hlekn Hvc; 
+  now apply Term.Wf_weakening with k.
 Qed.
 
-(** *** Valid *)
-
-Lemma validb_valid : forall k t, validb k t = true <-> valid k t.
+Lemma shift_preserves_wf (k n : lvl) (c : t) :
+  Wf k c -> Wf (k + n) (shift k n c).
 Proof.
-  split; unfold validb, valid; destruct t0; simpl; intros; now apply Term.validb_valid.
+  destruct c; unfold Wf; simpl; intro Hvc; 
+  now apply Term.shift_preserves_wf.
 Qed.
 
-Lemma validb_nvalid : forall k t, validb k t = false <-> ~ valid k t.
+Lemma shift_preserves_wf_1 (lb k n : lvl) (c : t) : 
+  Wf k c -> Wf (k + n) (shift lb n c).
 Proof.
-  split; unfold validb, valid; destruct t0; simpl; intros; now apply Term.validb_nvalid.
+  destruct c; unfold Wf; simpl; intro Hvc; 
+  now apply Term.shift_preserves_wf_1.
 Qed.
 
-#[global]
-Instance valid_eq : Proper (Logic.eq ==> eq ==> iff) valid.
-Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
-
-#[global]
-Instance validb_eq : Proper (Logic.eq ==> eq ==> Logic.eq) validb.
-Proof. repeat red; intros; subst; rewrite H0; auto. Qed.
-
-Lemma valid_weakening : forall k k' t, (k <= k') -> valid k t -> valid k' t.
+Lemma shift_preserves_wf_gen (lb k m n : lvl) (c : t) :
+  m <= n -> lb <= k -> m <= lb -> n <= k -> n - m = k - lb -> 
+  Wf lb c -> Wf k (shift m (n - m) c).
 Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.valid_weakening with k.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_gen with lb.
 Qed.
 
-Lemma shift_preserves_valid : forall k k' t, valid k t -> valid (k + k') (shift k k' t).
+Lemma shift_preserves_wf_2 (m n : lvl) (c : t) :
+  m <= n -> Wf m c -> Wf n (shift m (n - m) c).
 Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_2.
 Qed.
 
-Lemma shift_preserves_valid_1 : forall lb k k' t, valid k t -> valid (k + k') (shift lb k' t).
+Lemma shift_preserves_wf_zero (k : lvl) (c : t) : 
+  Wf k c -> Wf k (shift k 0 c).
 Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_1.
-Qed.
-
-Lemma shift_preserves_valid_2 : forall lb lb' k k' t,
-  k <= k' -> lb <= lb' -> k <= lb -> k' <= lb' -> k' - k = lb' - lb -> 
-  valid lb t -> valid lb' (shift k (k' - k) t).
-Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; 
-  now apply Term.shift_preserves_valid_2 with lb.
-Qed.
-
-Lemma shift_preserves_valid_3 : forall lb lb' t,
-  lb <= lb' -> valid lb t -> valid lb' (shift lb (lb' - lb) t).
-Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_3.
-Qed.
-
-Lemma shift_preserves_valid_4 : forall k t, valid k t -> valid k (shift k 0 t).
-Proof.
-  intros; destruct t0; unfold valid in *; simpl in *; now apply Term.shift_preserves_valid_4.
+  destruct c; unfold Wf; simpl; intros; 
+  now apply Term.shift_preserves_wf_zero.
 Qed.
 
 End Cell.
 
-(** *** Scope and Notations *)
+(** ---- *)
 
+(** ** Notation - Cell *)
+Module CellNotations.
+
+(** ** Scope *)
 Declare Scope cell_scope.
 Delimit Scope cell_scope with cl.
+
+(** ** Notations *)
 Definition 𝑣 := Cell.t.
 
+Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wh, no associativity).
+Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wh, no associativity).
+Notation "'[⧐' lb '–' k ']' t" := (Cell.shift lb k t) (at level 65, right associativity) : cell_scope.
 
-Notation "⩽ v … ⩾" := (Cell.inp v) (at level 30, v custom wormholes, no associativity).
-Notation "⩽ … v ⩾" := (Cell.out v) (at level 30, v custom wormholes, no associativity).
-Notation "'[⧐ᵣₓ' lb '≤' k ']' t" := (Cell.shift lb k t) (at level 45, right associativity).
-
-Infix "⊩ᵣₓ" := Cell.valid (at level 20, no associativity). 
-Infix "⊩?ᵣₓ" := Cell.validb (at level 20, no associativity). 
-
+Infix "⊩" := Cell.Wf (at level 20, no associativity) : cell_scope. 
 Infix "=" := Cell.eq : cell_scope.
-Infix "=?" := Cell.eqb  (at level 70) : cell_scope.
+
+(** ** Morphisms *)
+Import Cell.
+
+#[export] Instance cell_leibniz_eq : Proper Logic.eq Cell.eq := _.
+
+#[export] Instance cell_wf_iff :  Proper (Level.eq ==> eq ==> iff) Wf := _.
+
+#[export] Instance cell_shift_eq : Proper (Level.eq ==> Level.eq ==> eq ==> eq) shift := shift_eq.
+
+End CellNotations.

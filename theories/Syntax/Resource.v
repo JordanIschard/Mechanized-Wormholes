@@ -1,53 +1,82 @@
-From Coq Require Import Lia PeanoNat.
-From DeBrLevel Require Import LevelInterface Level PairLevel.
+From Coq Require Import Lia Classes.Morphisms.
+From DeBrLevel Require Import LevelInterface Level.
 
 (** * Syntax - Resource
 
-  A resource is a kind of reference defined in the Wormholes language. Like a variable,
-  we need identifiers for resources. Thus, we choose De Bruijn level as representation in
-  order to avoid capture variables. It is a direct use of the [Level] module.
+  Resources are names that are either bound to I/O or introduced by the binder, named wormhole.In the original paper, a resource is an element taken from a certain infinite countable set. We choose De-Bruijn level as representation to avoid captures issues. Consequently, in this formalization, a resource name is a level. It is a direct use of the [Level] module of [DeBrLevel] library.
 *)
+
+(** ** Module - Resource *)
 Module Resource <: IsBdlLvlFullOTWL.
+
+(** *** Definitions *)
 
 Include Level.
 
-Definition multi_shift (lbs : list nat) (ks : list nat) (t : t) :=
-  List.fold_right (fun (x : nat * nat) acc => let (lb,k) := x in shift lb k acc) t (List.combine lbs ks).
+(** **** Multi shift 
 
-Lemma multi_shift_valid_refl lbs ks lb t:
-  valid lb t -> (forall i, List.In i lbs -> lb <= i) ->
-  multi_shift lbs ks t = t.
+  During the functional transition, defined in [FT_Definition], the signal function is updated multiple times for different well-formednes level and shift. Consequently, we define a [multi_shift] function that applies [n] shifts for two lists [lbs] and [ks] of length [n].
+*)
+Definition multi_shift (lbs : list Lvl.t) (ks : list Lvl.t) (t : t) :=
+  List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
+
+(** *** Properties *)
+
+Lemma multi_shift_wf_refl (lbs ks : list Lvl.t) (lb : Lvl.t) (t : t):
+  Wf lb t -> (forall i, List.In i lbs -> lb <= i) -> multi_shift lbs ks t = t.
 Proof.
-  revert ks lb t. induction lbs.
-  - intros; unfold multi_shift; now simpl in *.
-  - intros; unfold multi_shift in *; destruct ks; simpl; auto.
-    rewrite IHlbs with (lb := lb); auto.
-    -- rewrite shift_valid_refl; auto.
-       unfold valid in *.
-       assert (lb <= a). { apply H0; simpl; now left. }
-       lia.
-    -- intros. apply H0; simpl; now right.
+  revert ks; unfold multi_shift. 
+  induction lbs; intros ks Hvt Hvl; auto. 
+  destruct ks as [| k ks]; simpl; auto.
+  rewrite IHlbs; auto.
+  - rewrite shift_wf_refl; auto. unfold Wf in *.
+    destruct (Hvl a); try lia.
+    simpl; now left.
+  - intros. apply Hvl; simpl; now right.
 Qed.
-
 
 End Resource.
 
-(** *** Scope and Notations *)
-Declare Custom Entry wormholes.
+(** ---- *)
+
+(** ** Notation - Resource *)
+Module ResourceNotations.
+
+(** *** Scope *)
+Declare Custom Entry wh.
 Declare Scope resource_scope.
 Delimit Scope resource_scope with r.
-Definition resource := Resource.t.
 
-Notation "<[ e ]>" := e (e custom wormholes at level 99).
-Notation "( x )"   := x (in custom wormholes, x at level 99).
-Notation "x"       := x (in custom wormholes at level 0, x constr at level 0).
-Notation "{ x }"   := x (in custom wormholes at level 1, x constr).
+
+(** *** Notations *)
+Definition resource := Resource.t.
+Definition lvl := Level.t.
+
+Notation "<[ x ]>" := x (x custom wh at level 99).
+Notation "( x )"   := x (in custom wh, x at level 99).
+Notation "x"       := x (in custom wh at level 0, x constr at level 0).
+Notation "{ x }"   := x (in custom wh at level 1, x constr).
 
 Infix "<"  := Resource.lt : resource_scope.
-Infix "=" := Resource.eq : resource_scope.
-Infix "<?"  := Resource.ltb (at level 70) : resource_scope.
-Infix "=?" := Resource.eqb  (at level 70) : resource_scope.
-Infix "⊩ᵣ" := Resource.valid (at level 20, no associativity). 
-Infix "⊩?ᵣ" := Resource.validb (at level 20, no associativity). 
-Notation "'[⧐ᵣ' lb '≤' k ']' t" := (Resource.shift lb k t) (at level 65, right associativity).
-Notation "'[⧐⧐ᵣ' lb '≤' k ']' t" := (Resource.multi_shift lb k t) (at level 65, right associativity).
+Infix "="  := Resource.eq : resource_scope.
+Infix "⊩" := Resource.Wf (at level 20, no associativity) : resource_scope. 
+
+Notation "'[⧐' lb '–' k ']' t" := (Resource.shift lb k t) 
+                                   (at level 65, right associativity) : resource_scope.
+Notation "'[⧐⧐' lb '–' k ']' t" := (Resource.multi_shift lb k t) 
+                                    (at level 65, right associativity) : resource_scope.
+
+
+(** *** Morphisms *)
+
+#[export] Instance resource_leibniz_eq : Proper Logic.eq Resource.eq := _.
+
+#[export] Instance resource_Wf_iff : Proper (Level.eq ==> Resource.eq ==> iff) Resource.Wf := _.
+
+#[export] Instance resource_shift_eq :
+  Proper (Level.eq ==> Level.eq ==> Resource.eq ==> Logic.eq) Resource.shift := _.
+
+#[export] Instance resource_multi_shift_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> Resource.eq ==> Logic.eq) Resource.multi_shift := _.
+
+End ResourceNotations.
