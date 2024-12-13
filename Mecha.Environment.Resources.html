@@ -1,0 +1,294 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link href="resources/coqdoc.css" rel="stylesheet" type="text/css" />
+<link href="resources/coqdocjs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="resources/config.js"></script>
+<script type="text/javascript" src="resources/coqdocjs.js"></script>
+</head>
+
+<body onload="document.getElementById('content').focus()">
+  <div id="header">
+    <span class="left">
+      <span class="modulename"> <script> document.write(document.title) </script> </span>
+    </span>
+
+    <span class="button" id="toggle-proofs"></span>
+
+    <span class="right">
+      <a href="https://github.com/JordanIschard/Mechanized-Wormholes">Project Page</a>
+      <a href="./index.html"> Index </a>
+      <a href="./toc.html"> Table of Contents </a>
+    </span>
+</div>
+    <div id="content" tabindex="-1" onblur="document.getElementById('content').focus()">
+    <div id="main">
+<div class="code">
+<span class="id" title="keyword">From</span> <span class="id" title="var">Coq</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.micromega.Lia.html#"><span class="id" title="library">Lia</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#"><span class="id" title="library">Classes.Morphisms</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">Mecha</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <a class="idref" href="Mecha.Syntax.Resource.html#"><span class="id" title="library">Resource</span></a>.<br/>
+<span class="id" title="keyword">From</span> <span class="id" title="var">DeBrLevel</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="library">LevelInterface</span> <span class="id" title="library">Level</span> <span class="id" title="library">Levels</span> <span class="id" title="library">SetLevelInterface</span>.<br/>
+<span class="id" title="keyword">Import</span> <a class="idref" href="Mecha.Syntax.Resource.html#ResourceNotations"><span class="id" title="module">ResourceNotations</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab46"></a><h1 class="section">Environment - Resources</h1>
+
+
+<div class="paragraph"> </div>
+
+  Wormholes types contains a signal function arrow that carries a set of resources used by the signal function during the functional transition. We define a set of resource directly via the <span class="inlinecode"><span class="id" title="library">Levels</span></span> contained in <span class="inlinecode"><span class="id" title="var">DeBrLevel</span></span> library. The set module is based on <span class="inlinecode"><span class="id" title="var">MSet</span></span>.
+
+<div class="paragraph"> </div>
+
+<a id="lab47"></a><h2 class="section">Module - Resources</h2>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Module</span> <a id="Resources" class="idref" href="#Resources"><span class="id" title="module">Resources</span></a> &lt;: <span class="id" title="module">IsBdlLvlFullOTWL</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab48"></a><h3 class="section">Definition</h3>
+
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Include</span> <span class="id" title="module">MakeLVL</span>.<br/>
+<span class="id" title="keyword">Import</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.St"><span class="id" title="module">St</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab49"></a><h4 class="section">Multi shift</h4>
+
+
+<div class="paragraph"> </div>
+
+  As said in <span class="inlinecode"><span class="id" title="var">Resource.v</span></span>, the proof of progress of the functional transition requires multiple
+  shift with different well-formedness level and shifts. Thus we also define <span class="inlinecode"><a class="idref" href="Mecha.Syntax.Typ.html#Typ.multi_shift"><span class="id" title="definition">multi_shift</span></a></span> here. 
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Definition</span> <a id="Resources.multi_shift" class="idref" href="#Resources.multi_shift"><span class="id" title="definition">multi_shift</span></a> (<a id="lbs:1" class="idref" href="#lbs:1"><span class="id" title="binder">lbs</span></a> : <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="Mecha.Syntax.Resource.html#ResourceNotations.lvl"><span class="id" title="definition">lvl</span></a>) (<a id="ks:2" class="idref" href="#ks:2"><span class="id" title="binder">ks</span></a> : <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#list"><span class="id" title="inductive">list</span></a> <a class="idref" href="Mecha.Syntax.Resource.html#ResourceNotations.lvl"><span class="id" title="definition">lvl</span></a>) (<a id="t:3" class="idref" href="#t:3"><span class="id" title="binder">t</span></a> : <a class="idref" href="Mecha.Environment.Resources.html#Resources.t"><span class="id" title="definition">t</span></a>) :=<br/>
+&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Lists.List.html#fold_right"><span class="id" title="definition">List.fold_right</span></a> (<span class="id" title="keyword">fun</span> <a id="lbk:4" class="idref" href="#lbk:4"><span class="id" title="binder">lbk</span></a> <a id="acc:5" class="idref" href="#acc:5"><span class="id" title="binder">acc</span></a> ⇒ <a class="idref" href="Mecha.Environment.Resources.html#Resources.shift"><span class="id" title="definition">shift</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#fst"><span class="id" title="definition">fst</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lbk:4"><span class="id" title="variable">lbk</span></a>) (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#snd"><span class="id" title="definition">snd</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lbk:4"><span class="id" title="variable">lbk</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#acc:5"><span class="id" title="variable">acc</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#t:3"><span class="id" title="variable">t</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Lists.List.html#combine"><span class="id" title="definition">List.combine</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lbs:1"><span class="id" title="variable">lbs</span></a> <a class="idref" href="Mecha.Environment.Resources.html#ks:2"><span class="id" title="variable">ks</span></a>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab50"></a><h3 class="section">Properties</h3>
+
+<div class="paragraph"> </div>
+
+<a id="lab51"></a><h4 class="section"><span class="inlinecode"><a class="idref" href="Mecha.Syntax.Typ.html#Typ.multi_shift"><span class="id" title="definition">multi_shift</span></a></span> properties</h4>
+
+</div>
+<div class="code">
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="Resources.multi_shift_eq" class="idref" href="#Resources.multi_shift_eq"><span class="id" title="instance">multi_shift_eq</span></a> : <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.multi_shift"><span class="id" title="definition">multi_shift</span></a>.<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span> <span class="id" title="var">lbs'</span> <span class="id" title="var">lbs</span> <span class="id" title="var">Heqlbs</span> <span class="id" title="var">ks'</span> <span class="id" title="var">ks</span> <span class="id" title="var">Heqks</span> <span class="id" title="var">r1</span> <span class="id" title="var">r2</span> <span class="id" title="var">Heqr</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Heqr</span>; <span class="id" title="tactic">apply</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq_leibniz"><span class="id" title="lemma">eq_leibniz</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Heqr</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">now</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">Heqr</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab52"></a><h4 class="section"><span class="inlinecode"><a class="idref" href="Mecha.Syntax.Typ.html#Typ.Wf"><span class="id" title="definition">Wf</span></a></span> specific Wormholes properties</h4>
+
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <a id="Resources.Wf_wh" class="idref" href="#Resources.Wf_wh"><span class="id" title="lemma">Wf_wh</span></a> (<a id="lb:6" class="idref" href="#lb:6"><span class="id" title="binder">lb</span></a> : <a class="idref" href="Mecha.Syntax.Resource.html#ResourceNotations.lvl"><span class="id" title="definition">lvl</span></a>) (<a id="s:7" class="idref" href="#s:7"><span class="id" title="binder">s</span></a> : <a class="idref" href="Mecha.Environment.Resources.html#Resources.t"><span class="id" title="definition">t</span></a>):<br/>
+&nbsp;&nbsp;<a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf"><span class="id" title="definition">Wf</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#S"><span class="id" title="constructor">S</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#S"><span class="id" title="constructor">S</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lb:6"><span class="id" title="variable">lb</span></a>)) <a class="idref" href="Mecha.Environment.Resources.html#s:7"><span class="id" title="variable">s</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#::type_scope:x_'-&gt;'_x"><span class="id" title="notation">→</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf"><span class="id" title="definition">Wf</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lb:6"><span class="id" title="variable">lb</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.diff"><span class="id" title="definition">diff</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:7"><span class="id" title="variable">s</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.add"><span class="id" title="definition">add</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lb:6"><span class="id" title="variable">lb</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.add"><span class="id" title="definition">add</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Datatypes.html#S"><span class="id" title="constructor">S</span></a> <a class="idref" href="Mecha.Environment.Resources.html#lb:6"><span class="id" title="variable">lb</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.empty"><span class="id" title="definition">empty</span></a>))).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>; <span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf_unfold"><span class="id" title="lemma">Wf_unfold</span></a> <span class="id" title="tactic">in</span> *; <span class="id" title="tactic">unfold</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.For_all"><span class="id" title="definition">For_all</span></a> <span class="id" title="tactic">in</span> *; <br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.diff_spec"><span class="id" title="lemma">diff_spec</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">H0</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.add_notin_spec"><span class="id" title="lemma">add_notin_spec</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H1</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">H1</span>; <br/>
+&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.add_notin_spec"><span class="id" title="lemma">add_notin_spec</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H2</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">H2</span>; <span class="id" title="tactic">clear</span> <span class="id" title="var">H3</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <span class="id" title="definition">Level.Wf</span> <span class="id" title="tactic">in</span> *; <span class="id" title="tactic">apply</span> <span class="id" title="var">H</span> <span class="id" title="tactic">in</span> <span class="id" title="var">H0</span>; <span class="id" title="var">lia</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab53"></a><h4 class="section"><span class="inlinecode"><a class="idref" href="Mecha.Environment.Stock.html#Stock.new_key"><span class="id" title="definition">new_key</span></a></span> properties</h4>
+
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <a id="Resources.new_key_union" class="idref" href="#Resources.new_key_union"><span class="id" title="lemma">new_key_union</span></a> (<a id="s:8" class="idref" href="#s:8"><span class="id" title="binder">s</span></a> <a id="s':9" class="idref" href="#s':9"><span class="id" title="binder">s'</span></a>: <a class="idref" href="Mecha.Environment.Resources.html#Resources.t"><span class="id" title="definition">t</span></a>) :<br/>
+&nbsp;&nbsp;<a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">new_key</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.union"><span class="id" title="definition">union</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:8"><span class="id" title="variable">s</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s':9"><span class="id" title="variable">s'</span></a>) <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#6cd0f7b28b6092304087c7049437bb1a"><span class="id" title="notation">=</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Peano.html#max"><span class="id" title="abbreviation">max</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">new_key</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:8"><span class="id" title="variable">s</span></a>) (<a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">new_key</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s':9"><span class="id" title="variable">s'</span></a>).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">revert</span> <span class="id" title="var">s'</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">s</span> <span class="id" title="keyword">using</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.set_induction"><span class="id" title="lemma">set_induction</span></a>; <span class="id" title="tactic">intro</span> <span class="id" title="var">s'</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.empty_union_1"><span class="id" title="lemma">empty_union_1</span></a>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key_Empty"><span class="id" title="lemma">new_key_Empty</span></a> <span class="id" title="var">s</span>); <span class="id" title="tactic">auto</span>; <span class="id" title="var">lia</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">apply</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.Add_inv"><span class="id" title="lemma">Add_inv</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.union_add"><span class="id" title="lemma">union_add</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">do</span> 2 <span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key_add_max"><span class="id" title="lemma">new_key_add_max</span></a>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">IHs1</span>; <span class="id" title="var">lia</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <a id="Resources.new_key_Wf" class="idref" href="#Resources.new_key_Wf"><span class="id" title="lemma">new_key_Wf</span></a> (<a id="k:10" class="idref" href="#k:10"><span class="id" title="binder">k</span></a>: <a class="idref" href="Mecha.Syntax.Resource.html#ResourceNotations.lvl"><span class="id" title="definition">lvl</span></a>) (<a id="s:11" class="idref" href="#s:11"><span class="id" title="binder">s</span></a>: <a class="idref" href="Mecha.Environment.Resources.html#Resources.t"><span class="id" title="definition">t</span></a>) : <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf"><span class="id" title="definition">Wf</span></a> <a class="idref" href="Mecha.Environment.Resources.html#k:10"><span class="id" title="variable">k</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:11"><span class="id" title="variable">s</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#::type_scope:x_'-&gt;'_x"><span class="id" title="notation">→</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">new_key</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:11"><span class="id" title="variable">s</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Peano.html#cb53cf0ee22c036a03b4a9281c68b5a3"><span class="id" title="notation">≤</span></a> <a class="idref" href="Mecha.Environment.Resources.html#k:10"><span class="id" title="variable">k</span></a>.<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">induction</span> <span class="id" title="var">s</span> <span class="id" title="keyword">using</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.set_induction"><span class="id" title="lemma">set_induction</span></a>; <span class="id" title="tactic">intro</span> <span class="id" title="var">Hwf</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key_Empty"><span class="id" title="lemma">new_key_Empty</span></a>; <span class="id" title="tactic">auto</span>; <span class="id" title="var">lia</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">apply</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.Add_inv"><span class="id" title="lemma">Add_inv</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf_add_iff"><span class="id" title="lemma">Wf_add_iff</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwf</span> <span class="id" title="keyword">as</span> [<span class="id" title="var">Hwfx</span> <span class="id" title="var">Hwf</span>]; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <span class="id" title="var">IHs1</span> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwf</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">unfold</span> <a class="idref" href="Mecha.Syntax.Resource.html#Resource.Wf"><span class="id" title="definition">Resource.Wf</span></a> <span class="id" title="tactic">in</span> <span class="id" title="var">Hwfx</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key_add_max"><span class="id" title="lemma">new_key_add_max</span></a>; <span class="id" title="var">lia</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources"><span class="id" title="module">Resources</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<hr/>
+ 
+<div class="paragraph"> </div>
+
+<a id="lab54"></a><h2 class="section">Notation - Set</h2>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Module</span> <a id="SetNotations" class="idref" href="#SetNotations"><span class="id" title="module">SetNotations</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab55"></a><h3 class="section">Scope</h3>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Declare Scope</span> <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Delimit</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">set_scope</span> <span class="id" title="keyword">with</span> <span class="id" title="var">s</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab56"></a><h3 class="section">Notations</h3>
+
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Notation</span> <a id="ad7da0e1e8f5d8517efcab014a174c33" class="idref" href="#ad7da0e1e8f5d8517efcab014a174c33"><span class="id" title="notation">&quot;</span></a>∅" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.empty"><span class="id" title="definition">Resources.St.empty</span></a>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Notation</span> <a id="370ef5df170a825b1fa7d31ae6c5d799" class="idref" href="#370ef5df170a825b1fa7d31ae6c5d799"><span class="id" title="notation">&quot;</span></a>'\{{' x '}}'" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.singleton"><span class="id" title="definition">Resources.St.singleton</span></a> <span class="id" title="var">x</span>).<br/>
+<span class="id" title="keyword">Notation</span> <a id="fcf44b690b88a0f59b5a38fd86c69c7f" class="idref" href="#fcf44b690b88a0f59b5a38fd86c69c7f"><span class="id" title="notation">&quot;</span></a>'\{{' x ';' y ';' .. ';' z '}}'" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.add"><span class="id" title="definition">Resources.St.add</span></a> <span class="id" title="var">x</span> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.add"><span class="id" title="definition">Resources.St.add</span></a> <span class="id" title="var">y</span> .. (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.add"><span class="id" title="definition">Resources.St.add</span></a> <span class="id" title="var">z</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources.St.empty"><span class="id" title="definition">Resources.St.empty</span></a>) .. )).<br/>
+<span class="id" title="keyword">Infix</span> <a id="acef65655055424b14232d9cba1603ee" class="idref" href="#acef65655055424b14232d9cba1603ee"><span class="id" title="notation">&quot;</span></a>∉"  := (<span class="id" title="keyword">fun</span> <a id="x:12" class="idref" href="#x:12"><span class="id" title="binder">x</span></a> <a id="s:13" class="idref" href="#s:13"><span class="id" title="binder">s</span></a> ⇒ <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#63a68285c81db8f9bc456233bb9ed181"><span class="id" title="notation">¬</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.St.In"><span class="id" title="definition">Resources.St.In</span></a> <a class="idref" href="Mecha.Environment.Resources.html#x:12"><span class="id" title="variable">x</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:13"><span class="id" title="variable">s</span></a>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 75) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="2f57f07ab26376e36de4a9c296e92eab" class="idref" href="#2f57f07ab26376e36de4a9c296e92eab"><span class="id" title="notation">&quot;</span></a>∈"  := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.In"><span class="id" title="definition">Resources.St.In</span></a>)  (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 60, <span class="id" title="keyword">no</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="8ed899ed0b90ba31175847cf4e78972b" class="idref" href="#8ed899ed0b90ba31175847cf4e78972b"><span class="id" title="notation">&quot;</span></a>+:" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.add"><span class="id" title="definition">Resources.St.add</span></a>)  (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 60, <span class="id" title="keyword">no</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="72edf05d507f1deaa3bf0c0f4acbd47b" class="idref" href="#72edf05d507f1deaa3bf0c0f4acbd47b"><span class="id" title="notation">&quot;</span></a>∪"  := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.union"><span class="id" title="definition">Resources.St.union</span></a>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 50, <span class="id" title="tactic">left</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="abfa6c616fde816559b021f112102e1e" class="idref" href="#abfa6c616fde816559b021f112102e1e"><span class="id" title="notation">&quot;</span></a>∩"  := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.inter"><span class="id" title="definition">Resources.St.inter</span></a>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 50, <span class="id" title="tactic">left</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="bb8a3ee2095aca4e3806f7ecb679c3f6" class="idref" href="#bb8a3ee2095aca4e3806f7ecb679c3f6"><span class="id" title="notation">&quot;</span></a>\"  := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.St.diff"><span class="id" title="definition">Resources.St.diff</span></a>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 50, <span class="id" title="tactic">left</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="0d00ec545a96df01ce78199852310f02" class="idref" href="#0d00ec545a96df01ce78199852310f02"><span class="id" title="notation">&quot;</span></a>⊆"  := <a class="idref" href="Mecha.Environment.Resources.html#Resources.St.Subset"><span class="id" title="definition">Resources.St.Subset</span></a> (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 60, <span class="id" title="keyword">no</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="ab90611d3aaf004e03c18db6611b41ae" class="idref" href="#ab90611d3aaf004e03c18db6611b41ae"><span class="id" title="notation">&quot;</span></a>⊈"  := (<span class="id" title="keyword">fun</span> <a id="s:14" class="idref" href="#s:14"><span class="id" title="binder">s</span></a> <a id="s':15" class="idref" href="#s':15"><span class="id" title="binder">s'</span></a> ⇒ <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#63a68285c81db8f9bc456233bb9ed181"><span class="id" title="notation">¬</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#63a68285c81db8f9bc456233bb9ed181"><span class="id" title="notation">(</span></a><a class="idref" href="Mecha.Environment.Resources.html#Resources.St.Subset"><span class="id" title="definition">Resources.St.Subset</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s:14"><span class="id" title="variable">s</span></a> <a class="idref" href="Mecha.Environment.Resources.html#s':15"><span class="id" title="variable">s'</span></a><a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#63a68285c81db8f9bc456233bb9ed181"><span class="id" title="notation">)</span></a>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 60, <span class="id" title="keyword">no</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="SetNotations.::set_scope:x_'&lt;'_x" class="idref" href="#SetNotations.::set_scope:x_'&lt;'_x"><span class="id" title="notation">&quot;</span></a>&lt;"  := <a class="idref" href="Mecha.Environment.Resources.html#Resources.lt"><span class="id" title="definition">Resources.lt</span></a> : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="c26fefea56e4d41bdecf1afc275d2e26" class="idref" href="#c26fefea56e4d41bdecf1afc275d2e26"><span class="id" title="notation">&quot;</span></a>&lt;?" := <a class="idref" href="Mecha.Environment.Resources.html#Resources.St.ltb"><span class="id" title="definition">Resources.St.ltb</span></a> (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 70) : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="fa7b44c282525dd53e7768a82e3533fa" class="idref" href="#fa7b44c282525dd53e7768a82e3533fa"><span class="id" title="notation">&quot;</span></a>="  := <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">Resources.eq</span></a> : <span class="id" title="var">set_scope</span>.<br/>
+<span class="id" title="keyword">Infix</span> <a id="67521016520f8dfd18068a97ebf80402" class="idref" href="#67521016520f8dfd18068a97ebf80402"><span class="id" title="notation">&quot;</span></a>=?" := <a class="idref" href="Mecha.Environment.Resources.html#Resources.St.equal"><span class="id" title="definition">Resources.St.equal</span></a> (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 70) : <span class="id" title="var">set_scope</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Mecha.Environment.Resources.html#SetNotations"><span class="id" title="module">SetNotations</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<hr/>
+ 
+<div class="paragraph"> </div>
+
+<a id="lab57"></a><h2 class="section">Notation - Resources</h2>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Module</span> <a id="ResourcesNotations" class="idref" href="#ResourcesNotations"><span class="id" title="module">ResourcesNotations</span></a>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab58"></a><h3 class="section">Scope</h3>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Declare Scope</span> <span class="id" title="var">resources_scope</span>.<br/>
+<span class="id" title="keyword">Delimit</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">resources_scope</span> <span class="id" title="keyword">with</span> <span class="id" title="var">rs</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab59"></a><h3 class="section">Notations</h3>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Definition</span> <a id="ResourcesNotations.resources" class="idref" href="#ResourcesNotations.resources"><span class="id" title="definition">resources</span></a> := <a class="idref" href="Mecha.Environment.Resources.html#Resources.t"><span class="id" title="definition">Resources.t</span></a>.<br/>
+
+<br/>
+<span class="id" title="keyword">Infix</span> <a id="9ecbedffd547dcc3528f4eb48cc4112e" class="idref" href="#9ecbedffd547dcc3528f4eb48cc4112e"><span class="id" title="notation">&quot;</span></a>⊩" := <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf"><span class="id" title="definition">Resources.Wf</span></a> (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 20, <span class="id" title="keyword">no</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">resources_scope</span>.<br/>
+<span class="id" title="keyword">Notation</span> <a id="797801ed1bcb46dc0aed6ee405274b71" class="idref" href="#797801ed1bcb46dc0aed6ee405274b71"><span class="id" title="notation">&quot;</span></a>t '⁺'" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">Resources.new_key</span></a> <span class="id" title="var">t</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 16) : <span class="id" title="var">resources_scope</span>.<br/>
+<span class="id" title="keyword">Notation</span> <a id="219634fcd4352ec20f9378e858c0ffc5" class="idref" href="#219634fcd4352ec20f9378e858c0ffc5"><span class="id" title="notation">&quot;</span></a>'[⧐' lb '–' k ']' t" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.shift"><span class="id" title="definition">Resources.shift</span></a> <span class="id" title="var">lb</span> <span class="id" title="var">k</span> <span class="id" title="var">t</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 65, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">resources_scope</span>.<br/>
+<span class="id" title="keyword">Notation</span> <a id="fd143e80499a163ab3cc8d9ecec781ef" class="idref" href="#fd143e80499a163ab3cc8d9ecec781ef"><span class="id" title="notation">&quot;</span></a>'[⧐⧐' lb '–' k ']' t" := (<a class="idref" href="Mecha.Environment.Resources.html#Resources.multi_shift"><span class="id" title="definition">Resources.multi_shift</span></a> <span class="id" title="var">lb</span> <span class="id" title="var">k</span> <span class="id" title="var">t</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 65, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>) : <span class="id" title="var">resources_scope</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a id="lab60"></a><h3 class="section">Morphisms</h3>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Import</span> <a class="idref" href="Mecha.Environment.Resources.html#Resources"><span class="id" title="module">Resources</span></a>.<br/>
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="ResourcesNotations.resources_leibniz_eq" class="idref" href="#ResourcesNotations.resources_leibniz_eq"><span class="id" title="instance">resources_leibniz_eq</span></a> : <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> := <span class="id" title="var">_</span>.<br/>
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="ResourcesNotations.resources_Wf_iff" class="idref" href="#ResourcesNotations.resources_Wf_iff"><span class="id" title="instance">resources_Wf_iff</span></a> :  <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> (<span class="id" title="definition">Level.eq</span> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#iff"><span class="id" title="definition">iff</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.Wf"><span class="id" title="definition">Wf</span></a> := <span class="id" title="var">_</span>.<br/>
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="ResourcesNotations.resources_shift_eq" class="idref" href="#ResourcesNotations.resources_shift_eq"><span class="id" title="instance">resources_shift_eq</span></a> :<br/>
+&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> (<span class="id" title="definition">Level.eq</span> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <span class="id" title="definition">Level.eq</span> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.shift"><span class="id" title="definition">shift</span></a> := <a class="idref" href="Mecha.Environment.Resources.html#Resources.shift_eq"><span class="id" title="instance">shift_eq</span></a>.<br/>
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="ResourcesNotations.resources_multi_shift_eq" class="idref" href="#ResourcesNotations.resources_multi_shift_eq"><span class="id" title="instance">resources_multi_shift_eq</span></a> : <br/>
+&nbsp;&nbsp;<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> (<a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.multi_shift"><span class="id" title="definition">multi_shift</span></a> := <span class="id" title="var">_</span>.<br/>
+
+<br/>
+#[<span class="id" title="var">export</span>] <span class="id" title="keyword">Instance</span> <a id="ResourcesNotations.resources_new_key_eq" class="idref" href="#ResourcesNotations.resources_new_key_eq"><span class="id" title="instance">resources_new_key_eq</span></a> : <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#Proper"><span class="id" title="class">Proper</span></a> (<a class="idref" href="Mecha.Environment.Resources.html#Resources.eq"><span class="id" title="definition">eq</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Classes.Morphisms.html#8dc5652698a6e16f72dd37bd17d3b973"><span class="id" title="notation">==&gt;</span></a> <a class="idref" href="http://coq.inria.fr/doc/V8.20.0/stdlib//Coq.Init.Logic.html#eq"><span class="id" title="inductive">Logic.eq</span></a>) <a class="idref" href="Mecha.Environment.Resources.html#Resources.new_key"><span class="id" title="definition">new_key</span></a> := <span class="id" title="var">_</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <a class="idref" href="Mecha.Environment.Resources.html#ResourcesNotations"><span class="id" title="module">ResourcesNotations</span></a>.<br/>
+</div>
+</div>
+<div id="footer">
+  Generated by <a href="http://coq.inria.fr/">coqdoc</a> and improved with <a href="https://github.com/tebbi/coqdocjs">CoqdocJS</a>
+</div>
+</div>
+</body>
+
+</html>
