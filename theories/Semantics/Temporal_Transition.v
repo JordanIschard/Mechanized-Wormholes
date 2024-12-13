@@ -24,21 +24,22 @@ Module RC := RContext.
 (** *** Well-formed environments-context *)
 
 Definition well_formed_in_ec (Rc : ℜ) (S : 𝐄) (W : 𝐖) :=
-  (* (1) *) (forall (r : resource), (r ∈ Rc)%rc <->  (r ∈ W)%sk \/ (r ∈ S)%sr) /\ 
-  (* (2) *) (forall (r : resource), ((r ∈ W)%sk -> (r ∉ S)%sr) /\ ((r ∈ S)%sr -> (r ∉ W)%sk)) /\
-  (* (3) *) (Rc⁺ ⊩ Rc)%rc /\ (S⁺ ⊩ S)%sr /\ (W⁺ ⊩ W)%sk /\
-  (* (4) *) (forall (r : resource) (α : πΤ) (v : Λ), Rc⌊r⌋%rc = Some α -> 
-              (S⌊r⌋%sr = Some v -> (∅)%vc ⋅ Rc ⊢ {Term.shift (S⁺)%sr ((max (S⁺)%sr (W⁺)%sk) - (S⁺)%sr) v} ∈ {snd α}) /\
-              (W⌊r⌋%sk = Some v -> (∅)%vc ⋅ Rc ⊢ v ∈ {snd α})) /\
-            (~ ST.Empty W -> (W⁺)%sk > (S⁺)%sr) /\
-            (forall (r : resource) (α : πΤ), 
+  (forall (r : resource), (r ∈ Rc)%rc <->  (r ∈ W)%sk \/ (r ∈ S)%sr) /\ 
+  (forall (r : resource), ((r ∈ W)%sk -> (r ∉ S)%sr) /\ ((r ∈ S)%sr -> (r ∉ W)%sk)) /\
+  (Rc⁺ ⊩ Rc)%rc /\ (S⁺ ⊩ S)%sr /\ (W⁺ ⊩ W)%sk /\
+  (forall (r : resource) (α : πΤ) (v : Λ), Rc⌊r⌋%rc = Some α -> 
+           (S⌊r⌋%sr = Some v -> 
+            (∅)%vc ⋅ Rc ⊢ {Term.shift (S⁺)%sr ((max (S⁺)%sr (W⁺)%sk) - (S⁺)%sr) v} ∈ {snd α}) /\
+           (W⌊r⌋%sk = Some v -> (∅)%vc ⋅ Rc ⊢ v ∈ {snd α})) /\
+  (~ ST.Empty W -> (W⁺)%sk > (S⁺)%sr) /\
+  (forall (r : resource) (α : πΤ), 
                     (r ∈ (ST.writers W))%s -> Rc⌊r⌋%rc = Some α -> (snd α) = <[𝟙]>).
 
 
 Definition well_formed_out_ec (Rc : ℜ) (S : o𝐄) (W : 𝐖) :=
-  (* (1) *) (forall (r : resource), (r ∈ Rc)%rc <-> (r ∈ W)%sk \/ (r ∈ S)%or) /\
-  (* (2) *) (forall (r : resource), ((r ∈ W)%sk -> (r ∉ S)%or) /\ ((r ∈ S)%or -> (r ∉ W)%sk)) /\
-  (* (3) *) (Rc⁺ ⊩ Rc)%rc /\ ((Rc⁺)%rc ⊩ S)%or /\ (W⁺ ⊩ W)%sk.
+  (forall (r : resource), (r ∈ Rc)%rc <-> (r ∈ W)%sk \/ (r ∈ S)%or) /\
+  (forall (r : resource), ((r ∈ W)%sk -> (r ∉ S)%or) /\ ((r ∈ S)%or -> (r ∉ W)%sk)) /\
+  (Rc⁺ ⊩ Rc)%rc /\ ((Rc⁺)%rc ⊩ S)%or /\ (W⁺ ⊩ W)%sk.
 
 
 Notation "'WFᵢₙ(' Rc , S , W )" := (well_formed_in_ec Rc S W) (at level 50).
@@ -730,7 +731,6 @@ Qed.
 
 (** ** Preservation - Temporal *)
 
-
 Section props.
 
 
@@ -739,20 +739,18 @@ Hypothesis all_arrow_halting : forall Rc t α β,
 
 Theorem temporal_preserves_typing (Rc : ℜ) (S : 𝐄) (S' : o𝐄) (W W' : 𝐖) (P P' : Λ) (R : resources) :
 
-               (* (1) *) halts (Rc⁺)%rc P -> (* (2) *) SRE.halts (S⁺)%sr S -> 
-                 (* (3) *) ST.halts (W⁺)%sk W -> (* (4) *) WFᵢₙ(Rc,S,W) ->
-
-       (* (1) *) ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) -> (* (3) *) ⟦ S ; W ; P ⟧ ⟾ ⟦ S' ; W' ; P' ⟧ ->
-  (* -------------------------------------------------------------------------------------------- *)
+         halts (Rc⁺)%rc P -> SRE.halts (S⁺)%sr S -> ST.halts (W⁺)%sk W -> 
+                  WFᵢₙ(Rc,S,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) -> 
+                      
+                      ⟦ S ; W ; P ⟧ ⟾ ⟦ S' ; W' ; P' ⟧ ->
+  (* ------------------------------------------------------------------------ *)
        exists (Rc1 : ℜ) (R' : resources),
-          (* (4) *) (R ⊆ R')%s /\ 
-          (* (5) *) (Rc ⊆ Rc1)%rc /\ 
-          (* (6) *) WFₒᵤₜ(Rc1,S',W') /\
-                   (~ ST.Empty W' -> (W'⁺)%sk > (S⁺)%sr) /\
-          (* (7) *) ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ R') /\ 
+          (R ⊆ R')%s /\ (Rc ⊆ Rc1)%rc /\ WFₒᵤₜ(Rc1,S',W') /\
+          (~ ST.Empty W' -> (W'⁺)%sk > (S⁺)%sr) /\
+          
+          ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ R') /\ 
      
-          (* (9) *) halts (Rc1⁺)%rc P' /\ (* (10) *) ORE.halts (Rc1⁺)%rc S' /\ 
-          (* (10) *) ST.halts (W'⁺)%sk W'.
+          halts (Rc1⁺)%rc P' /\ ORE.halts (Rc1⁺)%rc S' /\ ST.halts (W'⁺)%sk W'.
 Proof.
   intros HltP HltS HltW HWF HwtP HTT.
   destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
