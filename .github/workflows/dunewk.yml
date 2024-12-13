@@ -1,0 +1,55 @@
+name: "Dune builder"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  builder:
+
+    name: DuneBuilder
+
+    runs-on: 'ubuntu-latest'
+
+    permissions: write-all
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup dune
+        uses: nmittu/setup-dune@v2
+        with:
+          packages: "coq"
+
+      - name: Add MMaps
+        run: |
+          opam repo add coq-released https://coq.inria.fr/opam/released
+          opam install coq-mmaps
+
+      - name: Build project via dune
+        run: |
+          eval $(opam config env)
+          git clone https://github.com/JordanIschard/DeBrLevel
+          cd DeBrLevel
+          dune build
+          dune install
+          cd ..
+          dune build
+
+      - name: Generate documentation
+        if: github.event_name == 'push'
+        run: |
+          eval $(opam config env)
+          make coqdoc
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push'
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: gh-pages
+          build_dir: doc/html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
