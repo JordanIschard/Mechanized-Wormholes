@@ -1,8 +1,8 @@
 From Coq Require Import Lia Morphisms Lists.List.
-From Mecha Require Import Resource Resources Term Typ Cell VContext RContext  
+From Mecha Require Import Resource Resources Term Typ Cell VContext RContext ResourcesMap 
                           Type_System Evaluation_Transition  REnvironment SREnvironment Stock.
 Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
-       VContextNotations RContextNotations REnvironmentNotations
+       VContextNotations RContextNotations REnvironmentNotations ResourcesMapNotations
        SREnvironmentNotations ResourcesNotations SetNotations StockNotations.
 
 (** * Semantics - Functional
@@ -12,6 +12,9 @@ Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
 
 
 (** ** Definition - Functional *)
+
+Module SRE := SREnvironment.
+Module RM := ResourcesMap.
 
 Open Scope renvironment_scope.
 
@@ -474,7 +477,7 @@ Lemma functional_preserves_Wf (V V1 : 𝐕) (W : 𝐖) (st st' sf sf' : Λ) :
         (* (2) *) V⁺ ⊩ V -> (* (3) *) (V⁺ ⊩ st)%tm -> (* (4) *) (V⁺ ⊩ sf)%tm ->
   (* ------------------------------------------------------------------------------ *)
        (* (5) *) V1⁺ ⊩ V1 /\ (V1⁺ ⊩ st')%tm /\ (V1⁺ ⊩ sf')%tm /\ ((V1⁺)%re ⊩ W)%sk /\ 
-                                (* (6) *) V⁺ <= V1⁺.
+                             (* (6) *) V⁺ <= V1⁺.
 Proof.
   intro fT; induction fT; intros HvV Hvst Hvt.
   (* fT_eT_sf *)
@@ -484,12 +487,13 @@ Proof.
   - destruct IHfT as [HvV1 [Hvst' [Hvt'' [HvW Hlt]]]]; auto.
     now apply evaluate_preserves_wf_term with (t := st).
   (* fT_arr *)
-  - repeat split; auto. 
-    constructor; inversion Hvt; now subst.
+  - assert ((V⁺)%re ⊩ <[t st]>)%tm.
+    { constructor; inversion Hvt; now subst. }
+    do 5 (split; auto).
   (* fT_first *)
   - inversion Hvst; inversion Hvt; subst; fold Term.Wf in *; clear Hvst Hvt. 
     destruct IHfT as [HvV1 [Hvst' [Hvt'' [HvW Hlt]]]]; auto.
-    repeat split; auto; try (now destruct HvW); constructor; auto.
+    repeat split; auto; try (now destruct HvW); try (constructor); auto.
     now apply Term.shift_preserves_wf_2.
   (* fT_comp *)
   - inversion Hvt; subst; 
@@ -529,59 +533,434 @@ Lemma functional_preserves_keys (V V1 : 𝐕) (W : 𝐖) (sv sv' sf sf' : Λ) :
   
        (* (1) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V1 ; sv' ; sf' ; W ⪢ ->
   (* ---------------------------------------------------------- *)
-             (forall (r : resource), r ∈ V -> r ∈ V1).
+       (forall (r : resource), r ∈ V -> r ∈ V1) /\ V⁺ <= V1⁺.
 Proof.
-  intro fT; induction fT; intros (* HvV Hvsv Hvsf *) r' HInV; auto.
+  intro fT; induction fT; auto.
+  (* fT_comp *)
+  - destruct IHfT1, IHfT2; split; auto; lia.
   (* fT_rsf *)
-  - destruct (Resource.eq_dec r r'); subst; apply RE.add_in_iff; auto.
+  - split.
+    -- intros r' HIn. 
+       destruct (Resource.eq_dec r r'); subst; apply RE.add_in_iff; auto.
+    -- apply RE.add_id in H.
+       rewrite <- H.
+       do 3 rewrite RE.Ext.new_key_add_max; lia.
   (* fT_wh *)
-  - apply IHfT.
-    do 2 rewrite RE.add_in_iff.
-    do 2 right.
-    now rewrite RE.shift_in_new_key.
+  - destruct IHfT as [HIn Hleq].
+    split.
+    -- intros r HInV. 
+       apply HIn.
+       do 2 rewrite RE.add_in_iff.
+       do 2 right.
+       now rewrite RE.shift_in_new_key.
+    -- do 2 rewrite RE.Ext.new_key_add_max in Hleq; lia.
 Qed.
 
 (** *** Consistency between V and W 
 
   Suppose a functional transition (1), we prove that all local resource names stored in [W] during the functional transition are new regards of the input resource environment [V] and are in the output resource environment [V1].
 *)
-Lemma consistency_V_W (V V1 : 𝐕) (W : 𝐖) (sv sv' sf sf' : Λ) :
+Lemma functional_W_props (V V1 : 𝐕) (W : 𝐖) (sv sv' sf sf' : Λ) :
 
-       (* (1) *) ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V1 ; sv' ; sf' ; W ⪢ ->
-  (* ----------------------------------------------------------- *)
-       (forall (r : resource), (r ∈ W)%sk -> r ∉ V /\ r ∈ V1).
+       ⪡ V ; sv ; sf ⪢ ⭆ ⪡ V1 ; sv' ; sf' ; W ⪢ -> 
+  (* --------------------------------------------------------------- *)
+       (forall (r: resource), (r ∈ W)%sk -> r ∉ V /\ r ∈ V1) /\ 
+       (forall (r: resource), (r ∈ W)%sk 
+            -> ((r ∈ (fst W))%sr /\ r ∉ (snd W))%rm \/ 
+               ((r ∉ (fst W))%sr /\ r ∈ (snd W)))%rm /\
+       (forall (r: resource), r ∈ (RE.diff V1 V) <-> (r ∈ W)%sk) /\
+       (~ Stock.Empty W -> (V1⁺)%re = (W⁺)%sk /\ (W⁺)%sk > (V⁺)%re) /\
+       (forall (r r': resource), ((snd W)⌊r⌋)%rm = Some r' -> (r' ∈ (fst W))%sr).
 Proof.
   intro fT; induction fT; auto.
   (* fT_arr *)
-  - intros r HIn; apply Stock.empty_in in HIn; contradiction.
+  - split. 
+    { intros r HIn; apply Stock.empty_in in HIn; contradiction. }
+    split.
+    { intros r HIn; apply Stock.empty_in in HIn; contradiction. }
+    split.
+    { 
+      intro r; split; intro HIn. 
+      - apply RE.diff_in_iff in HIn as []; contradiction.
+      - apply Stock.empty_in in HIn; contradiction.
+    }
+    split.
+    {
+      intro Hc; exfalso.
+      apply Hc.
+      apply Stock.Empty_empty.
+    }
+    { 
+     simpl; intros r r' Hfi.
+     inversion Hfi. 
+    }
   (* fT_comp *)
-  - intros r HIn.
-    apply Stock.union_in_iff in HIn as [HIn | HIn].
-    -- apply Stock.shift_in_e in HIn as H.
-       destruct H as [r' Heq]; subst.
-       rewrite <- Stock.shift_in_iff in HIn.
-       apply IHfT1 in HIn as [HnInV HInV1].
-       apply RE.Ext.new_key_in in HInV1 as Hlt.
-       rewrite (Resource.shift_wf_refl (V1⁺) (V2⁺ - V1⁺) r'); auto.
-       split; auto.
-       eapply functional_preserves_keys; eauto.
-    -- apply IHfT2 in HIn as [HnInV1 HnInv2]; auto.
-       split; auto; intro HIn.
-       eapply functional_preserves_keys in HIn; eauto.
+  - destruct IHfT1 as [Hincl1 [Hdisj1 [HeqDom1 [HnEmp1 Hcorr1]]]].
+    destruct IHfT2 as [Hincl2 [Hdisj2 [HeqDom2 [HnEmp2 Hcorr2]]]].
+
+    (* clean *)
+    move Hincl2 before Hincl1; move Hdisj2 before Hdisj1;
+    move HeqDom2 before HeqDom1; move HnEmp2 before HnEmp1.
+    (* clean *)
+
+    split.
+    {
+     clear Hdisj1 Hdisj2 HeqDom1 HeqDom2 HnEmp2.
+
+     intros r HIn.
+     apply Stock.union_in_iff in HIn as [HIn | HIn].
+     - destruct (Stock.is_empty W) eqn:Hemp.
+       -- apply Stock.Empty_is_empty in Hemp.
+          rewrite (Stock.shift_Empty_iff (V1⁺) (V2⁺ - V1⁺)) in Hemp.
+          apply (Stock.Empty_notin_1 r) in Hemp.
+          contradiction.
+       -- apply Stock.not_Empty_is_empty in Hemp.
+          apply HnEmp1 in Hemp as [Heq _]; rewrite Heq in *; clear Heq. 
+          rewrite Stock.shift_new_key_in_iff in HIn.
+          apply Hincl1 in HIn as [HnIn HIn]; split; auto.
+          apply functional_preserves_keys with (r := r) in fT2; auto.
+     - apply Hincl2 in HIn as [HnIn HIn]; split; auto.
+       intro HIn'.
+       apply functional_preserves_keys with (r := r) in fT1; auto.
+    }
+    split.
+    {
+     clear HeqDom1 HeqDom2 HnEmp1 HnEmp2.
+
+     intros r HIn.
+     apply Stock.union_in_iff in HIn as [HInW | HInW'].
+     - destruct W as [Rw Ww];
+       destruct HInW as [HInRw | HInWw]; simpl in *.
+       -- left; split; try now rewrite SRE.extend_in_iff; left.
+          intro HIn. 
+          apply RM.extend_in_iff in HIn as [HInWw | HInWw].
+          + apply SRE.shift_in_e in HInRw as H.
+            destruct H as [r1 Heq]; subst.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            rewrite <- RM.shift_in_iff in HInWw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hdisj1 in HInW as [[] | []]; auto.
+          + destruct W' as [Rw' Ww']; simpl in *. 
+            apply SRE.shift_in_e in HInRw as H.
+            destruct H as [r1 Heq]; subst.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hincl1 in HInW as H.
+            destruct H as [HnInV HInV1].
+            apply RE.Ext.new_key_in in HInV1 as Hlt.
+            rewrite (Resource.shift_wf_refl (V1⁺) (V2⁺ - V1⁺) r1) in HInWw; auto.
+            apply Hdisj1 in HInW as [[_ HnInWw] | []]; auto.
+            assert (HInW : (r1 ∈ (Rw', Ww'))%sk) by (red; auto).
+            apply Hdisj2 in HInW as [[] | [HnInRw' _]]; auto.
+            destruct (Hincl2 r1); auto.
+            red; auto.
+       -- right; split; try (rewrite RM.extend_in_iff; now left).
+          intro HIn; apply SRE.extend_in_iff in HIn as [HInRw | HInRw].
+          + apply SRE.shift_in_e in HInRw as H.
+            destruct H as [r1 Heq]; subst.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            rewrite <- RM.shift_in_iff in HInWw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hdisj1 in HInW as [[] | []]; auto.
+          + destruct W' as [Rw' Ww']; simpl in *. 
+            apply RM.shift_in_e in HInWw as HI.
+            destruct HI as [r1 Heq]; subst.
+            rewrite <- RM.shift_in_iff in HInWw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hincl1 in HInW as H.
+            destruct H as [HnInV HInV1].
+            apply RE.Ext.new_key_in in HInV1 as Hlt.
+            rewrite (Resource.shift_wf_refl (V1⁺) (V2⁺ - V1⁺) r1) in HInRw; auto.
+            apply Hdisj1 in HInW as [[_ HnInWw] | []]; auto.
+            assert (HInW : (r1 ∈ (Rw', Ww'))%sk) by (red; auto).
+            apply Hdisj2 in HInW as [[] | [HnInRw' _]]; auto.
+            destruct (Hincl2 r1); try red; auto.
+     - destruct HInW' as [HInRw' | HInWw']; 
+       destruct W as [Rw Ww]; simpl in *. 
+       -- left; split; try (rewrite SRE.extend_in_iff; now right).
+          intro HIn; apply RM.extend_in_iff in HIn as [HInWw | HInWw].
+          + apply RM.shift_in_e in HInWw as H. 
+            destruct H as [r1 Heq]; subst.
+            rewrite <- RM.shift_in_iff in HInWw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hincl1 in HInW as H.
+            destruct H as [HnInV HInV1].
+            apply RE.Ext.new_key_in in HInV1 as Hlt.
+            rewrite (Resource.shift_wf_refl (V1⁺) (V2⁺ - V1⁺) r1) in HInRw'; auto.
+            destruct W' as [Rw' Ww']; simpl in *. 
+            apply Hdisj1 in HInW as [[] | [HnInRw _]]; auto.
+            assert (HInW : (r1 ∈ (Rw', Ww'))%sk) by (red; auto).
+            apply Hdisj2 in HInW as [[_ HnInWw'] | []]; auto.
+            destruct (Hincl2 r1); try red; auto.
+          + destruct W' as [Rw' Ww']; simpl in *.  
+            assert (HInW : (r ∈ (Rw', Ww'))%sk) by (red; auto).
+            apply Hdisj2 in HInW as [[_ HnInWw'] | []]; auto.
+       -- right; split; try (rewrite RM.extend_in_iff; now right).
+          destruct W' as [Rw' Ww']; simpl in *.
+          intro HIn; apply SRE.extend_in_iff in HIn as [HInRw | HInRw'].
+          + apply SRE.shift_in_e in HInRw as H; subst.
+            destruct H as [r1 Heq]; subst.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
+            apply Hincl1 in HInW as H.
+            destruct H as [HnInV HInV1].
+            apply RE.Ext.new_key_in in HInV1 as Hlt.
+            rewrite (Resource.shift_wf_refl (V1⁺) (V2⁺ - V1⁺) r1) in HInWw'; auto.
+            destruct (Hincl2 r1); try red; auto.
+          + assert (HInW : (r ∈ (Rw', Ww'))%sk) by (red; auto).
+            apply Hdisj2 in HInW as [[] | []]; auto.
+    }
+    split.
+    {
+      clear Hdisj1 Hdisj2.
+
+      intro r.
+      rewrite RE.diff_in_iff.
+      rewrite Stock.union_in_iff; split.
+      - intros [HIn HnIn].
+        destruct (RE.In_dec V1 r) as [HIn' | HnIn'].
+        -- assert (HIn'': r ∈ RE.diff V1 V).
+           { rewrite RE.diff_in_iff; now split. }
+           rewrite HeqDom1 in HIn''.
+           assert (HnEmp: ~ Stock.Empty W).
+           { intro HE; apply (Stock.Empty_notin_1 r) in HE; auto. }
+           apply HnEmp1 in HnEmp as [Heq _].
+           rewrite Heq.
+           left.
+           now rewrite Stock.shift_new_key_in_iff.
+        -- right.
+           rewrite <- HeqDom2.
+           rewrite RE.diff_in_iff; auto.
+      - intros [HIn | HIn].
+        -- destruct (Stock.is_empty W) eqn:Hemp.
+           + apply Stock.Empty_is_empty in Hemp.
+             rewrite (Stock.shift_Empty_iff (V1⁺) (V2⁺ - V1⁺)) in Hemp.
+             apply (Stock.Empty_notin_1 r) in Hemp; contradiction.
+           + apply Stock.not_Empty_is_empty in Hemp.
+             apply HnEmp1 in Hemp as [Heq Hgt].
+             rewrite Heq in HIn.
+             rewrite Stock.shift_new_key_in_iff in HIn.
+             rewrite <- HeqDom1 in HIn.
+             apply RE.diff_in_iff in HIn as [HIn HnIn]; split; auto.
+             apply functional_preserves_keys in fT2 as []; auto.
+        -- rewrite <- HeqDom2 in HIn.
+           apply RE.diff_in_iff in HIn as [HIn HnIn].
+           split; auto.
+           intro HIn'; apply HnIn.
+           apply functional_preserves_keys in fT1 as []; auto.
+    }
+    split.
+    {
+      intro HnEmp.
+      rewrite Stock.Empty_union in HnEmp. 
+      rewrite Stock.new_key_union.
+      rewrite <- Stock.shift_Empty_iff in HnEmp.
+      apply Classical_Prop.not_and_or in HnEmp as [HnEmpW | HnEmpW].
+      - apply HnEmp1 in HnEmpW as H. 
+        destruct H as [Heq Hgt].
+        rewrite Heq.
+        rewrite Stock.shift_new_refl; auto; split; try lia.
+        destruct (Stock.is_empty W') eqn:Hemp.
+        -- apply Stock.Empty_is_empty in Hemp.
+           rewrite (Stock.new_key_Empty W'); auto.
+           rewrite Resource.max_l; try lia.
+           rewrite <- Heq.
+           apply RE.new_key_in_eqDom.
+           intro x; split; intro HIn.
+           + destruct (RE.In_dec V1 x) as [HIn' | HnIn']; auto.
+             assert (x ∈ (RE.diff V2 V1)).
+             ++ apply RE.diff_in_iff; auto.
+             ++ rewrite HeqDom2 in H.
+                apply (Stock.Empty_notin_1 x) in Hemp.
+                contradiction.
+           + now apply functional_preserves_keys with (r := x) in fT2.
+        -- apply Stock.not_Empty_is_empty in Hemp.
+           apply HnEmp2 in Hemp as H.
+           destruct H as [Heq' Hgt'].
+           rewrite Heq'; lia.
+      - apply HnEmp2 in HnEmpW as H. 
+        destruct H as [Heq Hgt].
+        rewrite Heq.
+        destruct (Stock.is_empty W) eqn:Hemp.
+        -- apply Stock.Empty_is_empty in Hemp.
+           apply (Stock.shift_Empty_iff (V1⁺) (W'⁺%sk - V1⁺)) in Hemp as Hemp'.
+           apply (Stock.new_key_Empty) in Hemp' as Heq'.
+           rewrite Heq'; simpl; clear Heq'; split; auto.
+           rewrite <- Heq in *.
+           apply functional_preserves_keys in fT1 as []; lia.
+        -- apply Stock.not_Empty_is_empty in Hemp.
+           apply HnEmp1 in Hemp as H.
+           destruct H as [Heq' Hgt'].
+           rewrite Heq'.
+           rewrite Stock.shift_new_refl; auto; lia.
+    }
+    {
+     intros r r' Hfi. 
+     destruct W as [rW wW]; destruct W' as [rW' wW']; simpl in *.
+     apply RM.find_2 in Hfi.
+     rewrite SRE.extend_in_iff.
+     apply RM.extend_mapsto_iff in Hfi as [Hfi | [Hfi HnIn]].
+     - apply RM.find_1 in Hfi.
+       apply Hcorr2 in Hfi as HIn; auto.
+     - apply RM.find_1 in Hfi.
+       destruct HnEmp1.
+       -- intros [_ Hemp]; simpl in *.
+          rewrite (RM.shift_Empty_iff (V1⁺) (V2⁺ - V1⁺)) in Hemp.
+          apply (Hemp r r').
+          now apply RM.find_2.
+       -- apply RM.shift_find_e_1 in Hfi as H'.
+          destruct H' as [[r1 Heq] [r1' Heq']]; subst.
+          apply RM.shift_find_iff in Hfi.
+          apply Hcorr1 in Hfi.
+          left.
+          now rewrite <- SRE.shift_in_iff.
+    }
   (* fT_rsf *)
-  - intros r' HIn; apply Stock.empty_in in HIn; contradiction.
+  - split.
+    { intros r' HIn; apply Stock.empty_in in HIn; contradiction. }
+    split.
+    { intros r' HIn; apply Stock.empty_in in HIn; contradiction. }
+    split.
+    {
+     intro r'; split; intro HIn.
+     - apply RE.diff_in_iff in HIn as [HIn HnIn].
+       apply RE.add_in_iff in HIn as [| HIn]; subst.
+       -- exfalso; apply HnIn.
+          exists (Cell.inp v).
+          now apply RE.find_2.
+       -- contradiction.
+     - exfalso; revert HIn.
+       apply Stock.Empty_notin_1.
+       apply Stock.Empty_empty.  
+    }
+    split.
+    { intro HnEmp; exfalso; apply HnEmp; now apply Stock.Empty_empty. }
+    { simpl; intros r1 r' Hc; inversion Hc. } 
   (* fT_wh *)
-  - intros rf HIn.
-    apply Stock.add_in_iff in HIn as [Heq | [Heq | HIn]]; subst; split;
-    try (apply RE.Ext.new_key_notin; lia).
-    -- eapply functional_preserves_keys; eauto; try rewrite RE.new_key_wh; auto.
-       repeat rewrite RE.add_in_iff; auto.
-    -- eapply functional_preserves_keys; eauto; try rewrite RE.new_key_wh; auto.
-       repeat rewrite RE.add_in_iff; auto.
-    -- eapply IHfT in HIn as [HnIn HIn]; eauto.
-       intro c; apply HnIn; repeat rewrite RE.add_in_iff; repeat right.
+  - destruct IHfT as [Hincl [Hdisj [HeqDom [HnEmp Hcorr]]]]; split.
+    {
+     clear Hdisj HeqDom HnEmp.
+    
+     apply functional_preserves_keys in fT as [HIn' Hleq].
+     do 2 rewrite RE.Ext.new_key_add_max in Hleq. 
+     intros r HIn.
+     apply Stock.add_in_iff in HIn as [Heq | [Heq | HIn]]; subst; split;
+     try (apply RE.Ext.new_key_notin; lia).
+     - apply HIn'; do 2 rewrite RE.add_in_iff; auto.
+     - apply HIn'; do 2 rewrite RE.add_in_iff; auto.
+     - apply Hincl in HIn as [HIn _].
+       intro Hc; apply HIn.
+       do 2 (rewrite RE.add_in_iff; right).
        now rewrite RE.shift_in_new_key.
-    -- eapply IHfT in HIn as [HnIn HIn]; eauto. 
+     - apply Hincl; auto.
+    }
+    split.
+    {
+      intros r HIn.
+      apply Stock.add_in_iff in HIn as [|[| HIn]]; subst;
+      destruct W as [rW wW]; unfold Stock.add; simpl.
+      - left; split.
+        -- rewrite SRE.add_in_iff; auto.
+        -- intro HIn.
+           apply RM.add_in_iff in HIn as [| HIn]; try lia.
+           destruct (Hincl (V⁺)).
+           + red; auto.
+           + apply H.
+             do 2 rewrite RE.add_in_iff; auto.
+      - right; split.
+        -- intro HIn.
+           apply SRE.add_in_iff in HIn as [| HIn]; try lia.
+           destruct (Hincl (S (V⁺))).
+           + red; auto.
+           + apply H.
+             do 2 rewrite RE.add_in_iff; auto.
+        -- rewrite RM.add_in_iff; auto.
+      - apply Hincl in HIn as H.
+        destruct H as [H HnIn']. 
+        do 2 rewrite RE.add_in_iff in H.
+        apply Classical_Prop.not_or_and in H as [Hneq H].
+        apply Classical_Prop.not_or_and in H as [Hneq' HIn'].
+        rewrite SRE.add_in_iff, RM.add_in_iff.
+        apply Hdisj in HIn as [[HIn HnIn] | [HnIn HIn]]; simpl in *.
+        -- left; split; auto.
+           intros [|]; auto.
+        -- right; split; auto.
+           intros [|]; auto.
+    }
+    split.
+    {
+     intro r. 
+     rewrite RE.diff_in_iff, Stock.add_in_iff; split.
+     - intros [HIn HnIn].
+       destruct (Resource.eq_dec r (V⁺)) as [| Hneq]; auto. 
+       destruct (Resource.eq_dec r (S (V⁺))) as [| Hneq']; auto.
+       do 2 right. 
+       rewrite <- HeqDom.
+       rewrite RE.diff_in_iff; split; auto.
+       do 2 rewrite RE.add_in_iff.
+       intros [|[| HIn']]; auto.
+       rewrite RE.shift_in_new_key in HIn'; auto.
+     - intros [|[| HIn]]; subst; split;
+       try (apply RE.Ext.new_key_notin; now lia).
+       -- apply functional_preserves_keys in fT.
+          apply fT.
+          do 2 rewrite RE.add_in_iff; auto.
+       -- apply functional_preserves_keys in fT.
+          apply fT.
+          do 2 rewrite RE.add_in_iff; auto.
+       -- apply Hincl in HIn as []; auto.
+       -- apply Hincl in HIn as [HIn _].
+          intro HIn'; apply HIn.
+          do 2 (rewrite RE.add_in_iff; right).
+          now rewrite RE.shift_in_new_key.
+    }
+    split.
+    {
+      intro HEmp.
+      rewrite Stock.new_key_add_max.
+      split; try lia.
+      destruct (Stock.is_empty W) eqn:Hemp.
+      - apply Stock.Empty_is_empty in Hemp.
+        rewrite Stock.new_key_Empty; auto.
+        rewrite (max_l _ 0) by lia. 
+        replace (V1⁺) 
+        with (⌈S (V⁺) ⤆ ⩽ unit … ⩾⌉ (⌈V⁺ ⤆ ([⧐V ⁺ – 2] ⩽ i … ⩾)%cl⌉ ([⧐V ⁺ – 2] V))⁺).
+        -- do 2 rewrite RE.Ext.new_key_add_max.
+           rewrite RE.shift_new_refl; auto; lia.
+        -- apply RE.new_key_in_eqDom.
+           intro r; split.
+           + apply functional_preserves_keys in fT as []; auto.
+           + intro HIn.
+             do 2 rewrite RE.add_in_iff.
+             destruct (Resource.eq_dec r (S (V⁺))) as [| Hneq]; auto.
+             destruct (Resource.eq_dec r (V⁺)) as [| Hneq']; auto.
+             do 2 right.
+             destruct (RE.In_dec V r) as [HIn' | HnIn].
+             ++ now apply RE.shift_in_new_key.
+             ++ apply RE.shift_in_new_key.
+                apply (Stock.Empty_notin_1 r) in Hemp.
+                exfalso; apply Hemp.
+                rewrite <- HeqDom.
+                rewrite RE.diff_in_iff; split; auto.
+                do 2 rewrite RE.add_in_iff.
+                intros [|[| HIn']]; auto.
+                rewrite RE.shift_in_new_key in HIn'; auto.
+      - apply Stock.not_Empty_is_empty in Hemp.
+        apply HnEmp in Hemp as [Heq Hgt].
+        rewrite Heq.
+        do 2 rewrite RE.Ext.new_key_add_max in Hgt; lia.
+    }
+    {
+     intros r r'; destruct W as [rW wW]; simpl.
+     intro Hfi.
+     destruct (Resource.eq_dec r (S (V⁺))) as [| Hneq]; subst.
+     - rewrite RM.add_eq_o in Hfi; auto.
+       inversion Hfi; subst; clear Hfi.
+       rewrite SRE.add_in_iff; auto.
+     - rewrite RM.add_neq_o in Hfi; auto.
+       apply Hcorr in Hfi; simpl in *.
+       rewrite SRE.add_in_iff; auto.
+    }
 Qed.
 
 (** *** Well-formed stock
@@ -603,18 +982,18 @@ Proof.
     apply Stock.union_in_iff in HIn as [HInW | HInW'].
     -- destruct W as [Rw Ww];
        destruct HInW as [HInRw | HInWw]; simpl in *.
-       + left; split; try now rewrite SREnvironment.extend_in_iff; left.
-         intro HIn. apply RS.union_spec in HIn as [HInWw | HInWw].
-         ++ apply SREnvironment.shift_in_e in HInRw as H.
+       + left; split; try now rewrite SRE.extend_in_iff; left.
+         intro HIn. apply RM.extend_in_iff in HIn as [HInWw | HInWw].
+         ++ apply SRE.shift_in_e in HInRw as H.
             destruct H as [r1 Heq]; subst.
-            rewrite <- SREnvironment.shift_in_iff in HInRw.
-            rewrite <- Resources.shift_in_iff in HInWw.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            rewrite <- RM.shift_in_iff in HInWw.
             assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
             apply IHfT1 in HInW as [[] | []]; auto.
          ++ destruct W' as [Rw' Ww']; simpl in *. 
-            apply SREnvironment.shift_in_e in HInRw as H.
+            apply SRE.shift_in_e in HInRw as H.
             destruct H as [r1 Heq]; subst.
-            rewrite <- SREnvironment.shift_in_iff in HInRw.
+            rewrite <- SRE.shift_in_iff in HInRw.
             assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
             eapply consistency_V_W in fT1 as H; eauto.
             destruct H as [HnInV HInV1].
@@ -625,12 +1004,12 @@ Proof.
             apply IHfT2 in HInW as [[] | [HnInRw' _]]; auto.
             eapply consistency_V_W with (r := r1) in fT2 as [HnInV1 HInV2]; eauto.
             red; auto.
-       + right; split; try (rewrite RS.union_spec; now left).
-         intro HIn; apply SREnvironment.extend_in_iff in HIn as [HInRw | HInRw].
-         ++ apply SREnvironment.shift_in_e in HInRw as H.
+       + right; split; try (rewrite RM.extend_in_iff; now left).
+         intro HIn; apply SRE.extend_in_iff in HIn as [HInRw | HInRw].
+         ++ apply SRE.shift_in_e in HInRw as H.
             destruct H as [r1 Heq]; subst.
-            rewrite <- SREnvironment.shift_in_iff in HInRw.
-            rewrite <- Resources.shift_in_iff in HInWw.
+            rewrite <- SRE.shift_in_iff in HInRw.
+            rewrite <- RM.shift_in_iff in HInWw.
             assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
             apply IHfT1 in HInW as [[] | []]; auto.
          ++ destruct W' as [Rw' Ww']; simpl in *. 
@@ -648,7 +1027,7 @@ Proof.
             red; auto.
     -- destruct HInW' as [HInRw' | HInWw']; 
        destruct W as [Rw Ww]; simpl in *. 
-       + left; split; try (rewrite SREnvironment.extend_in_iff; now right).
+       + left; split; try (rewrite SRE.extend_in_iff; now right).
          intro HIn; apply RS.union_spec in HIn as [HInWw | HInWw].
          ++ apply Resources.shift_in_e in HInWw as [r1 [Heq HInWw]]; subst.
             rewrite <- Resources.shift_in_iff in HInWw.
@@ -668,10 +1047,10 @@ Proof.
             apply IHfT2 in HInW as [[_ HnInWw'] | []]; auto.
        + right; split; try (rewrite RS.union_spec; now right).
          destruct W' as [Rw' Ww']; simpl in *.
-         intro HIn; apply SREnvironment.extend_in_iff in HIn as [HInRw | HInRw'].
-         ++ apply SREnvironment.shift_in_e in HInRw as H; subst.
+         intro HIn; apply SRE.extend_in_iff in HIn as [HInRw | HInRw'].
+         ++ apply SRE.shift_in_e in HInRw as H; subst.
             destruct H as [r1 Heq]; subst.
-            rewrite <- SREnvironment.shift_in_iff in HInRw.
+            rewrite <- SRE.shift_in_iff in HInRw.
             assert (HInW : (r1 ∈ (Rw, Ww))%sk) by (red; auto).
             eapply consistency_V_W in fT1 as H; eauto.
             destruct H as [HnInV HInV1].
@@ -684,10 +1063,10 @@ Proof.
   - destruct W as [Rw Ww]; simpl in HIn; simpl; destruct HIn as [HInRw | HInWw].
     -- left; split; auto.
        rewrite RS.add_spec; intros [| HIn]; subst.
-       + apply SREnvironment.add_in_iff in HInRw as [| HInRw]; try lia.
+       + apply SRE.add_in_iff in HInRw as [| HInRw]; try lia.
          apply consistency_V_W with (r := (S (V⁺))) in fT as [HnIn _]; try (red;auto).
          apply HnIn; repeat rewrite RE.add_in_iff; now left.
-       + apply SREnvironment.add_in_iff in HInRw as [| HInRw]; try lia; subst.
+       + apply SRE.add_in_iff in HInRw as [| HInRw]; try lia; subst.
          ++ apply consistency_V_W with (r := V⁺) in fT as [HnIn _]; try (red; auto).
             apply HnIn. repeat rewrite RE.add_in_iff; right; now left.
          ++ simpl in *. 
@@ -695,10 +1074,10 @@ Proof.
             apply IHfT with (r := r') in HInW as [[] | []]; auto.
     -- right; split; auto. 
        apply RS.add_spec in HInWw as [Heq | HInWw]; subst.
-       + intro HInRw; apply SREnvironment.add_in_iff in HInRw as [| HInRw]; try lia.
+       + intro HInRw; apply SRE.add_in_iff in HInRw as [| HInRw]; try lia.
          apply consistency_V_W with (r := S (V⁺)) in fT as [HnIn _]; try (red; auto).
          apply HnIn. repeat rewrite RE.add_in_iff; now left.
-       + intro HInRw; apply SREnvironment.add_in_iff in HInRw as [| HInRw]; subst.
+       + intro HInRw; apply SRE.add_in_iff in HInRw as [| HInRw]; subst.
          ++ apply consistency_V_W with (r := V⁺) in fT as [HnIn _]; try (red; auto).
             apply HnIn. repeat rewrite RE.add_in_iff; right; now left.
          ++ simpl in *. 
@@ -1147,7 +1526,7 @@ Proof.
             apply (HwtW1 r' _ _ ty' HfiW).
             
             assert (HIn: (r' ∈ W)%sk). 
-            { unfold Stock.In; left. exists v'; now apply SREnvironment.find_2. }
+            { unfold Stock.In; left. exists v'; now apply SRE.find_2. }
 
             apply consistency_V_W with (r := r') in fT1 as [_ HInV1]; auto.
             apply (WF_ec_In Rc' V1 HWF' r') in HInV1 as HInRc'.
