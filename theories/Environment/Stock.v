@@ -46,17 +46,19 @@ Definition init_locals (W : t) (V : 𝐕) : 𝐕 :=
 
   For each instant, the resource environment is updated at the end. Each local resources may have a new initial term for the next instant. We defined [update_locals] which takes a stock [W] and a resource environment [V] and produces a new stock.
 *)
-Definition update_locals_readers (W: t) (V: 𝐕) :=
-  SRE.Raw.fold (fun rr v acc => match RM.find_data rr (writers W) with
-                        | None => (⌈rr ⤆ v⌉ acc)%sr
-                        | Some rw => match V⌊rw⌋ with
-                                      | Some (⩽ … v' ⩾) =>  (⌈rr ⤆ v'⌉ acc)%sr
-                                      | _ => (⌈rr ⤆ v⌉ acc)%sr
-                                     end
-                       end) (readers W) (∅%sr).
+Definition update_readers_func (W: t) (V : 𝐕) (r: resource) (v: Λ) (s: 𝐄) :=
+  match RM.find_data r (writers W) with
+    | None => (⌈r ⤆ v⌉ s)%sr
+    | Some rw =>  match V⌊rw⌋ with
+                      Some (⩽ … v' ⩾) =>  (⌈r ⤆ v'⌉ s)%sr
+                    | _ => (⌈r ⤆ v⌉ s)%sr
+                  end
+  end.
 
-Definition update_locals (W : t) (V : 𝐕) : t := 
-  (SRE.update_readers (readers W) V, writers W).
+Definition update_readers (W: t) (V: 𝐕) :=
+  SRE.Raw.fold (update_readers_func W V) (readers W) (∅%sr).
+
+Definition update_locals (W : t) (V : 𝐕) : t := (update_readers W V, writers W).
 
 (** **** Add *)
 Definition add (rr rw : resource) (v : Λ) (W : t) : t :=
@@ -224,6 +226,32 @@ Proof.
   lia.
 Qed.
 
+(** **** [update_locals_readers] properties *)
+
+#[export] Instance sre_eq_equiv : Equivalence SREnvironment.eq := _.
+
+Hint Resolve sre_eq_equiv : core.
+
+Lemma update_readers_Empty_eq (W: t) (V: 𝐕) :
+  SRE.Empty (readers W) -> (update_readers W V = ∅)%sr.
+Proof.
+  intro HEmp; unfold update_readers.
+  rewrite SRE.fold_Empty; auto; reflexivity.
+Qed. 
+
+Lemma update_readers_in_iff (r: resource) (W: t) (V: 𝐕) :
+  (r ∈ (update_readers W V))%sr <-> (r ∈ (readers W))%sr.
+Proof.
+  destruct W as [rW wW]; split; simpl.
+  - revert r.
+    induction rW using SRE.map_induction; intros r HIn.
+    -- rewrite update_readers_Empty_eq in HIn; auto.
+       inversion HIn.
+       apply SRE.empty_mapsto_iff in H0; inversion H0.
+    -- rewrite SRE.fold_Add in *; eauto.
+
+  - unfold update_locals_readers; intros HEmp.
+
 (** **** [update_locals] properties *)
 
 Lemma update_locals_in_iff (r : resource) (W : t) (V : 𝐕) :
@@ -273,6 +301,14 @@ Proof.
   destruct W as [rW wW]; simpl.
   apply SRE.update_readers_find.
 Qed.
+
+Lemma update_locals_union (r: resource) (v: Λ) (V: 𝐕) (W W': t) :
+  find r (update_locals (union W W') V) = Some v <->
+  find r (union (update_locals W V) (update_locals W' V)) = Some v.
+Proof.
+  unfold find, update_locals; simpl.
+  destruct W,W'; simpl.
+  revert r v V W'.
 
 (** **** [In] properties  *)
 
