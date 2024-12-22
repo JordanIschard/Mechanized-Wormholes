@@ -1,4 +1,4 @@
-From Coq Require Import Lia.
+From Coq Require Import Lia FinFun.
 From Mecha Require Import Resource Resources Resource Typ REnvironment Cell Term RContext.
 From DeBrLevel Require Import LevelInterface PairLevel MapLevelLVLD.
 From MMaps Require Import MMaps.
@@ -16,14 +16,22 @@ Open Scope renvironment_scope.
 
 (** *** Definition *)
 
-Definition find_data_func (c r r': resource) (v: option resource) :=
-  match v with
-    | Some _ => v
-    | None => if (Resource.eq_dec c r') then Some r else None
-  end. 
+Fixpoint add_list x s :=
+  match s with
+  | nil => x :: nil
+  | y :: l =>
+      match Resource.compare x y with
+      | Lt => x :: s
+      | Eq => s
+      | Gt => y :: add_list x l
+      end
+  end.
 
-Definition find_data (r: resource) (m: t) : option resource :=
-  fold (find_data_func r) m None.
+Definition find_data_filter (r wW rW: resource) : bool :=
+  if (Resource.eq_dec r rW) then true else false. 
+
+Definition find_data (m: t) (r: resource) : option resource :=
+  hd_error (fold (fun k _ acc => add_list k acc)%s (filter (find_data_filter r) m) nil).
 
 (** **** Initialize an environment
 *)
@@ -331,6 +339,312 @@ Proof.
     -- apply Evaluation_Transition.multi_unit.
     -- now constructor.
 Qed.
+
+(** **** [find_data_func] properties *)
+
+#[export] Instance find_data_filter_eq (r: resource) :
+  Proper (Logic.eq ==> Logic.eq ==> eq ==> eq)
+   (fun (k : key) (e : resource) (m : ResourcesMap.Raw.t resource) => 
+                              if find_data_filter r k e then add k e m else m).
+Proof.
+  intros k' k Heqk v' v Heqv rm1 rm1' Heq; subst.
+  unfold find_data_filter.
+  destruct (Resource.eq_dec r v); auto.
+  now rewrite Heq.
+Qed.
+
+#[export] Instance df_feq (r: resource):
+  Proper (Logic.eq ==> Logic.eq ==> Logic.eq) (find_data_filter r) := _.
+
+Lemma find_data_filter_diamond (r: resource) :
+  Diamond eq (fun (k : key) (e : resource) (m : ResourcesMap.Raw.t resource) => 
+                                      if find_data_filter r k e then add k e m else m).
+Proof.
+  intros k k' v v' rm1 rm2 rm2' Hneq Heq Heq'.
+  unfold find_data_filter in *.
+  destruct (Resource.eq_dec r v); 
+  destruct (Resource.eq_dec r v'); subst;
+  rewrite <- Heq, <- Heq'; (try now auto).
+  now rewrite add_add_2; auto.
+Qed.
+
+
+Hint Resolve  df_feq find_data_filter_eq find_data_filter_diamond : core.
+
+Lemma find_data_filter_Empty (r: resource) (rm: t):
+ Empty rm -> eq (filter (find_data_filter r) rm) empty.
+Proof.
+  intro HEmp.
+  rewrite filter_alt.
+  now rewrite fold_Empty; auto.
+Qed.
+
+Lemma find_data_filter_Empty' (r: resource) (rm: t):
+ Empty rm -> Empty (filter (find_data_filter r) rm).
+Proof.
+  intro HEmp.
+  rewrite find_data_filter_Empty; auto.
+  apply empty_1.
+Qed.
+
+Lemma find_data_filter_Add_eq (r r': resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r rm rm' ->
+  eq (filter (find_data_filter r) rm') (add r' r (filter (find_data_filter r) rm)).
+Proof.
+  intros HnIn Hadd.
+  rewrite filter_alt at 1.
+  rewrite fold_Add; eauto.
+  unfold find_data_filter at 1.
+  destruct (Resource.eq_dec r r); try contradiction.
+  now rewrite <- filter_alt.
+Qed.
+
+Lemma find_data_filter_Add_eq_inj (r r': resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r rm rm' -> (Injective (fun x => find x rm')) ->
+  eq (filter (find_data_filter r) rm') (add r' r empty).
+Proof.
+  intros HnIn Hadd Hinj.
+  rewrite find_data_filter_Add_eq; eauto.
+  intro y; destruct (Resource.eq_dec y r') as [| Hneq]; subst.
+  - do 2 (rewrite add_eq_o; auto).
+  - do 2 (rewrite add_neq_o; auto).
+    rewrite filter_find; auto.
+    unfold Utils.option_bind.
+    destruct (@find resource y rm) eqn:Hfi.
+    -- unfold find_data_filter.
+       destruct (Resource.eq_dec r r0) as [| Hneq']; subst.
+       + apply find_2 in Hfi as Hfi'.
+         apply add_2 with (x := r') (e' := r0) in Hfi'; auto.
+         apply find_1 in Hfi'.
+         unfold Injective in *.
+         assert (Hfi'': find r' (add r' r0 rm) = Some r0).
+         ++ now rewrite add_eq_o.
+         ++ rewrite <- Hfi' in Hfi''.
+            specialize (Hinj r' y).
+            unfold Add in *; rewrite Hadd in *; clear Hadd.
+            apply Hinj in Hfi''.
+            subst; contradiction.
+       + symmetry.
+         apply empty_o.
+    -- symmetry.
+       apply empty_o.
+Qed.
+
+Lemma find_data_filter_Add_eq_wkinj (r r': resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r rm rm' -> 
+  (forall r r' v, find r rm' = Some v /\ find r' rm' = Some v -> r = r') ->
+  eq (filter (find_data_filter r) rm') (add r' r empty).
+Proof.
+  intros HnIn Hadd Hinj.
+  rewrite find_data_filter_Add_eq; eauto.
+  intro y; destruct (Resource.eq_dec y r') as [| Hneq]; subst.
+  - do 2 (rewrite add_eq_o; auto).
+  - do 2 (rewrite add_neq_o; auto).
+    rewrite filter_find; auto.
+    unfold Utils.option_bind.
+    destruct (@find resource y rm) eqn:Hfi.
+    -- unfold find_data_filter.
+       destruct (Resource.eq_dec r r0) as [| Hneq']; subst.
+       + apply find_2 in Hfi as Hfi'.
+         apply add_2 with (x := r') (e' := r0) in Hfi'; auto.
+         apply find_1 in Hfi'.
+         assert (Hfi'': find r' (add r' r0 rm) = Some r0).
+         ++ now rewrite add_eq_o.
+         ++ destruct (Hinj r' y r0); try contradiction.
+            unfold Add in *; rewrite Hadd in *; clear Hadd.
+            split; auto.
+       + symmetry.
+         apply empty_o.
+    -- symmetry.
+       apply empty_o.
+Qed.
+
+Lemma find_data_filter_Add_neq (r r' v: resource) (rm rm': t) :
+  ~ In r' rm -> Add r' v rm rm' -> r <> v ->
+  eq (filter (find_data_filter r) rm') (filter (find_data_filter r) rm).
+Proof.
+  intros HnIn Hadd Hneq.
+  rewrite filter_alt at 1.
+  rewrite fold_Add; eauto.
+  unfold find_data_filter at 1.
+  destruct (Resource.eq_dec r v); try contradiction.
+  now rewrite <- filter_alt.
+Qed.
+
+#[export] Instance find_data_filter_eq' (r: resource) : 
+  Proper (eq ==> eq) (filter (find_data_filter r)).
+Proof.
+  intros rm.
+  induction rm using map_induction; intros rm' Heq.
+  - do 2 (rewrite find_data_filter_Empty; auto).
+    -- reflexivity.
+    -- now rewrite <- Heq.
+  - destruct (Resource.eq_dec r e) as [| Hneq]; subst.
+    -- rewrite find_data_filter_Add_eq; eauto.
+       symmetry.
+       rewrite find_data_filter_Add_eq; eauto.
+       + reflexivity.
+       + now unfold Add in *; rewrite <- Heq.
+    -- rewrite find_data_filter_Add_neq; eauto.
+       symmetry.
+       rewrite find_data_filter_Add_neq; eauto.
+       + reflexivity.
+       + now unfold Add in *; rewrite <- Heq.
+Qed.
+
+
+Hint Resolve find_data_filter_eq' : core.
+
+(** **** [find_data] properties *)
+
+#[export] Instance add_r_eq :
+  Proper (Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq) 
+    (fun (k : key) (_ : resource) (acc : list nat) => add_list k acc) := _.
+
+
+Lemma add_r_diamond : 
+  Diamond Logic.eq (fun (k : key) (_ : resource) (acc : list nat) => add_list k acc).
+Proof.
+  intros k k' _ _ xs ys zs Hneq Heq Heq'.
+  rewrite <- Heq, <- Heq'.
+  clear ys zs Heq Heq'.
+  revert k k' Hneq.
+  induction xs; intros k k' Hneq; simpl.
+  - destruct (Resource.compare_spec k k').
+    -- rewrite H.
+       destruct (Resource.compare_spec k' k); try lia.
+    -- now destruct (Resource.compare_spec k' k); try lia.
+    -- now destruct (Resource.compare_spec k' k); try lia.
+  - destruct (Resource.compare_spec k' a).
+    -- destruct (Resource.compare_spec k a).
+       + subst; lia.
+       + simpl. 
+         destruct (Resource.compare_spec k a); try lia.
+         destruct (Resource.compare_spec k' k); try lia.
+         now destruct (Resource.compare_spec k' a); try lia.
+       + simpl.
+         destruct (Resource.compare_spec k a); try lia.
+         destruct (Resource.compare_spec k' a); try lia.
+         apply IHxs in Hneq as H'.
+         destruct xs; simpl in *; auto.
+    -- destruct (Resource.compare_spec k a); simpl.
+       + destruct (Resource.compare_spec k k'); try lia.
+         destruct (Resource.compare_spec k a); try lia.
+         now destruct (Resource.compare_spec k' a); try lia.
+       + destruct (Resource.compare_spec k k'); try lia.
+         ++ destruct (Resource.compare_spec k' k); try lia.
+            now destruct (Resource.compare_spec k' a); try lia.
+         ++ destruct (Resource.compare_spec k' k); try lia.
+            now destruct (Resource.compare_spec k a); try lia.
+       + destruct (Resource.compare_spec k' a); try lia.
+         destruct (Resource.compare_spec k a); try lia.
+         now destruct (Resource.compare_spec k k'); try lia.
+    -- simpl.
+       destruct (Resource.compare_spec k a); try lia; simpl.
+       + now destruct (Resource.compare_spec k' a); try lia.
+       + destruct (Resource.compare_spec k' a); try lia.
+         now destruct (Resource.compare_spec k' k); try lia.
+       + destruct (Resource.compare_spec k' a); try lia.
+         apply IHxs in Hneq.
+         now rewrite Hneq.
+Qed.
+
+Hint Resolve add_r_diamond add_r_eq: core.
+
+Lemma find_data_Empty_some (r r': resource) (rm: t) :
+  Empty rm -> ~ find_data rm r = Some r.
+Proof.
+  intros HEmp Hfd.
+  unfold find_data in *.
+  rewrite fold_Empty in Hfd; auto.
+  - inversion Hfd.
+  - now apply find_data_filter_Empty'.
+Qed.
+
+Lemma find_data_Empty_none (r: resource) (rm: t) :
+  Empty rm -> find_data rm r = None.
+Proof.
+  intros HEmp.
+  unfold find_data.
+  rewrite fold_Empty; auto.
+  now apply find_data_filter_Empty'.
+Qed.
+
+Lemma find_data_Add_eq (r r': resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r rm rm' -> (Injective (fun x => find x rm')) -> find_data rm' r = Some r'.
+Proof.
+  intros HnIn Hadd Hinj; unfold find_data.
+  rewrite fold_Add with (k := r') (e := r) (m1 := empty); auto.
+  - intros [v HM].
+    now apply empty_1 in HM.
+  - unfold Add.
+    apply find_data_filter_Add_eq_inj with (rm := rm); auto.
+Qed.
+
+Lemma find_data_Add_wkeq (r r': resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r rm rm' -> 
+  (forall r r' v, find r rm' = Some v /\ find r' rm' = Some v -> r = r') ->
+  find_data rm' r = Some r'.
+Proof.
+  intros HnIn Hadd Hinj; unfold find_data.
+  rewrite fold_Add with (k := r') (e := r) (m1 := empty); auto.
+  - intros [v HM].
+    now apply empty_1 in HM.
+  - unfold Add.
+    apply find_data_filter_Add_eq_wkinj with (rm := rm); auto.
+Qed.
+
+Lemma find_data_Add_neq (r r' r1: resource) (rm rm': t) :
+  ~ In r' rm -> Add r' r1 rm rm' ->  r1 <> r ->
+  find_data rm' r = find_data rm r.
+Proof.
+  intros HnIn Hadd Hneq; unfold find_data.
+  assert (eq (filter (find_data_filter r) rm') (filter (find_data_filter r) rm)).
+  - eapply find_data_filter_Add_neq; eauto.
+  - f_equal.
+    eapply fold_Proper; auto.
+Qed.
+
+Lemma find_data_eq (r: resource) (rm rm': t) :
+  eq rm rm' -> (Injective (fun x => find x rm)) ->
+  find_data rm r = find_data rm' r.
+Proof.
+  revert rm'.
+  induction rm using map_induction; intros rm' Heqrm HInj.
+  - do 2 (rewrite find_data_Empty_none; auto).
+    now rewrite <- Heqrm.
+  - destruct (Resource.eq_dec r e) as [| Hneq]; subst.
+    -- rewrite (find_data_Add_eq e x rm1); auto.
+       rewrite (find_data_Add_eq e x rm1 rm'); auto. 
+       + unfold Add in *; now rewrite <- Heqrm.
+       + intros z y Hfi.
+         apply HInj.
+         now rewrite Heqrm.  
+    -- rewrite (find_data_Add_neq _ x e rm1); auto.
+       rewrite (find_data_Add_neq _ x e rm1 rm'); auto.
+       unfold Add in *; now rewrite <- Heqrm.
+Qed.  
+
+Lemma find_data_wkeq (r: resource) (rm rm': t) :
+  eq rm rm' -> 
+  (forall r r' v, find r rm' = Some v /\ find r' rm' = Some v -> r = r') ->
+  find_data rm r = find_data rm' r.
+Proof.
+  revert rm'.
+  induction rm using map_induction; intros rm' Heqrm HInj.
+  - do 2 (rewrite find_data_Empty_none; auto).
+    now rewrite <- Heqrm.
+  - destruct (Resource.eq_dec r e) as [| Hneq]; subst.
+    -- rewrite (find_data_Add_wkeq e x rm1); auto.
+       rewrite (find_data_Add_wkeq e x rm1 rm'); auto. 
+       + unfold Add in *; now rewrite <- Heqrm.
+       + intros z y v [Hfi Hfi'].
+         apply (HInj _ _ v).
+         split; now rewrite <- Heqrm.  
+    -- rewrite (find_data_Add_neq _ x e rm1); auto.
+       rewrite (find_data_Add_neq _ x e rm1 rm'); auto.
+       unfold Add in *; now rewrite <- Heqrm.
+Qed.  
 
 (** *** Morphisms *)
 

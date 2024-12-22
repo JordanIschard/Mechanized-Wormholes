@@ -46,17 +46,17 @@ Definition init_locals (W : t) (V : 𝐕) : 𝐕 :=
 
   For each instant, the resource environment is updated at the end. Each local resources may have a new initial term for the next instant. We defined [update_locals] which takes a stock [W] and a resource environment [V] and produces a new stock.
 *)
-Definition update_readers_func (W: t) (V : 𝐕) (r: resource) (v: Λ) (s: 𝐄) :=
-  match RM.find_data r (writers W) with
-    | None => (⌈r ⤆ v⌉ s)%sr
+Definition update_readers_func (wW: RM.t) (V : 𝐕) (r: resource) (v: Λ) (rW: 𝐄) :=
+  match RM.find_data wW r with
+    | None => (⌈r ⤆ v⌉ rW)%sr
     | Some rw =>  match V⌊rw⌋ with
-                      Some (⩽ … v' ⩾) =>  (⌈r ⤆ v'⌉ s)%sr
-                    | _ => (⌈r ⤆ v⌉ s)%sr
+                      Some (⩽ … v' ⩾) =>  (⌈r ⤆ v'⌉ rW)%sr
+                    | _ => (⌈r ⤆ v⌉ rW)%sr
                   end
   end.
 
 Definition update_readers (W: t) (V: 𝐕) :=
-  SRE.Raw.fold (update_readers_func W V) (readers W) (∅%sr).
+  SRE.Raw.fold (update_readers_func (writers W) V) (readers W) (∅%sr).
 
 Definition update_locals (W : t) (V : 𝐕) : t := (update_readers W V, writers W).
 
@@ -230,14 +230,109 @@ Qed.
 
 #[export] Instance sre_eq_equiv : Equivalence SREnvironment.eq := _.
 
-Hint Resolve sre_eq_equiv : core.
+#[export] Instance update_readers_func_eq (wW: RM.t) (V: 𝐕) :
+  Proper (Logic.eq ==> Logic.eq ==> SRE.eq ==> SRE.eq) (update_readers_func wW V).
+Proof.
+  intros k' k Heqk v' v Heqv rW rW' HeqrW; subst.
+  unfold update_readers_func.
+  destruct (RM.find_data wW k).
+  - destruct (V⌊r⌋)%re.
+    -- destruct r0; now rewrite HeqrW.
+    -- now rewrite HeqrW.
+  - now rewrite HeqrW.
+Qed.
+
+(*
+#[export] Instance update_readers_func_eq_1 :
+  Proper (RM.eq ==> RE.eq ==> Logic.eq ==> Logic.eq ==> SRE.eq ==> SRE.eq) update_readers_func.
+Proof.
+  intros wW wW' HeqwW V V' HeqV k' k Heqk v' v Heqv rW rW' HeqrW; subst.
+  unfold update_readers_func.
+  destruct (RM.find_data wW k) eqn:Hfd.
+  - rewrite HeqwW in Hfd. destruct (V⌊r⌋)%re.
+    -- destruct r0; now rewrite HeqrW.
+    -- now rewrite HeqrW.
+  - now rewrite HeqrW.
+Qed.
+
+Lemma update_readers_func_diamond (wW: RM.t) (V: 𝐕) :
+  SRE.Diamond SRE.eq (update_readers_func wW V).
+Proof.
+  intros k k' v v' rW rW1 rW1' Hneq Heq Heq'.
+  rewrite <- Heq, <- Heq'.
+  unfold update_readers_func.
+  destruct (RM.find_data k wW) eqn:Hfd.
+  - destruct (RM.find_data k' wW) eqn:Hfd'.
+    -- destruct (V ⌊r⌋)%re eqn:Hfi.
+       + destruct (V ⌊r0⌋)%re eqn:Hfi'.
+         ++ destruct r1,r2;
+            now rewrite SRE.add_add_2; auto.
+         ++ destruct r1;
+            now rewrite SRE.add_add_2; auto.
+       + destruct (V ⌊r0⌋)%re.
+         ++ destruct r1;
+            now rewrite SRE.add_add_2; auto.
+         ++ now rewrite SRE.add_add_2; auto.
+    -- destruct (V ⌊r⌋)%re eqn:Hfi.
+       + destruct r0; now rewrite SRE.add_add_2; auto.
+       + now rewrite SRE.add_add_2; auto.
+  - destruct (RM.find_data k' wW) eqn:Hfd'.
+    -- destruct (V ⌊r⌋)%re eqn:Hfi.
+       + destruct r0;
+         now rewrite SRE.add_add_2; auto.
+       + now rewrite SRE.add_add_2; auto.
+    -- now rewrite SRE.add_add_2; auto.
+Qed.
+
+Hint Resolve sre_eq_equiv update_readers_func_eq update_readers_func_diamond : core.
 
 Lemma update_readers_Empty_eq (W: t) (V: 𝐕) :
   SRE.Empty (readers W) -> (update_readers W V = ∅)%sr.
 Proof.
   intro HEmp; unfold update_readers.
   rewrite SRE.fold_Empty; auto; reflexivity.
-Qed. 
+Qed.
+
+Lemma update_readers_add (r: resource) (v: Λ) (rW: 𝐄) (wW: RM.t) (V: 𝐕) :
+  (r ∉ rW)%sr -> 
+  (update_readers (⌈r ⤆ v⌉ rW,wW) V = update_readers_func wW V r v (update_readers (rW,wW) V))%sr.
+Proof.
+  unfold update_readers; simpl.
+  intro HIn.
+  rewrite SRE.fold_Add with (e := v); eauto.
+  - reflexivity.
+  - unfold SRE.Add; reflexivity.
+Qed.
+
+Lemma update_readers_Add (r: resource) (v: Λ) (rW rW': 𝐄) (wW: RM.t) (V: 𝐕) :
+  (r ∉ rW)%sr -> SRE.Add r v rW rW' ->
+  (update_readers (rW',wW) V = update_readers_func wW V r v (update_readers (rW,wW) V))%sr.
+Proof.
+  unfold update_readers; simpl.
+  intros HIn Hadd.
+  now rewrite SRE.fold_Add with (e := v); eauto.
+Qed.
+
+#[export] Instance update_readers_eq :
+  Proper (eq ==> RE.eq ==> SRE.eq) update_readers.
+Proof.
+  intros [rW wW] W' HeqW' V V' HeqV.
+  revert W' HeqW'. 
+  induction rW using SRE.map_induction;
+  intros [rW' wW'] [HeqrW HeqwW];
+  unfold RelationPairs.RelCompFun in *; simpl in *.
+  - do 2 (rewrite update_readers_Empty_eq; auto).
+    -- reflexivity.
+    -- now simpl; rewrite <- HeqrW.
+  - rewrite update_readers_Add; eauto.
+    symmetry.
+    rewrite (update_readers_Add x e rW1 rW'); eauto.
+    -- rewrite (IHrW1 (rW1,wW')); try reflexivity.
+       + eapply () rewrite <- HeqwW at 1. admit.
+       + now rewrite HeqwW.
+    -- unfold SRE.Add in *.
+       now rewrite <- H0.
+Qed.
 
 Lemma update_readers_in_iff (r: resource) (W: t) (V: 𝐕) :
   (r ∈ (update_readers W V))%sr <-> (r ∈ (readers W))%sr.
@@ -309,6 +404,7 @@ Proof.
   unfold find, update_locals; simpl.
   destruct W,W'; simpl.
   revert r v V W'.
+*)
 
 (** **** [In] properties  *)
 
@@ -623,6 +719,7 @@ Proof.
   now apply RM.halts_init_writers.
 Qed.
 
+(*
 Lemma halts_update_locals (k : lvl) (W : t) (V : 𝐕) :
   RE.halts k V -> halts k W -> halts k (update_locals W V).
 Proof.
@@ -630,6 +727,7 @@ Proof.
   destruct W as [Rw Ww]; simpl.
   apply SRE.halts_update_readers; auto.
 Qed.
+*)
 
 Lemma halts_weakening (m n : lvl) (W : t) : 
   m <= n -> halts m W -> halts n (shift m (n - m) W).

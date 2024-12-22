@@ -1,4 +1,4 @@
-From Coq Require Import Lia Morphisms Lists.List.
+From Coq Require Import Lia Morphisms Lists.List FinFun.
 From Mecha Require Import Resource Resources Term Typ Cell VContext RContext ResourcesMap 
                           Type_System Evaluation_Transition  REnvironment SREnvironment Stock.
 Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
@@ -569,7 +569,9 @@ Lemma functional_W_props (V V1 : 𝐕) (W : 𝐖) (sv sv' sf sf' : Λ) :
        (~ Stock.Empty W -> (V1⁺)%re = (W⁺)%sk /\ (W⁺)%sk > (V⁺)%re) /\
        (forall (r r': resource), ((snd W)⌊r⌋)%rm = Some r' -> (r' ∈ (fst W))%sr) /\
        (forall (r: resource), (r ∈ (fst W))%sr -> 
-        exists (r': resource), (((snd W)⌊r'⌋)%rm = Some r)%type).
+        exists (r': resource), (((snd W)⌊r'⌋)%rm = Some r)%type) /\
+        (forall (r r' v: resource), 
+            ((snd W)⌊r⌋)%rm = Some v /\ ((snd W)⌊r'⌋)%rm = Some v -> r = r').
 Proof.
   intro fT; induction fT; auto.
   (* fT_arr *)
@@ -591,13 +593,18 @@ Proof.
     }
     split.
     { simpl; intros r r' Hfi; inversion Hfi. }
+    split.
     { 
       simpl; intros r [v HM]. 
       apply SRE.empty_mapsto_iff in HM; contradiction.
     }
+    { 
+      intros x y v [Hfi _]; simpl in *.
+      inversion Hfi.
+    }
   (* fT_comp *)
-  - destruct IHfT1 as [Hincl1 [Hdisj1 [HeqDom1 [HnEmp1 [Hcorr1 Hcorr'1]]]]].
-    destruct IHfT2 as [Hincl2 [Hdisj2 [HeqDom2 [HnEmp2 [Hcorr2 Hcorr'2]]]]].
+  - destruct IHfT1 as [Hincl1 [Hdisj1 [HeqDom1 [HnEmp1 [Hcorr1 [Hcorr'1 Hinj1]]]]]].
+    destruct IHfT2 as [Hincl2 [Hdisj2 [HeqDom2 [HnEmp2 [Hcorr2 [Hcorr'2 Hinj2]]]]]].
 
     (* clean *)
     move Hincl2 before Hincl1; move Hdisj2 before Hdisj1;
@@ -818,6 +825,7 @@ Proof.
           left.
           now rewrite <- SRE.shift_in_iff.
     }
+    split.
     {
      intros r HIn.
      destruct W as [rW wW]; destruct W' as [rW' wW']; simpl in *.
@@ -849,6 +857,54 @@ Proof.
        rewrite RM.extend_mapsto_iff; left.
        now apply RM.find_2.
     }
+    {
+     intros r r' v [Hfi Hfi'].
+     destruct W as [rW wW]; destruct W' as [rW' wW']; simpl in *.
+     apply RM.find_2 in Hfi,Hfi'.
+     apply RM.extend_mapsto_iff in Hfi,Hfi'.
+     destruct Hfi as [Hfi | [Hfi HnIn]];
+     destruct Hfi' as [Hfi' | [Hfi' HnIn']];
+     apply RM.find_1 in Hfi, Hfi'.
+     - now apply (Hinj2 _ _ v); split.
+     - clear HnIn'. 
+       apply RM.shift_find_e_1 in Hfi' as HI.
+       destruct HI as [[r1 Heq] [v1 Heq']]; subst.
+       rewrite <- RM.shift_find_iff in Hfi'.
+       exfalso.
+       apply Hcorr2 in Hfi.
+       apply Hcorr1 in Hfi'.
+       destruct (Hincl1 v1). 
+       -- red; auto.
+       -- apply RE.Ext.new_key_in in H0 as Hlt.
+          rewrite (Resource.shift_wf_refl _ _ v1) in *; auto.
+          destruct (Hincl2 v1).
+          + red; auto.
+          + contradiction.
+     - clear HnIn. 
+       apply RM.shift_find_e_1 in Hfi as HI.
+       destruct HI as [[r1 Heq] [v1 Heq']]; subst.
+       rewrite <- RM.shift_find_iff in Hfi.
+       exfalso.
+       apply Hcorr2 in Hfi'.
+       apply Hcorr1 in Hfi.
+       destruct (Hincl1 v1). 
+       -- red; auto.
+       -- apply RE.Ext.new_key_in in H0 as Hlt.
+          rewrite (Resource.shift_wf_refl _ _ v1) in *; auto.
+          destruct (Hincl2 v1).
+          + red; auto.
+          + contradiction.
+     - apply RM.shift_find_e_1 in Hfi' as HI.
+       destruct HI as [[r1 Heq] [v1 Heq']]; subst.
+       rewrite <- RM.shift_find_iff in Hfi'.
+       assert (r ∈ ([⧐(V1 ⁺)%re – (V2 ⁺)%re - (V1 ⁺)%re] wW))%rm.
+       -- exists ([⧐V1 ⁺ – V2 ⁺ - V1 ⁺] v1)%r.
+          now apply RM.find_2.
+       -- apply RM.shift_in_e in H as [r2 Heq]; subst.
+          rewrite <- RM.shift_find_iff in Hfi.
+          f_equal.
+          now apply (Hinj1 _ _ v1); split.
+    }
   (* fT_rsf *)
   - split.
     { intros r' HIn; apply Stock.empty_in in HIn; contradiction. }
@@ -871,13 +927,16 @@ Proof.
     { intro HnEmp; exfalso; apply HnEmp; now apply Stock.Empty_empty. }
     split.
     { simpl; intros r1 r' Hc; inversion Hc. }
+    split.
     { 
       simpl; intros r' [v' HM].
       apply SRE.empty_mapsto_iff in HM.
       contradiction. 
     }
+    { intros r1 r' v1 [Hfi _]; inversion Hfi. }
   (* fT_wh *)
-  - destruct IHfT as [Hincl [Hdisj [HeqDom [HnEmp [Hcorr Hcorr']]]]]; split.
+  - destruct IHfT as [Hincl [Hdisj [HeqDom [HnEmp [Hcorr [Hcorr' Hinj]]]]]]; 
+    split.
     {
      clear Hdisj HeqDom HnEmp.
     
@@ -1002,6 +1061,7 @@ Proof.
        apply Hcorr in Hfi; simpl in *.
        rewrite SRE.add_in_iff; auto.
     }
+    split.
     {
      destruct W as [rW wW]; simpl in *; intros r HIn.
      apply SRE.add_in_iff in HIn as [| HIn]; subst.
@@ -1017,6 +1077,30 @@ Proof.
           apply Classical_Prop.not_or_and in H as [Hneq _].
           exists r'.
           rewrite RM.add_neq_o; auto.
+    }
+    {
+     destruct W as [rW wW]; simpl in *.
+     intros r r' v [Hfi Hfi'].
+     destruct (Resource.eq_dec (S (V⁺)%re) r) as [| Hneq]; subst;
+     destruct (Resource.eq_dec (S (V⁺)%re) r') as [| Hneq']; subst; auto.
+     - rewrite RM.add_eq_o in Hfi; auto.
+       inversion Hfi; subst; clear Hfi.
+       rewrite RM.add_neq_o in Hfi'; auto.
+       apply Hcorr in Hfi' as HIn.
+       destruct (Hincl (V⁺)%re).
+       -- red; auto.
+       -- exfalso; apply H.
+          do 2 rewrite RE.add_in_iff; auto.
+     - rewrite RM.add_eq_o in Hfi'; auto.
+       inversion Hfi'; subst; clear Hfi'.
+       rewrite RM.add_neq_o in Hfi; auto.
+       apply Hcorr in Hfi as HIn.
+       destruct (Hincl (V⁺)%re).
+       -- red; auto.
+       -- exfalso; apply H.
+          do 2 rewrite RE.add_in_iff; auto.
+     - rewrite RM.add_neq_o in *; auto.
+       now apply (Hinj _ _ v).
     }
 Qed.
 
