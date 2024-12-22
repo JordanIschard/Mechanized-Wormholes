@@ -63,8 +63,15 @@ Qed.
 Hint Resolve update_globals_func_eq update_globals_func_eq' 
               update_globals_func_diamond eq_equiv: core.
 
-Lemma update_globals_Empty (e : 𝐄) (V : 𝐕) : 
+Lemma update_globals_Empty_eq (e : 𝐄) (V : 𝐕) : 
   SRE.Empty e -> eq (update_globals e V) empty.
+Proof. 
+  intro HEmp; unfold update_globals. 
+  rewrite SRE.fold_Empty; now auto.
+Qed.
+
+Lemma update_globals_Empty (e : 𝐄) (V : 𝐕) : 
+  SRE.Empty e -> Empty (update_globals e V).
 Proof. 
   intro HEmp; unfold update_globals. 
   rewrite SRE.fold_Empty; now auto.
@@ -91,9 +98,9 @@ Qed.
 Proof.
   intros t t' Heqt V V' HeqV; revert t' Heqt V V' HeqV.
   induction t using SRE.map_induction; intros t' Heqt V V' HeqV.
-  - rewrite update_globals_Empty; auto.
+  - rewrite update_globals_Empty_eq; auto.
     rewrite Heqt in H.
-    now rewrite update_globals_Empty; auto.
+    now rewrite update_globals_Empty_eq; auto.
   - rewrite update_globals_Add; eauto.
     assert (SRE.Add x e t1 t') by (unfold SRE.Add in *; now rewrite <- Heqt).
     symmetry; rewrite update_globals_Add; eauto.
@@ -111,7 +118,7 @@ Proof.
     -- intros [v HM]; exfalso.
        apply (H r v HM).
     -- intro HIn.
-       rewrite update_globals_Empty in HIn; auto.
+       rewrite update_globals_Empty_eq in HIn; auto.
        inversion HIn; inversion H0.
   - split.
     -- unfold SRE.Add in H0; rewrite H0; clear H0.
@@ -143,7 +150,7 @@ Lemma update_globals_Wf (k : lvl) (e : 𝐄) (V : 𝐕) :
 Proof.
   revert V.
   induction e using SRE.map_induction; intros V [Hwfe HwfV].
-  - rewrite update_globals_Empty; auto.
+  - rewrite update_globals_Empty_eq; auto.
     apply Wf_empty.
   - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
     rewrite update_globals_add_notin; auto.
@@ -165,7 +172,20 @@ Proof.
        + apply IHe1; split; auto.
 Qed.
 
-
+Lemma update_globals_new_key (e : 𝐄) (V : 𝐕) : (e⁺)%sr = new_key (update_globals e V).
+Proof.
+  induction e using SRE.map_induction.
+  - rewrite SRE.Ext.new_key_Empty; auto.
+    rewrite new_key_Empty; auto.
+    now apply update_globals_Empty.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite update_globals_add_notin; auto.
+    rewrite SRE.Ext.new_key_add_max.
+    unfold update_globals_func.
+    destruct (V⌊x⌋);
+    try (destruct r);
+    try (rewrite new_key_add_max; auto).
+Qed.
 
 (*
 Lemma puts_Add_1 (r : resource) (v : σ) (V : 𝐕) (t t' : t) : 
@@ -270,7 +290,7 @@ Lemma halts_update_globals (k : lvl) (e : 𝐄) (V : 𝐕) :
   SRE.halts k e -> RE.halts k V -> halts k (update_globals e V).
 Proof.
   induction e using SRE.map_induction; intros Hlt HlV.
-  - rewrite update_globals_Empty; auto.
+  - rewrite update_globals_Empty_eq; auto.
     now apply For_all_Empty.
   - unfold SRE.Add in *; rewrite H0 in *; clear H0.
     rewrite update_globals_add_notin; auto; unfold update_globals_func.

@@ -474,7 +474,7 @@ Proof.
 Qed.
 
 (** **** [update_readers] property *)
-
+(* 
 #[export] Instance update_readers_func_eq :
  Proper (RE.eq ==> Logic.eq ==> Logic.eq ==> eq ==> eq) update_readers_func.
 Proof.
@@ -739,7 +739,8 @@ Proof.
        + left.
          rewrite add_eq_o in *; auto.
        + rewrite add_neq_o in *; auto.
-Qed.
+Qed. 
+*)
 
 (** **** [halts] properties *)
 
@@ -815,7 +816,7 @@ Proof.
   intros r d Hfi; inversion Hfi.
 Qed.
 
-Lemma halts_update_readers (k : lvl) (sr: t) (V: 𝐕) :
+(* Lemma halts_update_readers (k : lvl) (sr: t) (V: 𝐕) :
   halts k sr -> RE.halts k V -> halts k (update_readers sr V).
 Proof.
   induction sr using map_induction; intros Hltrs HltV.
@@ -836,7 +837,7 @@ Proof.
        rewrite halts_add_iff in *; auto.
        ++ destruct Hltrs; split; auto.
        ++ now rewrite update_readers_in_iff.
-Qed.
+Qed. *)
 
 (** *** Morphisms *)
 

@@ -242,27 +242,14 @@ Proof.
   - now rewrite HeqrW.
 Qed.
 
-(*
-#[export] Instance update_readers_func_eq_1 :
-  Proper (RM.eq ==> RE.eq ==> Logic.eq ==> Logic.eq ==> SRE.eq ==> SRE.eq) update_readers_func.
-Proof.
-  intros wW wW' HeqwW V V' HeqV k' k Heqk v' v Heqv rW rW' HeqrW; subst.
-  unfold update_readers_func.
-  destruct (RM.find_data wW k) eqn:Hfd.
-  - rewrite HeqwW in Hfd. destruct (V⌊r⌋)%re.
-    -- destruct r0; now rewrite HeqrW.
-    -- now rewrite HeqrW.
-  - now rewrite HeqrW.
-Qed.
-
 Lemma update_readers_func_diamond (wW: RM.t) (V: 𝐕) :
   SRE.Diamond SRE.eq (update_readers_func wW V).
 Proof.
   intros k k' v v' rW rW1 rW1' Hneq Heq Heq'.
   rewrite <- Heq, <- Heq'.
   unfold update_readers_func.
-  destruct (RM.find_data k wW) eqn:Hfd.
-  - destruct (RM.find_data k' wW) eqn:Hfd'.
+  destruct (RM.find_data wW k) eqn:Hfd.
+  - destruct (RM.find_data wW k') eqn:Hfd'.
     -- destruct (V ⌊r⌋)%re eqn:Hfi.
        + destruct (V ⌊r0⌋)%re eqn:Hfi'.
          ++ destruct r1,r2;
@@ -276,7 +263,7 @@ Proof.
     -- destruct (V ⌊r⌋)%re eqn:Hfi.
        + destruct r0; now rewrite SRE.add_add_2; auto.
        + now rewrite SRE.add_add_2; auto.
-  - destruct (RM.find_data k' wW) eqn:Hfd'.
+  - destruct (RM.find_data wW k') eqn:Hfd'.
     -- destruct (V ⌊r⌋)%re eqn:Hfi.
        + destruct r0;
          now rewrite SRE.add_add_2; auto.
@@ -291,6 +278,12 @@ Lemma update_readers_Empty_eq (W: t) (V: 𝐕) :
 Proof.
   intro HEmp; unfold update_readers.
   rewrite SRE.fold_Empty; auto; reflexivity.
+Qed.
+
+Lemma update_readers_Empty (W: t) (V: 𝐕) : SRE.Empty (readers W) -> SRE.Empty (update_readers W V).
+Proof.
+  intro Hemp; unfold update_readers.
+  rewrite SRE.fold_Empty; now auto.
 Qed.
 
 Lemma update_readers_add (r: resource) (v: Λ) (rW: 𝐄) (wW: RM.t) (V: 𝐕) :
@@ -313,27 +306,6 @@ Proof.
   now rewrite SRE.fold_Add with (e := v); eauto.
 Qed.
 
-#[export] Instance update_readers_eq :
-  Proper (eq ==> RE.eq ==> SRE.eq) update_readers.
-Proof.
-  intros [rW wW] W' HeqW' V V' HeqV.
-  revert W' HeqW'. 
-  induction rW using SRE.map_induction;
-  intros [rW' wW'] [HeqrW HeqwW];
-  unfold RelationPairs.RelCompFun in *; simpl in *.
-  - do 2 (rewrite update_readers_Empty_eq; auto).
-    -- reflexivity.
-    -- now simpl; rewrite <- HeqrW.
-  - rewrite update_readers_Add; eauto.
-    symmetry.
-    rewrite (update_readers_Add x e rW1 rW'); eauto.
-    -- rewrite (IHrW1 (rW1,wW')); try reflexivity.
-       + eapply () rewrite <- HeqwW at 1. admit.
-       + now rewrite HeqwW.
-    -- unfold SRE.Add in *.
-       now rewrite <- H0.
-Qed.
-
 Lemma update_readers_in_iff (r: resource) (W: t) (V: 𝐕) :
   (r ∈ (update_readers W V))%sr <-> (r ∈ (readers W))%sr.
 Proof.
@@ -343,9 +315,131 @@ Proof.
     -- rewrite update_readers_Empty_eq in HIn; auto.
        inversion HIn.
        apply SRE.empty_mapsto_iff in H0; inversion H0.
-    -- rewrite SRE.fold_Add in *; eauto.
+    -- rewrite update_readers_Add in HIn; eauto.
+       unfold SRE.Add in H0; rewrite H0; clear H0.
+       rewrite SRE.add_in_iff.
+       unfold update_readers_func in HIn.
+       unfold update_readers_func.
+       destruct (RM.find_data wW);
+       try (destruct (V ⌊ r0 ⌋)%re);
+       try (destruct r1);
+       try (apply SRE.add_in_iff in HIn as [|]; now auto).
+  - revert r.
+    induction rW using SRE.map_induction; intros r HIn.
+    -- exfalso; destruct HIn.
+       now apply (H r x).
+    -- rewrite update_readers_Add; eauto.
+       unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+       apply SRE.add_in_iff in HIn as [| HIn]; subst.
+       + unfold update_readers_func.
+         destruct (RM.find_data wW);
+         try (destruct (V ⌊ r0 ⌋)%re);
+         try (destruct r1);
+         try (rewrite SRE.add_in_iff; now auto).
+       + unfold update_readers_func.
+         destruct (RM.find_data wW);
+         try (destruct (V ⌊ r0 ⌋)%re);
+         try (destruct r1);
+         try (rewrite SRE.add_in_iff; now auto).
+Qed.
 
-  - unfold update_locals_readers; intros HEmp.
+Lemma update_readers_Empty' (W: t) (V: 𝐕) :
+  SRE.Empty (readers W) <-> SRE.Empty (update_readers W V).
+Proof.
+  split; intro.
+  - now apply update_readers_Empty.
+  - revert V H; destruct W as [rW wW]; simpl.
+    induction rW using SRE.map_induction; intros V HEmp; auto.
+    exfalso.
+    rewrite update_readers_Add in HEmp; eauto.
+    unfold update_readers_func in *.
+    destruct (RM.find_data wW x).
+    -- destruct ((V⌊r⌋)%re) eqn:Hfi.
+       + destruct r0.
+         ++ apply (HEmp x e).
+            apply SRE.add_mapsto_iff; auto.
+         ++ apply (HEmp x λ).
+            apply SRE.add_mapsto_iff; auto.
+       + apply (HEmp x e).
+         apply SRE.add_mapsto_iff; auto.
+    -- apply (HEmp x e).
+       apply SRE.add_mapsto_iff; auto.
+Qed.
+
+Lemma update_readers_new_key (V : 𝐕) (W: t) :
+  (update_readers W V)⁺%sr = (readers W⁺)%sr.
+Proof.
+  destruct W as [rW wW]; simpl in *.
+  induction rW using SRE.map_induction.
+  - rewrite update_readers_Empty_eq; auto.
+    symmetry.
+    do 2 (rewrite SRE.Ext.new_key_Empty; auto).
+  - simpl.
+    rewrite (update_readers_Add x e rW1); auto.
+    unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite SRE.Ext.new_key_add_max, <- IHrW1.
+    unfold update_readers_func.
+    destruct (RM.find_data wW x);
+    try (destruct (V⌊r⌋)%re eqn:Hfi);
+    try (destruct r0);
+    try (now rewrite SRE.Ext.new_key_add_max).
+Qed.
+
+Lemma update_readers_Wf (k: lvl) (V : 𝐕) (W: t) :
+  (k ⊩ (readers W))%sr /\ (k ⊩ V)%re -> (k ⊩ (update_readers W V))%sr.
+Proof.
+  destruct W as [rW wW]; simpl.
+  intros [Hwf HwfV]; revert Hwf.
+  induction rW using SRE.map_induction; intro Hwf.
+  - rewrite update_readers_Empty_eq; auto.
+    apply SRE.Wf_empty.
+  - rewrite (update_readers_Add x e rW1); auto. 
+    unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    apply SRE.Wf_add_notin in Hwf as [Hwfx [Hwfe Hwf]]; auto.
+    unfold update_readers_func.
+    destruct (RM.find_data wW x);
+    try (destruct (V⌊r⌋)%re eqn:Hfi);
+    try (destruct r0);
+    try (apply SRE.Wf_add; now auto).
+    apply SRE.Wf_add; repeat split; auto.
+    apply (RE.Wf_find k) in Hfi as []; auto.
+Qed.
+(* 
+Lemma update_readers_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
+  (update_readers W V)⌊r⌋%sr = Some v ->
+  (readers W)⌊r⌋%sr = Some v \/ V⌊r⌋%re = Some (Cell.out v).
+Proof.
+  destruct W as [rW wW]; simpl.
+  revert r v. 
+  induction rW using SRE.map_induction; intros r v Hfi.
+  - rewrite update_readers_Empty_eq in Hfi; auto.
+    inversion Hfi.
+  - rewrite (update_readers_Add x e rW1) in Hfi; auto. 
+    unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    unfold update_readers_func in Hfi.
+    destruct (RM.find_data wW x) eqn:Hfd.
+    + destruct ((V ⌊r0⌋)%re) eqn:Hfi'.
+      ++ destruct r1 as [v' | v'].
+         * destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+           ** left.
+              rewrite SRE.add_eq_o in *; auto.
+           ** rewrite SRE.add_neq_o in *; auto.
+         * destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+           ** right.
+              rewrite SRE.add_eq_o in *; auto.
+              inversion Hfi; subst.
+           ** rewrite SRE.add_neq_o in *; auto.
+       + rewrite (update_readers_add_some_out _ _ v') in Hfi; auto.
+         destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+         ++ rewrite add_eq_o in Hfi; auto.
+            inversion Hfi; subst; auto.
+         ++ rewrite add_neq_o in *; auto.
+    -- rewrite update_readers_add_none in Hfi; auto.
+       destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+       + left.
+         rewrite add_eq_o in *; auto.
+       + rewrite add_neq_o in *; auto.
+Qed.  *)
 
 (** **** [update_locals] properties *)
 
@@ -354,9 +448,9 @@ Lemma update_locals_in_iff (r : resource) (W : t) (V : 𝐕) :
 Proof.
   split; unfold init_locals, In; destruct W as [rW wW]; simpl.
   - intros [HIn |]; auto. 
-    apply SRE.update_readers_in_iff in HIn; auto.
+    apply update_readers_in_iff in HIn; auto.
   - intros [HIn |]; auto; left. 
-    now apply SRE.update_readers_in_iff.
+    now apply update_readers_in_iff.
 Qed.
 
 Lemma update_locals_Empty (t: t) (V: 𝐕) :
@@ -365,17 +459,16 @@ Proof.
   unfold update_locals, Empty.
   destruct t as [rt wt]; simpl; split.
   - intros [HEmp ]; split; auto.
-    now rewrite (SRE.update_readers_Empty' _ V).
+    rewrite <- (update_readers_Empty' _ V) in HEmp; auto.
   - intros [HEmp ]; split; auto.
-    now apply SRE.update_readers_Empty.
+    now apply update_readers_Empty.
 Qed.
 
 Lemma update_locals_new_key (V : 𝐕) (t : t) :
   new_key (update_locals t V) = new_key t.
 Proof.
   destruct t; unfold update_locals, new_key; simpl.
-  rewrite SRE.update_readers_new_key.
-  lia.
+  rewrite update_readers_new_key; simpl; lia.
 Qed.
 
 Lemma update_locals_Wf (k: lvl) (V : 𝐕) (W: t) :
@@ -385,19 +478,19 @@ Proof.
   unfold Wf, update_locals; simpl.
   intros [[Hwfr Hwfw] HwfV].
   split; auto.
-  apply SRE.update_readers_Wf; auto.
+  apply update_readers_Wf; auto.
 Qed.
 
-Lemma update_locals_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
+(* Lemma update_locals_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
   find r (update_locals W V) = Some v ->
   find r W = Some v \/ V⌊r⌋%re = Some (Cell.out v).
 Proof.
   unfold find, update_locals.
   destruct W as [rW wW]; simpl.
   apply SRE.update_readers_find.
-Qed.
+Qed. *)
 
-Lemma update_locals_union (r: resource) (v: Λ) (V: 𝐕) (W W': t) :
+(* Lemma update_locals_union (r: resource) (v: Λ) (V: 𝐕) (W W': t) :
   find r (update_locals (union W W') V) = Some v <->
   find r (union (update_locals W V) (update_locals W' V)) = Some v.
 Proof.
