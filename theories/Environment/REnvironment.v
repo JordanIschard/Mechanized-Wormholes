@@ -163,6 +163,125 @@ Proof.
 Qed.
 
 
+(** **** [diff] properties *)
+
+Lemma diff_Empty_l (m m': t) : Empty m -> Empty (diff m m').
+Proof.
+  intros HEmp k v HM.
+  apply diff_mapsto_iff in HM as [].
+  apply (HEmp k v); auto.
+Qed. 
+
+Lemma diff_Empty_r (m m': t) : Empty m' -> eq (diff m m') m.
+Proof.
+  intros HEmp.
+  apply Equal_mapsto_iff.
+  intros k v; split; intro HM.
+  - now apply diff_mapsto_iff in HM as [].
+  - apply diff_mapsto_iff; split; auto.
+    intros [v' HM'].
+    apply (HEmp k v' HM').
+Qed.
+
+Lemma diff_add_add (x: resource) v v' (m m': t) : 
+  ~ In x m -> eq (diff (add x v m) (add x v' m')) (diff m m').
+Proof.
+  intro HnIn.
+  apply Equal_mapsto_iff.
+  intros k v1; split; intro HM.
+  - rewrite diff_mapsto_iff in *.
+    destruct HM as [HM HnIn']; split.
+    -- apply add_mapsto_iff in HM as [[Heq Heq'] | [Hneq HM]]; subst.
+       + exfalso.
+         apply HnIn'.
+         rewrite add_in_iff; auto.
+       + auto.
+    -- intro HIn; apply HnIn'.
+       rewrite add_in_iff; auto.
+  - rewrite diff_mapsto_iff in *.
+    destruct HM as [HM HnIn']; split.
+    -- destruct (Resource.eq_dec k x) as [| Hneq]; subst.
+       + exfalso.
+         apply HnIn.
+         now exists v1.
+       + rewrite add_mapsto_new; auto.
+    -- intro HIn. 
+       destruct (Resource.eq_dec k x) as [| Hneq]; subst.
+       + exfalso.
+         apply HnIn.
+         now exists v1.
+       + apply add_in_iff in HIn as [|]; auto.
+Qed.
+
+
+Lemma diff_incl_in (x: resource) (m m': t) :
+  (forall r, In r m -> In r m') -> In x m' <-> In x (diff m' m) \/ In x m.
+Proof.
+  intro Hsub; split; intro HIn.
+  - destruct (In_dec m x); auto.
+    rewrite diff_in_iff.
+    left; now split.
+  - destruct HIn.
+    -- now apply diff_in_iff in H as [].
+    -- now apply Hsub.
+Qed. 
+
+(** **** [new_key] properties *)
+
+Lemma new_key_incl (m m': t) :
+ (forall r, In r m -> In r m') ->  new_key m <=  new_key m'.
+Proof.
+  revert m'.
+  induction m using map_induction; intros m' Hsub.
+  - rewrite (new_key_Empty m); auto; lia.
+  - unfold Add in *; rewrite H0 in *.
+    rewrite new_key_add_max.
+    destruct (Hsub x).
+    -- rewrite H0.
+       rewrite add_in_iff; auto.
+    -- apply find_1 in H1.
+       apply add_id in H1.
+       rewrite <- add_remove_1 in H1.
+       rewrite <- H1.
+       rewrite new_key_add_max.
+       destruct (IHm1 (remove x m')); try lia.
+       intros r HIn.
+       destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+       + contradiction.
+       + rewrite remove_in_iff; split; auto.
+         apply Hsub.
+         rewrite H0.
+         rewrite add_in_iff; auto.
+Qed.
+
+Lemma new_key_diff (m m': t) :
+  (forall r, In r m -> In r m')-> new_key m' = max (new_key (diff m' m)) (new_key m).
+Proof.
+  revert m'.
+  induction m using map_induction; intros m' Hsub.
+  - rewrite (new_key_Empty m); auto.
+    rewrite diff_Empty_r; auto; lia.
+  - unfold Add in *; rewrite H0 in *.
+    rewrite new_key_add_max.
+    destruct (Hsub x).
+    -- rewrite H0, add_in_iff; now left.
+    -- apply find_1 in H1.
+       apply add_id in H1.
+       rewrite <- add_remove_1 in H1.
+       rewrite <- H1.
+       rewrite new_key_add_max.
+       rewrite diff_add_add.
+       + rewrite IHm1; try lia.
+         intros y HIn1.
+         rewrite remove_in_iff.
+         destruct (Resource.eq_dec x y) as [| Hneq]; subst.
+         ++ contradiction.
+         ++ split; auto.
+            apply Hsub.
+            rewrite H0, add_in_iff; auto.
+       + rewrite remove_in_iff; intros []; auto.
+Qed.
+
 (** **** [unused] properties *)
 
 #[export] Instance unused_iff : Proper (Logic.eq ==> eq ==> iff) unused.

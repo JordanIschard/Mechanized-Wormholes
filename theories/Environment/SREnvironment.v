@@ -816,29 +816,6 @@ Proof.
   intros r d Hfi; inversion Hfi.
 Qed.
 
-(* Lemma halts_update_readers (k : lvl) (sr: t) (V: 𝐕) :
-  halts k sr -> RE.halts k V -> halts k (update_readers sr V).
-Proof.
-  induction sr using map_induction; intros Hltrs HltV.
-  - now rewrite update_readers_Empty_iff.
-  - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    destruct ((V⌊x⌋)%re) eqn:Hfi.
-    -- destruct r.
-       + rewrite update_readers_add_some_inp; eauto.
-         rewrite halts_add_iff in *; auto.
-         ++ destruct Hltrs; split; auto.
-         ++ now rewrite update_readers_in_iff.
-       + rewrite update_readers_add_some_out; eauto.
-         rewrite halts_add_iff in *; auto.
-         ++ destruct Hltrs; split; auto.
-            apply HltV in Hfi; now simpl in *.
-         ++ now rewrite update_readers_in_iff.
-    -- rewrite update_readers_add_none; eauto.
-       rewrite halts_add_iff in *; auto.
-       ++ destruct Hltrs; split; auto.
-       ++ now rewrite update_readers_in_iff.
-Qed. *)
-
 (** *** Morphisms *)
 
 #[export] Instance srenvironment_in_iff : Proper (Logic.eq ==> eq ==> iff) In.

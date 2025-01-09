@@ -93,6 +93,8 @@ Definition new_key (W : t) := max ((readers W)⁺)%sr ((writers W)⁺)%rm.
 
 Definition eqDom (Rc : ℜ) (W: t) := forall (r : resource), (r ∈ Rc)%rc <-> In r W.
 
+Definition eqDom' (V : 𝐕) (W: t) := forall (r : resource), (r ∈ V)%re <-> In r W.
+
 (** *** Properties *)
 
 (** **** [Empty] properties *)
@@ -812,15 +814,34 @@ Proof.
   now apply RM.halts_init_writers.
 Qed.
 
-(*
+Lemma halts_update_readers (k : lvl) (W: t) (V: 𝐕) :
+  SRE.halts k (readers W) -> RE.halts k V -> SRE.halts k (update_readers W V).
+Proof.
+  destruct W as [rW wW]; simpl.
+  induction rW using SRE.map_induction; intros Hltrs HltV.
+  - now rewrite update_readers_Empty_eq.
+  - rewrite (update_readers_Add x e rW1); auto. 
+    unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
+    apply SRE.halts_add_iff in Hltrs as [Hlte Hltrw1]; auto.
+    specialize (IHrW1 Hltrw1 HltV).
+    unfold update_readers_func.
+    destruct (RM.find_data wW x);
+    try (destruct ((V⌊r⌋)%re) eqn:Hfi);
+    try (destruct r0);
+    try (rewrite SRE.halts_add_iff; try now split);
+    try (now rewrite update_readers_in_iff; simpl).
+    split; auto.
+    apply HltV in Hfi; now simpl.
+Qed.
+
 Lemma halts_update_locals (k : lvl) (W : t) (V : 𝐕) :
   RE.halts k V -> halts k W -> halts k (update_locals W V).
 Proof.
   intros HltV HltW; unfold halts,update_locals.
   destruct W as [Rw Ww]; simpl.
-  apply SRE.halts_update_readers; auto.
+  apply halts_update_readers; auto.
 Qed.
-*)
+
 
 Lemma halts_weakening (m n : lvl) (W : t) : 
   m <= n -> halts m W -> halts n (shift m (n - m) W).
@@ -1054,6 +1075,166 @@ Proof.
                  rewrite HeqDom; auto.
 Qed.
 
+
+(** **** [eqDom] properties *)
+
+#[export] Instance eqDom'_iff : Proper (RE.eq ==> eq ==> iff) eqDom'.
+Proof.
+  intros V V1 HeqV W W1 HeqW; unfold eqDom'; split; intros.
+  - rewrite <- HeqV; rewrite <- HeqW; auto.
+  - rewrite HeqV; rewrite HeqW; auto.
+Qed.
+
+Lemma eqDom'_In (r: resource) (V: 𝐕) (W: t) :
+  eqDom' V W -> (r ∈ V)%re <-> In r W.
+Proof. unfold eqDom'; intro HeqDom'; auto. Qed.
+
+Lemma eqDom'_Empty (V: 𝐕) (W: t):
+ eqDom' V W -> (isEmpty(V))%re <-> Empty W.
+Proof.
+  intro HeqDom'; split; intro HEmp.
+  - apply Empty_notin; intros r HIn.
+    rewrite <- (eqDom'_In r V) in HIn; auto.
+    destruct HIn as [v HM].
+    now apply (HEmp r v).
+  - apply Empty_unfold in HEmp.
+    intros x v HM. 
+    apply HEmp.
+    exists x.
+    rewrite <- (eqDom'_In x V); auto.
+    now exists v.
+Qed.
+
+Lemma eqDom'_is_empty (V: 𝐕) (W: t):
+  eqDom' V W -> RE.Raw.is_empty V = is_empty W.
+Proof.
+  intro HeqDom'.
+  destruct (RE.Raw.is_empty V) eqn:HisEmp;
+  destruct (is_empty W) eqn:HisEmp'; auto; exfalso.
+  - apply RE.is_empty_2 in HisEmp.
+    rewrite (eqDom'_Empty _ W) in HisEmp; auto.
+    now apply not_Empty_is_empty in HisEmp'.
+  - apply Empty_is_empty in HisEmp'.
+    rewrite <- eqDom'_Empty in HisEmp'; eauto.
+    apply RE.is_empty_1 in HisEmp'.
+    rewrite HisEmp in *. inversion HisEmp'.
+Qed.
+
+Lemma eqDom'_new_key (V: 𝐕) (W: t):
+  eqDom' V W -> V⁺%re = new_key W.
+Proof.
+  revert W; induction V using RE.map_induction; intros W HeqDom'.
+  - rewrite RE.Ext.new_key_Empty; auto.
+    rewrite (eqDom'_Empty V W HeqDom') in H.
+    rewrite new_key_Empty; auto.
+  - unfold RE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite RE.Ext.new_key_add_max.
+
+    destruct W as [rW wW]; unfold eqDom',In, new_key in *.
+    simpl in HeqDom'.
+    simpl (readers (rW, wW)⁺)%sr.
+    simpl (writers (rW, wW)⁺)%rm.
+
+    assert (HIn: (x ∈ ⌈ x ⤆ e ⌉ V1)%re).
+    { rewrite RE.add_in_iff; auto. }
+
+    apply HeqDom' in HIn as HIn'.
+    destruct HIn' as [[v HM] | [v' HM']].
+    -- apply SRE.find_1 in HM.
+       apply SRE.add_id in HM; rewrite <- HM; clear HM.
+       rewrite <- SRE.add_remove_1.
+       rewrite SRE.Ext.new_key_add_max.
+
+       destruct (RM.In_dec wW x) as [[v' HM'] | HnInw].
+       + apply RM.find_1 in HM'.
+         apply RM.add_id in HM'; rewrite <- HM'; clear HM'.
+         rewrite <- RM.add_remove_1.
+         rewrite RM.Ext.new_key_add_max.
+         rewrite (IHV1 (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+         ++ simpl (readers (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+            simpl (writers (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+            lia.
+         ++ intro r; split; simpl.
+            * intro HInRc1.
+              destruct (Resource.eq_dec r x); subst; try contradiction.
+              rewrite SRE.remove_in_iff.
+              rewrite RM.remove_in_iff.
+              rewrite <- RE.add_neq_in_iff in HInRc1; eauto.
+              apply HeqDom' in HInRc1 as [|]; auto.
+            * rewrite SRE.remove_in_iff.
+              rewrite RM.remove_in_iff.
+              intros [[Hneq HInr] | [HInw Hneq]].
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+       + rewrite (IHV1 (SRE.Raw.remove x rW, wW)).
+         ++ simpl (readers (SRE.Raw.remove x rW, wW)).
+            simpl (writers (SRE.Raw.remove x rW, wW)).
+            lia.
+         ++ intro r; split; simpl.
+            * intro HInRc1.
+              destruct (Resource.eq_dec r x); subst; try contradiction.
+              rewrite SRE.remove_in_iff.
+              rewrite <- RE.add_neq_in_iff in HInRc1; eauto.
+              apply HeqDom' in HInRc1 as [|]; auto.
+            * rewrite SRE.remove_in_iff.
+              intros [[Hneq HInr] | HInw].
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+              ** destruct (Resource.eq_dec r x); subst; try contradiction.
+                 rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+    -- apply RM.find_1 in HM'.
+       apply RM.add_id in HM'; rewrite <- HM'; clear HM'.
+       rewrite <- RM.add_remove_1.
+       rewrite RM.Ext.new_key_add_max.
+
+       destruct (SRE.In_dec rW x) as [HInr | HnInr].
+
+       + destruct HInr as [v HM].
+         apply SRE.find_1 in HM.
+         apply SRE.add_id in HM; rewrite <- HM; clear HM.
+         rewrite <- SRE.add_remove_1.
+         rewrite SRE.Ext.new_key_add_max.
+         rewrite (IHV1 (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+         ++ simpl (readers (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+            simpl (writers (SRE.Raw.remove x rW, RM.Raw.remove x wW)).
+            lia.
+         ++ intro r; split; simpl.
+            * intro HInRc1.
+              destruct (Resource.eq_dec r x); subst; try contradiction.
+              rewrite SRE.remove_in_iff.
+              rewrite RM.remove_in_iff.
+              rewrite <- RE.add_neq_in_iff in HInRc1; eauto.
+              apply HeqDom' in HInRc1 as [|]; auto.
+            * rewrite SRE.remove_in_iff.
+              rewrite RM.remove_in_iff.
+              intros [[Hneq HInr] | [HInw Hneq]].
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+       + rewrite (IHV1 (rW, RM.Raw.remove x wW)).
+         ++ simpl (readers (rW, RM.Raw.remove x wW)).
+            simpl (writers (rW, RM.Raw.remove x wW)).
+            lia.
+         ++ intro r; split; simpl.
+            * intro HInRc1.
+              destruct (Resource.eq_dec r x); subst; try contradiction.
+              rewrite RM.remove_in_iff.
+              rewrite <- RE.add_neq_in_iff in HInRc1; eauto.
+              apply HeqDom' in HInRc1 as [|]; auto.
+            * rewrite RM.remove_in_iff.
+              intros [HInr | [Hneq HInw]].
+              ** destruct (Resource.eq_dec r x); subst; try contradiction.
+                 rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+              ** rewrite <- RE.add_neq_in_iff; eauto.
+                 rewrite HeqDom'; auto.
+Qed.
+
+
 End Stock.
 
 (** ---- *)
@@ -1105,5 +1286,7 @@ Import Stock.
 #[export] Instance stock_Empty_iff : Proper (eq ==> iff) Empty := _.
 
 #[export] Instance stock_eqDom_iff : Proper (RC.eq ==> eq ==> iff) eqDom := _.
+
+#[export] Instance stock_eqDom'_iff : Proper (RE.eq ==> eq ==> iff) eqDom' := _.
 
 End StockNotations.

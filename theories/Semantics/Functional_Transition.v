@@ -1158,8 +1158,10 @@ Hypothesis all_arrow_halting : forall Rc t α β,
           WF(Rc1,V1) /\
 
           (* properties of [W] *)
-          (forall (r : resource) (v : Λ) (α β : Τ), 
-                    W⌊r⌋%sk = Some v -> Rc1⌊r⌋%rc = Some (β,α) -> ∅%vc ⋅ Rc1 ⊢ v ∈ α) /\
+          (forall (r : resource) (v : Λ) (α β : Τ), W⌊r⌋%sk = Some v -> Rc1⌊r⌋%rc = Some (β,α) ->
+            ∅%vc ⋅ Rc1 ⊢ v ∈ α /\ β = <[𝟙]> /\
+            (exists (r' : resource), (Stock.writers W)⌊r'⌋%rm = Some r /\  
+                                     Rc1⌊r'⌋%rc = Some (α,β))) /\
 
           (* properties of [R'] *)
           (* (14) *) (forall (r : resource), (r ∈ (R' \ R))%s -> (r ∈ W)%sk /\ (r ∉ V)) /\
@@ -1426,24 +1428,73 @@ Proof.
       apply Stock.find_union in HfiW as [HfiW | HfiW].
       - apply Stock.shift_find_e_1 in HfiW as HI.
         destruct HI as [[r' Heq] [v' Heqv]]; subst.
-        apply weakening_ℜ; auto.
-        -- apply (WF_ec_Wf Rc' V1 HWF').
-        -- apply Stock.shift_find_iff in HfiW.
-            apply (HwtW1 r' _ _ ty' HfiW).
-            
-            assert (HIn: (r' ∈ W)%sk). 
-            { unfold Stock.In; left. exists v'; now apply SRE.find_2. }
-
-            apply functional_W_props in fT1 as [H _].
-            destruct (H r') as [_ HInV1]; auto.
-            apply (WF_ec_In Rc' V1 HWF' r') in HInV1 as HInRc'.
-            apply RE.Ext.new_key_in in HInV1 as Hvr'. 
-            rewrite Resource.shift_wf_refl in HfiRc''.
-            + destruct HInRc' as [v HfiRc']; apply RC.find_1 in HfiRc'.
-              apply RC.Submap_find with (m' := Rc'') in HfiRc' as HfiRc1; auto.
-              rewrite HfiRc'' in HfiRc1; inversion HfiRc1; now subst.
-            + now rewrite Hnew'; unfold Resource.Wf.
-      - apply (HwtW2 r _ _ ty'); auto. 
+        apply Stock.shift_find_iff in HfiW.
+        apply functional_preserves_Wf in fT1 as HI; auto.
+        -- destruct HI as [HwfV1 [Hwfst' [Hwft1' [HwfW Hleq]]]].
+           rewrite Resource.shift_wf_refl in HfiRc''.
+           + apply functional_W_props in fT1 as [HInW _].
+             assert (r' ∈ W)%sk.
+             {
+               left; destruct W; simpl in *.
+               exists v'.
+               now apply SRE.find_2.
+             }
+             apply HInW in H as [HnIn HIn].
+             rewrite <- (WF_ec_In Rc') in HIn; auto.
+             destruct HIn as [πγ HfiRc'].
+             apply RC.find_1 in HfiRc'.
+             apply (RC.Ext.Submap_find _ _ _ Rc'') in HfiRc' as H; auto.
+             rewrite HfiRc'' in H; inversion H; subst; auto; clear H.
+             apply (HwtW1 _ _ ty ty') in HfiW; auto.
+             destruct HfiW as [Hwtv' [Hunit Hfi]].
+             split.
+             ++ apply weakening_ℜ; auto.
+                now apply WF_ec_Wf in HWF' as [].
+             ++ split; auto.
+                destruct Hfi as [r1 [HfW HfRc']].
+                exists ([⧐(Rc' ⁺)%rc – (Rc'' ⁺)%rc - (Rc' ⁺)%rc] r1)%r; split.
+                * destruct W as [rW wW]; destruct W' as [rW' wW']; simpl in *.
+                  apply RM.find_1.
+                  apply RM.extend_mapsto_iff; right; split.
+                  ** apply RM.find_2.
+                     now apply RM.shift_find_iff.
+                  ** inversion HwfW; simpl in *.
+                     apply RM.Wf_find with (lb := (V1 ⁺)%re) in HfW as HI; auto.
+                     destruct HI as [Hwfr1 _].
+                     rewrite Hnew'.
+                     rewrite Resource.shift_wf_refl; auto.
+                     intros HIn.
+                     apply functional_W_props in fT2 as [HInW' _].
+                     destruct (HInW' r1); try now right.
+                     destruct (HInW r1); auto.
+                     right; simpl.
+                     exists r'; now apply RM.find_2.
+                * inversion HwfW; simpl in *.
+                  apply RM.Wf_find with (lb := (V1 ⁺)%re) in HfW as HI; auto.
+                  destruct HI as [Hwfr1 _].
+                  rewrite Hnew'.
+                  rewrite Resource.shift_wf_refl; auto.
+                  now apply (RC.Ext.Submap_find _ _ Rc').
+           + rewrite <- Hnew' in *. 
+             apply (Stock.Wf_in _ _ W); auto.
+             left; destruct W; simpl in *.
+             exists v'.
+             now apply SRE.find_2.
+        -- apply WF_ec_Wf in HWF as [].
+           apply well_typed_implies_Wf in Hwst as []; auto.
+           now rewrite <- Hnew.
+        -- apply WF_ec_Wf in HWF as [].
+           apply well_typed_implies_Wf in Hwt1 as []; auto.
+           now rewrite <- Hnew.
+      - apply (HwtW2 _ v _ _ HfiW) in HfiRc'' as HI.
+        destruct HI as [Hwv [Hunit Hwrt]].
+        do 2 (split; auto).
+        destruct Hwrt as [r1 [HfiW' HfiRc1'']].
+        exists r1; split; auto.
+        destruct W as [rW wW]; destruct W' as [rW' wW']; simpl in *.
+        apply RM.find_1.
+        apply RM.extend_mapsto_iff; left.
+        now apply RM.find_2.
     }
     split.
     {
@@ -1638,15 +1689,46 @@ Proof.
       - rewrite Stock.find_add_eq in HfiW. 
         inversion HfiW; subst; clear HfiW.
         rewrite <- Hnew, <- Hnew'.
-        apply weakening_ℜ; auto.
-        -- now apply RC.Submap_wh_1 in HsubRc.
-        -- apply (RC.Ext.Submap_find (Rc⁺)%rc (<[𝟙]>,τ)) in HsubRc as HfiRc.
-           + rewrite Hnew in HfiRc. 
-             rewrite HfRc1 in HfiRc.
-             inversion HfiRc; now subst.
-           + rewrite RC.add_neq_o; try lia; rewrite RC.add_eq_o; auto.
+        split.
+        -- apply weakening_ℜ; auto.
+           + now apply RC.Submap_wh_1 in HsubRc.
+           + apply (RC.Ext.Submap_find (Rc⁺)%rc (<[𝟙]>,τ)) in HsubRc as HfiRc.
+             ++ rewrite Hnew in HfiRc. 
+                rewrite HfRc1 in HfiRc.
+                inversion HfiRc; now subst.
+             ++ rewrite RC.add_neq_o; try lia; rewrite RC.add_eq_o; auto.
+        --  assert (HfRc1': ((⌈S (Rc⁺) ⤆ (τ,<[𝟙]>)⌉ (⌈Rc⁺ ⤆ (<[𝟙]>,τ)⌉ Rc))⌊(V⁺)%re⌋)%rc = Some (<[𝟙]>,τ)).
+            {
+             rewrite <- (WF_ec_new Rc V); auto.
+             rewrite RC.add_neq_o; auto.
+             rewrite RC.add_eq_o; auto.
+            }
+            apply (RC.Ext.Submap_find _ _ _ Rc') in HfRc1' as HI; auto.
+            rewrite HfRc1 in HI; inversion HI; subst; clear HI.
+            split; auto.
+            exists (S (Rc ⁺)%rc); split.
+            + destruct W as [rW wW]; simpl.
+              rewrite RM.add_eq_o; auto.
+            + apply (RC.Ext.Submap_find _ _ _ _ HsubRc).
+              now rewrite RC.add_eq_o.
       - rewrite Stock.find_add_neq in HfiW; auto.
-        apply (HwtW1 r _ _ α); auto.
+        split.
+        -- apply (HwtW1 r _ _ α); auto.
+        -- apply (HwtW1 _ v) in HfRc1 as [HwtV [Hunit Hwrt]]; auto.
+           split; auto.
+           destruct Hwrt as [r1 [HfiW' HfiRc']].
+           exists r1; split; auto.
+           destruct W as [rW wW]; simpl.
+           rewrite RM.add_neq_o; auto.
+           intro; subst.
+           assert (S (V ⁺)%re ∈ wW)%rm.
+           { exists r; simpl in *; now apply RM.find_2. }
+           apply functional_W_props in fT as HI.
+           destruct HI as [HIn _].
+           destruct (HIn (S (V⁺)%re)).
+           + right; auto.
+           + apply H0.
+             rewrite RE.add_in_iff; auto.
     }
     split; auto.
     {
