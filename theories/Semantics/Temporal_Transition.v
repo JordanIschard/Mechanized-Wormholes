@@ -454,14 +454,15 @@ Proof.
   - constructor.
   - now rewrite init_input_env_new_key.
 Qed.
-(* 
-Lemma temporal_W_props (R : 𝐄) (R' : o𝐄) (P P' : Λ) (W W' : 𝐖) :
+
+
+Lemma temporal_W_props (R R' : 𝐄) (P P' : Λ) (W W' : 𝐖) :
   (~ ST.Empty W -> (W⁺)%sk > (R⁺)%sr) ->
-  ⟦S ; W ; P⟧ ⟾ ⟦S' ; W' ; P'⟧ -> 
+  ⟦R ; W ; P⟧ ⟾ ⟦R' ; W' ; P'⟧ -> 
   (forall (k : resource), (k ∈ W)%sk -> (k ∈ W')%sk) /\ 
-  (~ ST.Empty W' -> (W'⁺)%sk > (R⁺)%sr).
+  (~ ST.Empty W' -> (W'⁺)%sk > (R'⁺)%sr).
 Proof. 
-  intros  HnEmp [Vout [Wnew [_tv [HfT [_ Heq]]]]]; split.
+  intros HnEmp [Vout [Wnew [_tv [HfT [HeqR' Heq]]]]]; split.
   - intros k HIn.
     rewrite Heq; clear Heq.
     rewrite ST.update_locals_in_iff.
@@ -475,6 +476,8 @@ Proof.
        rewrite ST.new_key_union.
        rewrite ST.shift_new_refl; auto.
        rewrite <- ST.shift_Empty_iff in HnEmp'.
+       rewrite HeqR'.
+       rewrite <- puts_new_key. 
        apply HnEmp in HnEmp'; lia.
     -- rewrite ST.update_locals_new_key.
        rewrite ST.new_key_union.
@@ -482,10 +485,12 @@ Proof.
        apply functional_W_props in HfT as HI.
        destruct HI as [_ [_ [_ [HnEmp'' _]]]].
        apply HnEmp'' in HnEmp' as [Heq' Hgt].
+       rewrite HeqR'.
+       rewrite <- puts_new_key. 
        rewrite init_input_env_new_key in Hgt; lia.
 Qed.
 
-
+(*
 (** *** [eqDom] properties *)
 
 
@@ -1161,18 +1166,18 @@ Proof.
      now apply SRE.init_globals_find_e in HfS.
   }
 Qed.
-
+*)
 (** ---- *)
 
 (** ** Preservation - Temporal *)
-
+(*
 Section props.
 
 
 Hypothesis all_arrow_halting : forall Rc t α β,
   ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
 
-Theorem temporal_preserves_typing (Rc : ℜ) (R : 𝐄) (R' : o𝐄) (W W' : 𝐖) (P P' : Λ) (R : resources) :
+Theorem temporal_preserves_typing (Rc : ℜ) (R R': 𝐄) (W W' : 𝐖) (P P' : Λ) (R : resources) :
 
          halts (Rc⁺)%rc P -> SRE.halts (R⁺)%sr R -> ST.halts (W⁺)%sk W -> 
                   WFᵢₙ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) -> 
