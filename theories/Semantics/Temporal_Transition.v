@@ -28,7 +28,7 @@ Hypothesis put : resource * (option Λ) -> Λ.
 
 (** *** Well-formed environments-context *)
 
-Definition well_formed_in_ec (Rc : ℜ) (R : 𝐄) (W : 𝐖) :=
+Definition well_formed_tt (Rc : ℜ) (R : 𝐄) (W : 𝐖) :=
   (forall (r : resource), (r ∈ Rc)%rc <->  (r ∈ W)%sk \/ (r ∈ R)%sr) /\ 
   (forall (r : resource), ((r ∈ W)%sk -> (r ∉ R)%sr) /\ ((r ∈ R)%sr -> (r ∉ W)%sk)) /\
   (Rc⁺ ⊩ Rc)%rc /\ (R⁺ ⊩ R)%sr /\ (W⁺ ⊩ W)%sk /\
@@ -58,7 +58,7 @@ Definition well_formed_out_ec (Rc : ℜ) (R : o𝐄) (W : 𝐖) :=
             ((snd W)⌊r⌋)%rm = Some v /\ ((snd W)⌊r'⌋)%rm = Some v -> r = r').
 
 
-Notation "'WFᵢₙ(' Rc , R , W )" := (well_formed_in_ec Rc R W) (at level 50).
+Notation "'WFᵢₙ(' Rc , R , W )" := (well_formed_tt Rc R W) (at level 50).
 Notation "'WFₒᵤₜ(' Rc , R , W )" := (well_formed_out_ec Rc R W) (at level 50).
 
 (** *** [puts] function *)
@@ -296,11 +296,11 @@ Proof.
 Qed.
 
 Lemma temporal_preserves_Wf (R R': 𝐄) (P P' : Λ) (W W' : 𝐖) :
-  (forall r v, max (R'⁺)%sr (W'⁺)%sk ⊩ put (r,v))%tm ->
+  (forall r v, (R⁺)%sr ⊩ put (r,v))%tm ->
   (~ ST.Empty W -> (W⁺)%sk > (R⁺)%sr) ->
   (R⁺ ⊩ R)%sr -> (W⁺ ⊩ W)%sk -> (max (R⁺)%sr (W⁺)%sk ⊩ P)%tm ->
   ⟦R ; W ; P⟧ ⟾ ⟦R' ; W' ; P'⟧ -> 
-  (max (R'⁺)%sr (W'⁺)%sk ⊩ R')%sr /\ (W'⁺ ⊩ W')%sk /\ (max (R'⁺)%sr (W'⁺)%sk ⊩ P')%tm.
+  (R'⁺ ⊩ R')%sr /\ (W'⁺ ⊩ W')%sk /\ (max (R'⁺)%sr (W'⁺)%sk ⊩ P')%tm.
 Proof.
   intros Hwfput HnEmp HwfS HwfW HwfP [Vout [Wnew [_tv [fT [HeqS HeqW]]]]].
   rewrite HeqS, HeqW.
@@ -316,8 +316,8 @@ Proof.
   apply functional_preserves_Wf in fT as HI.
   - destruct HI as [HwfV [_ [HwfP' [HwfW' Hleq]]]].
     split.
-    {
-     destruct (ST.is_empty Wnew) eqn:Hemp.
+    { apply puts_Wf; auto. }
+     (* destruct (ST.is_empty Wnew) eqn:Hemp.
      - apply ST.Empty_is_empty in Hemp.
        rewrite (ST.new_key_Empty Wnew); auto.
        replace (max (W⁺)%sk 0) with (W⁺)%sk by lia.
@@ -357,7 +357,7 @@ Proof.
           rewrite ST.shift_new_refl in Hwfput; auto.
           now do 2 (rewrite max_r in Hwfput by lia).
        -- lia.
-    }
+    } *)
     split.
     {  
      destruct (Stock.is_empty W) eqn:Hemp'.
@@ -490,7 +490,7 @@ Proof.
        rewrite init_input_env_new_key in Hgt; lia.
 Qed.
 
-(*
+
 (** *** [eqDom] properties *)
 
 
@@ -931,10 +931,10 @@ Proof.
          apply HeqDom in HIn as [|]; auto.
 Qed. 
   
-
+(*
 (** *** [well_formed_in_ec] properties *)
 
-Lemma WF_in_ec_empty_locals (Rc: ℜ) (R: 𝐄) :
+Lemma WF_tt_empty_locals (Rc: ℜ) (R: 𝐄) :
   (
     (forall (r : resource), (r ∈ Rc)%rc <-> (r ∈ R)%sr) /\ 
     (Rc⁺ ⊩ Rc)%rc /\  (R⁺ ⊩ R)%sr /\
@@ -1010,7 +1010,7 @@ Proof.
        { rewrite ST.new_key_empty; lia. }
 Qed.
 
-#[export] Instance WF_in_eq : Proper (RContext.eq ==> SRE.eq ==> ST.eq ==> iff) well_formed_in_ec.
+#[export] Instance WF_in_eq : Proper (RContext.eq ==> SRE.eq ==> ST.eq ==> iff) well_formed_tt.
 Proof.
   intros Rc Rc1 HeqRe R R' HeqS W W' HeqW; split.
   - intros [HeqDom [HDisj [HvRc [HvS [HvW [Hwt [Hgt [Hwt' [Hcorr Hinj]]]]]]]]].  
@@ -1090,21 +1090,22 @@ Proof.
                   now split; rewrite <- HeqW.
                  }
 Qed.
+*)
 
-Lemma WF_in_ec_new (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
+Lemma WF_tt_new (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
   WFᵢₙ(Rc, R, W) -> (Rc⁺)%rc = max (R⁺)%sr (W⁺)%sk.
 Proof.
   intros [HeqDom _].
   now apply TT_EqDom_new.
 Qed.
 
-Lemma WF_in_ec_Wf (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
+Lemma WF_tt_Wf (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
   WFᵢₙ(Rc, R, W) -> (Rc⁺ ⊩ Rc)%rc /\ (R⁺ ⊩ R)%sr /\ (W⁺ ⊩ W)%sk.
 Proof.
   intros [_ [_ [HwfRc [HwfS [HwfW _]]]]]; auto.
 Qed.
 
-Lemma WF_in_ec_to_WF_ec (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
+(* Lemma WF_tt_to_WF_ec (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
   WFᵢₙ(Rc, R, W) -> WF(Rc,init_input_env R W).
 Proof.
   intros [HeqDom [HneqDom [HvRe [HvS [HvW [Hwt [HnInW HeqWw]]]]]]]; split.
@@ -1165,60 +1166,68 @@ Proof.
    - intros r' HfS.
      now apply SRE.init_globals_find_e in HfS.
   }
-Qed.
-*)
+Qed. *)
+
 (** ---- *)
 
 (** ** Preservation - Temporal *)
-(*
-Section props.
-
 
 Hypothesis all_arrow_halting : forall Rc t α β,
   ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
 
-Theorem temporal_preserves_typing (Rc : ℜ) (R R': 𝐄) (W W' : 𝐖) (P P' : Λ) (R : resources) :
+Theorem temporal_preserves_typing (Rc : ℜ) (R R': 𝐄) (W W' : 𝐖) (P P' : Λ) (Rs : resources) :
 
          halts (Rc⁺)%rc P -> SRE.halts (R⁺)%sr R -> ST.halts (W⁺)%sk W -> 
-                  WFᵢₙ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) -> 
+                  WFᵢₙ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
                       
                       ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ ->
   (* ------------------------------------------------------------------------ *)
-       exists (Rc1 : ℜ) (R' : resources),
-          (R ⊆ R')%s /\ (Rc ⊆ Rc1)%rc /\ WFₒᵤₜ(Rc1,R',W') /\
-          (~ ST.Empty W' -> (W'⁺)%sk > (R⁺)%sr) /\
+       exists (Rc1 : ℜ) (Rs' : resources),
+          (Rs ⊆ Rs')%s /\ (Rc ⊆ Rc1)%rc /\ WFᵢₙ(Rc1,R',W') /\
           
-          ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ R') /\ 
+          ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ Rs') /\ 
      
-          halts (Rc1⁺)%rc P' /\ ORE.halts (Rc1⁺)%rc R' /\ ST.halts (W'⁺)%sk W'.
+          halts (Rc1⁺)%rc P' /\ SRE.halts (R'⁺)%sr R' /\ ST.halts (W'⁺)%sk W'.
 Proof.
   intros HltP HltS HltW HWF HwtP HTT.
 
   assert (HnEmp: ~ ST.Empty W -> (W ⁺)%sk > (R ⁺)%sr).
   {
-   destruct HWF as [_ [_ [_ [_ [_ [_ [HnEmp _]]]]]]].
+   destruct HWF as [_ [_ [_ [_ [_ [_ [_ [HnEmp _]]]]]]]].
    intros Hn.
    now apply HnEmp in Hn as []. 
   }
   apply temporal_W_props in HTT as HI; auto.
   destruct HI as [HinclW HnEmp'].
-  apply WF_in_ec_Wf in HWF as HI.
+  destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
+
+  (* clean *)
+  move Vout before R; move R' before R; move Wnew before W'; 
+  move _tv before P'; move fT before HwtP.
+  (* clean *)
+
+  apply WF_tt_Wf in HWF as HI.
   destruct HI as [HwfRc [HwfS HwfW]].
   apply well_typed_implies_Wf in HwtP as HI; auto.
   destruct HI as [HwfP _].
-  rewrite (WF_in_ec_new _ _ _ HWF) in HwfP.
+  rewrite (WF_tt_new _ _ _ HWF) in HwfP.
+
+  (* clean *)
+  move HwfRc before Rs; move HwfS before HwfRc;
+  move HwfW before HwfS; move HwfP before HwfW;
+  move HeqS' before Rs; move HeqW' before HeqS';
+  move HnEmp before HnEmp'.
+  (* clean *)
+
+  (*
   apply temporal_preserves_Wf in HTT as HI; auto.
-  rewrite <- (WF_in_ec_new _ _ _ HWF) in HwfP.
+  rewrite <- (WF_tt_new _ _ _ HWF) in HwfP.
   destruct HI as [HwfS' [HwfW' HwfP']].
   destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
 
 
-  (* clean *)
-  move Vout before R; move Wnew before W'; 
-  move _tv before P'; move fT before HwtP.
-  (* clean *)
 
-  apply WF_in_ec_to_WF_ec in HWF as HWF'.
+  apply WF_tt_to_WF_ec in HWF as HWF'.
   apply (functional_preserves_typing_gen 
               all_arrow_halting Rc _ _ _ _ _ _ _ <[𝟙]> <[𝟙]> R) in fT as IH; auto.
   - 
@@ -1236,7 +1245,7 @@ Proof.
     do 2 (split; auto); split.
     {
       apply functional_W_props in fT as H.
-      apply WF_in_ec_new in HWF as Hnew'.
+      apply WF_tt_new in HWF as Hnew'.
       destruct H as [HInWnew [Hdisj [HeqDom [HnEmpnew [Hcorr Hcorr']]]]].
       apply (WF_ec_Wf Rc' Vout) in HWF'' as HI.
       destruct HI as [HwfRc' HwfVout].
@@ -1494,8 +1503,10 @@ Proof.
          apply SRE.halts_weakening; auto; lia.
     -- exists <[unit]>; split; auto; reflexivity.
 Qed.
+*)
+Admitted.
 
-
+(*
 (** ---- *)
 
 
@@ -1534,9 +1545,9 @@ Proof.
          rewrite (TT_EqDom_new Rc R W) in * by (destruct HWF as [HIn [Hdisj _]]; auto).
          apply SRE.halts_weakening; auto; lia.
     -- exists <[unit]>; split; auto; reflexivity.
-  - now apply WF_in_ec_to_WF_ec.
+  - now apply WF_tt_to_WF_ec.
   - intros r HIn.
-    apply WF_in_ec_to_WF_ec in HWF.
+    apply WF_tt_to_WF_ec in HWF.
     apply WF_ec_Wf in HWF as H.
     destruct H as [HvRe HvV].
     destruct HltP as [P' [HmeT HvP']].
@@ -1550,6 +1561,6 @@ Proof.
        apply SRE.init_globals_in_unused.
        now rewrite <- SRE.init_globals_in_iff.
 Qed.
+*)
 
-End props. *)
 End temporal.
