@@ -29,17 +29,26 @@ Hypothesis put : resource * (option Λ) -> Λ.
 (** *** Well-formed environments-context *)
 
 Definition well_formed_tt (Rc : ℜ) (R : 𝐄) (W : 𝐖) :=
+  (* all ressources in the context are in the stock or the input environment or both *)
   (forall (r : resource), (r ∈ Rc)%rc <->  (r ∈ W)%sk \/ (r ∈ R)%sr) /\ 
+  (* the stock and the input environment are disjoint *)
   (forall (r : resource), ((r ∈ W)%sk -> (r ∉ R)%sr) /\ ((r ∈ R)%sr -> (r ∉ W)%sk)) /\
+  (* the context, the stock and the input environment are well-formed under themselves *)
   (Rc⁺ ⊩ Rc)%rc /\ (R⁺ ⊩ R)%sr /\ (W⁺ ⊩ W)%sk /\
+  (* all terms in the input environment are well-typed module shift application *)
   (forall (r : resource) (α : πΤ) (v : Λ), Rc⌊r⌋%rc = Some α -> R⌊r⌋%sr = Some v ->
           (∅)%vc ⋅ Rc ⊢ {Term.shift (R⁺)%sr ((max (R⁺)%sr (W⁺)%sk) - (R⁺)%sr) v} ∈ {snd α}) /\
+  (* all terms in the stock are well-typed and have the type form (𝟙,α), it is a "get" interaction *)
   (forall (r : resource) (α : πΤ) (v : Λ), Rc⌊r⌋%rc = Some α -> W⌊r⌋%sk = Some v ->
           (∅)%vc ⋅ Rc ⊢ v ∈ {snd α} /\ fst α = <[𝟙]>) /\
+  (* If the stock is empty then the new key of the stock is equal to the new key of the context *)
   (~ ST.Empty W -> (W⁺)%sk = (Rc⁺)%rc /\ (W⁺)%sk > (R⁺)%sr) /\
+  (* all writers are typed as (α,𝟙) *)
   (forall (r : resource) (α : πΤ), 
                     (r ∈ (ST.writers W))%rm -> Rc⌊r⌋%rc = Some α -> (snd α) = <[𝟙]>) /\ 
+  (* all readers in the stock are associated to a writer *)
   (forall r : resource, (r ∈ ST.readers W)%sr -> exists r' : resource, ((ST.writers W ⌊ r' ⌋)%rm = Some r))%type /\ 
+  (* the find function for writers is injective *)
   (forall (r r' v: resource), 
             ((snd W)⌊r⌋)%rm = Some v /\ ((snd W)⌊r'⌋)%rm = Some v -> r = r').
 
@@ -58,7 +67,7 @@ Definition well_formed_out_ec (Rc : ℜ) (R : o𝐄) (W : 𝐖) :=
             ((snd W)⌊r⌋)%rm = Some v /\ ((snd W)⌊r'⌋)%rm = Some v -> r = r').
 
 
-Notation "'WFᵢₙ(' Rc , R , W )" := (well_formed_tt Rc R W) (at level 50).
+Notation "'WFₜₜ(' Rc , R , W )" := (well_formed_tt Rc R W) (at level 50).
 Notation "'WFₒᵤₜ(' Rc , R , W )" := (well_formed_out_ec Rc R W) (at level 50).
 
 (** *** [puts] function *)
@@ -931,9 +940,10 @@ Proof.
          apply HeqDom in HIn as [|]; auto.
 Qed. 
   
-(*
+
 (** *** [well_formed_in_ec] properties *)
 
+(*
 Lemma WF_tt_empty_locals (Rc: ℜ) (R: 𝐄) :
   (
     (forall (r : resource), (r ∈ Rc)%rc <-> (r ∈ R)%sr) /\ 
@@ -942,7 +952,7 @@ Lemma WF_tt_empty_locals (Rc: ℜ) (R: 𝐄) :
                                              R⌊r⌋%sr = Some v -> (∅)%vc ⋅ Rc ⊢ v ∈ {snd α})
   ) 
   <-> 
-   WFᵢₙ(Rc, R, (∅)%sk).
+   WFₜₜ(Rc, R, (∅)%sk).
 Proof.
   split.
   - intros [HeqDom [HvRc [HvS Hwt]]].
@@ -1009,164 +1019,162 @@ Proof.
        }
        { rewrite ST.new_key_empty; lia. }
 Qed.
+*)
 
 #[export] Instance WF_in_eq : Proper (RContext.eq ==> SRE.eq ==> ST.eq ==> iff) well_formed_tt.
 Proof.
   intros Rc Rc1 HeqRe R R' HeqS W W' HeqW; split.
-  - intros [HeqDom [HDisj [HvRc [HvS [HvW [Hwt [Hgt [Hwt' [Hcorr Hinj]]]]]]]]].  
+  - intros [HeqDom [HDisj [HvRc [HvS [HvW [Hwt [Hwt' [Hgt [Hwt'' [Hcorr Hinj]]]]]]]]]].  
     split.
-    -- intro r; rewrite <- HeqS, <- HeqW, <- HeqRe; auto.
-    -- split.
-       + intro r; rewrite <- HeqS, <- HeqW; auto.
-       + split; try (now rewrite <- HeqRe).
-         split; try (now rewrite <- HeqS).
-         split; try (now rewrite <- HeqW).
-         split.
-         ++ intros r πα v.
-            rewrite <- HeqW.
-            rewrite <- HeqS.
-            rewrite <- HeqRe.
-            auto.
-         ++ split.
-            * intros HnEmp.
-              rewrite <- HeqW in HnEmp.
-              apply Hgt in HnEmp as [].
-              rewrite <- HeqW, <- HeqS, <- HeqRe; auto.
-            * split.
-              ** intros r πα. 
-                 rewrite <- HeqW.
-                 rewrite <- HeqRe.
-                 apply (Hwt' r πα).
-              ** split.
-                 { 
-                  intro r.
-                  rewrite <- HeqW.
-                  intro HIn.
-                  apply Hcorr in HIn as [r' Hfi].
-                  exists r'.
-                  now rewrite <- HeqW.
-                 }
-                 {
-                  intros r r' v [Hfi Hfi'].
-                  apply (Hinj _ _ v).
-                  now split; rewrite HeqW.
-                 }
-  - intros [HeqDom [HDisj [HvRc [HvS [HvW [Hwt [Hgt [Hwt' [Hcorr Hinj]]]]]]]]].  
+    { intro r; rewrite <- HeqS, <- HeqW, <- HeqRe; auto. }
     split.
-    -- intro r; rewrite HeqS, HeqW, HeqRe; auto.
-    -- split.
-       + intro r; rewrite HeqS, HeqW; auto.
-       + split; try (now rewrite HeqRe).
-         split; try (now rewrite HeqS).
-         split; try (now rewrite HeqW).
-         split.
-         ++ intros r πα v.
-            rewrite HeqW.
-            rewrite HeqS.
-            rewrite HeqRe.
-            auto.
-         ++ split.
-            * intro HnEmp.
-              rewrite HeqW in *.
-              apply Hgt in HnEmp.
-              now rewrite HeqS, HeqRe.
-            * split.
-              ** intros r πα. 
-                 rewrite HeqW.
-                 rewrite HeqRe.
-                 apply (Hwt' r πα).
-              ** split. 
-                 {
-                  intro r.
-                  rewrite HeqW.
-                  intro HIn.
-                  apply Hcorr in HIn as [r' Hfi].
-                  exists r'.
-                  now rewrite HeqW.
-                 }
-                 {
-                  intros r r' v [Hfi Hfi'].
-                  apply (Hinj _ _ v).
-                  now split; rewrite <- HeqW.
-                 }
+    { intro r; rewrite <- HeqS, <- HeqW; auto. }
+    split; try (now rewrite <- HeqRe).
+    split; try (now rewrite <- HeqS).
+    split; try (now rewrite <- HeqW).
+    split.
+    {
+      intros r πα v.
+      rewrite <- HeqW, <- HeqS, <- HeqRe.
+      apply Hwt.
+    }
+    split.
+    {
+      intros r πα v.
+      rewrite <- HeqW, <- HeqRe.
+      apply Hwt'.
+    }
+    split.
+    { 
+      intros HnEmp.
+      rewrite <- HeqW, <- HeqRe, <- HeqS. 
+      rewrite <- HeqW in HnEmp.
+      now apply Hgt.
+    }
+    split.
+    {
+      intros r πα. 
+      rewrite <- HeqW, <- HeqRe.
+      apply (Hwt'' r πα).
+    }
+    split.
+    { 
+      intro r.
+      rewrite <- HeqW.
+      intro HIn.
+      apply Hcorr in HIn as [r' Hfi].
+      exists r'.
+      now rewrite <- HeqW.
+    }
+    {
+      intros r r' v [Hfi Hfi'].
+      apply (Hinj _ _ v).
+      now split; rewrite HeqW.
+    }
+  - intros [HeqDom [HDisj [HvRc [HvS [HvW [Hwt [Hwt' [Hgt [Hwt'' [Hcorr Hinj]]]]]]]]]].  
+    split.
+    { intro r; rewrite HeqS, HeqW, HeqRe; auto. }
+    split.
+    { intro r; rewrite HeqS, HeqW; auto. }
+    split; try (now rewrite HeqRe).
+    split; try (now rewrite HeqS).
+    split; try (now rewrite HeqW).
+    split.
+    {
+      intros r πα v.
+      rewrite HeqW, HeqS, HeqRe.
+      apply Hwt.
+    }
+    split.
+    {
+      intros r πα v.
+      rewrite HeqW, HeqRe.
+      apply Hwt'.
+    }
+    split.
+    { 
+      intros HnEmp.
+      rewrite HeqW, HeqRe, HeqS. 
+      rewrite HeqW in HnEmp.
+      now apply Hgt.
+    }
+    split.
+    {
+      intros r πα. 
+      rewrite HeqW, HeqRe.
+      apply (Hwt'' r πα).
+    }
+    split.
+    { 
+      intro r.
+      rewrite HeqW.
+      intro HIn.
+      apply Hcorr in HIn as [r' Hfi].
+      exists r'.
+      now rewrite HeqW.
+    }
+    {
+      intros r r' v [Hfi Hfi'].
+      apply (Hinj _ _ v).
+      now split; rewrite <- HeqW.
+    }
 Qed.
-*)
 
 Lemma WF_tt_new (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
-  WFᵢₙ(Rc, R, W) -> (Rc⁺)%rc = max (R⁺)%sr (W⁺)%sk.
+  WFₜₜ(Rc, R, W) -> (Rc⁺)%rc = max (R⁺)%sr (W⁺)%sk.
 Proof.
   intros [HeqDom _].
   now apply TT_EqDom_new.
 Qed.
 
 Lemma WF_tt_Wf (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
-  WFᵢₙ(Rc, R, W) -> (Rc⁺ ⊩ Rc)%rc /\ (R⁺ ⊩ R)%sr /\ (W⁺ ⊩ W)%sk.
+  WFₜₜ(Rc, R, W) -> (Rc⁺ ⊩ Rc)%rc /\ (R⁺ ⊩ R)%sr /\ (W⁺ ⊩ W)%sk.
 Proof.
   intros [_ [_ [HwfRc [HwfS [HwfW _]]]]]; auto.
 Qed.
 
-(* Lemma WF_tt_to_WF_ec (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
-  WFᵢₙ(Rc, R, W) -> WF(Rc,init_input_env R W).
+Lemma WF_tt_to_WF_ec (Rc : ℜ) (R : 𝐄) (W : 𝐖) :
+  WFₜₜ(Rc, R, W) -> WF(Rc,init_input_env R W).
 Proof.
-  intros [HeqDom [HneqDom [HvRe [HvS [HvW [Hwt [HnInW HeqWw]]]]]]]; split.
+  intros [HeqDom [HneqDom [HvRe [HvS [HvW [Hwt [Hwt' [HnInW HeqWw]]]]]]]]; split.
   { intro x; rewrite <- init_input_env_in_iff; auto. }
   do 2 (split; auto).
   {
-   rewrite init_input_env_new_key.
-   unfold init_input_env.
-   apply ST.init_locals_Wf; split.
-   - destruct (ST.is_empty W) eqn:Heq.
-     -- apply ST.Empty_is_empty in Heq.
-        now apply ST.Wf_Empty.
-     -- rewrite <- ST.not_Empty_is_empty in Heq.
-        apply HnInW in Heq.
-        replace (Init.Nat.max (R⁺) (W⁺)%sk)%sr with (W⁺)%sk by lia.
-        assumption.
-   - apply SRE.init_globals_Wf.
-     destruct (ST.is_empty W) eqn:Heq.
-     -- apply ST.Empty_is_empty in Heq.
-        rewrite ST.new_key_Empty; auto.
-        replace (Init.Nat.max (R⁺) 0)%sr with (R⁺)%sr by lia.
-        replace (R⁺ - R⁺)%sr with 0 by lia.
-        rewrite SRE.shift_zero_refl; assumption.
-     -- rewrite <- ST.not_Empty_is_empty in Heq.
-        apply HnInW in Heq.
-        replace (Init.Nat.max (R⁺) (W⁺)%sk)%sr with (W⁺)%sk by lia.
-        apply SRE.shift_preserves_wf_2; auto; lia.
+   apply init_input_env_Wf; auto.
+   intro HnEmp.
+   now apply HnInW in HnEmp as [].
   }
   { 
-   intros r α β v Hfi HfV.
-   apply ST.init_locals_find_inp in HfV as H.
-   - destruct H as [v' Heq]; subst.
-     apply ST.init_locals_find_1 in HfV as [HfW | HfW].
-     -- simpl in *.
-        apply Hwt with (v := v') in Hfi as H.
-        destruct H as [_ HwtW].
-        apply HwtW in HfW; auto.
-     -- apply RM.init_writers_find in HfW as H.
-        destruct H as [HInW | HfS].
-        + apply HeqWw with (α := (α,β)) in HInW as Heq; auto.
-          simpl in *; subst.
-          rewrite RM.init_writers_in in HfW; auto.
-          inversion HfW; subst; constructor.
-        + rewrite SRE.init_globals_shift in HfS. 
-          apply RE.shift_find_e_1 in HfS as H.
-          destruct H as [[r' Heq] [d Heqd]]; subst.
-          destruct d as [t | t]; simpl in *; inversion Heqd; subst; clear Heqd.
-          replace (Cell.inp <[[⧐{(R ⁺)%sr} – {(max (R⁺)%sr (W⁺)%sk) - (R ⁺)%sr}] t]>)
-          with (Cell.shift (R⁺)%sr ((max (R⁺)%sr (W⁺)%sk) - (R⁺)%sr) (Cell.inp t)) 
-          in HfS by now simpl.
-          rewrite <- RE.shift_find_iff in HfS.
-          rewrite SRE.init_globals_find_iff in HfS.
-          rewrite Resource.shift_wf_refl in Hfi.
-          ++ apply Hwt with (v := t) in Hfi.
-              destruct Hfi as [HwtS _].
-              apply HwtS in HfS; auto.
-          ++ apply (SRE.Wf_find (R⁺)%sr) in HfS as [H _]; auto.
-   - intros r' HfS.
-     now apply SRE.init_globals_find_e in HfS.
+    intros r α β v Hfi HfV.
+    apply ST.init_locals_find_inp in HfV as H.
+    - destruct H as [v' Heq]; subst.
+      apply ST.init_locals_find_1 in HfV as [HfW | HfW].
+      -- simpl in *.
+         apply Hwt' with (v := v') in Hfi as H.
+          destruct H as [HwtW _]; auto.
+          now unfold ST.find.
+      -- apply RM.init_writers_find in HfW as H.
+          destruct H as [HInW | HfS].
+          + apply HeqWw with (α := (α,β)) in HInW as Heq; auto.
+            simpl in *; subst.
+            rewrite RM.init_writers_in in HfW; auto.
+            inversion HfW; subst; constructor.
+          + rewrite SRE.init_globals_shift in HfS. 
+            apply RE.shift_find_e_1 in HfS as H.
+            destruct H as [[r' Heq] [d Heqd]]; subst.
+            destruct d as [t | t]; simpl in *; inversion Heqd; subst; clear Heqd.
+            replace (Cell.inp <[[⧐{(R ⁺)%sr} – {(max (R⁺)%sr (W⁺)%sk) - (R ⁺)%sr}] t]>)
+            with (Cell.shift (R⁺)%sr ((max (R⁺)%sr (W⁺)%sk) - (R⁺)%sr) (Cell.inp t)) 
+            in HfS by now simpl.
+            rewrite <- RE.shift_find_iff in HfS.
+            rewrite SRE.init_globals_find_iff in HfS.
+            rewrite Resource.shift_wf_refl in Hfi.
+            ++ apply Hwt with (v := t) in Hfi; auto.
+            ++ apply (SRE.Wf_find (R⁺)%sr) in HfS as [H _]; auto.
+    - intros r' HfS.
+      now apply SRE.init_globals_find_e in HfS.
   }
-Qed. *)
+Qed.
 
 (** ---- *)
 
@@ -1178,18 +1186,20 @@ Hypothesis all_arrow_halting : forall Rc t α β,
 Theorem temporal_preserves_typing (Rc : ℜ) (R R': 𝐄) (W W' : 𝐖) (P P' : Λ) (Rs : resources) :
 
          halts (Rc⁺)%rc P -> SRE.halts (R⁺)%sr R -> ST.halts (W⁺)%sk W -> 
-                  WFᵢₙ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
+                       (forall r v, (R⁺)%sr ⊩ put (r,v))%tm ->
+
+                  WFₜₜ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
                       
                       ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ ->
   (* ------------------------------------------------------------------------ *)
        exists (Rc1 : ℜ) (Rs' : resources),
-          (Rs ⊆ Rs')%s /\ (Rc ⊆ Rc1)%rc /\ WFᵢₙ(Rc1,R',W') /\
+          (Rs ⊆ Rs')%s /\ (Rc ⊆ Rc1)%rc /\ WFₜₜ(Rc1,R',W') /\
           
           ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ Rs') /\ 
      
           halts (Rc1⁺)%rc P' /\ SRE.halts (R'⁺)%sr R' /\ ST.halts (W'⁺)%sk W'.
 Proof.
-  intros HltP HltS HltW HWF HwtP HTT.
+  intros HltP HltS HltW Hyput HWF HwtP HTT.
 
   assert (HnEmp: ~ ST.Empty W -> (W ⁺)%sk > (R ⁺)%sr).
   {
@@ -1199,12 +1209,6 @@ Proof.
   }
   apply temporal_W_props in HTT as HI; auto.
   destruct HI as [HinclW HnEmp'].
-  destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
-
-  (* clean *)
-  move Vout before R; move R' before R; move Wnew before W'; 
-  move _tv before P'; move fT before HwtP.
-  (* clean *)
 
   apply WF_tt_Wf in HWF as HI.
   destruct HI as [HwfRc [HwfS HwfW]].
@@ -1212,12 +1216,22 @@ Proof.
   destruct HI as [HwfP _].
   rewrite (WF_tt_new _ _ _ HWF) in HwfP.
 
+  apply temporal_preserves_Wf in HTT as HI; auto.
+  rewrite <- (WF_tt_new _ _ _ HWF) in HwfP.
+  destruct HI as [HwfS' [HwfW' HwfP']].
+  destruct HTT as [Vout [Wnew [_tv [fT [HeqS' HeqW']]]]].
+
   (* clean *)
+  move Vout before R; move R' before R; move Wnew before W'; 
+  move _tv before P'; move fT before HwtP;
   move HwfRc before Rs; move HwfS before HwfRc;
   move HwfW before HwfS; move HwfP before HwfW;
   move HeqS' before Rs; move HeqW' before HeqS';
-  move HnEmp before HnEmp'.
+  move HnEmp before HnEmp'; move HwfS' before HwfS;
+  move HwfW' before HwfW; move HwfP' before HwfP; move Hyput before Rs.
   (* clean *)
+
+
 
   (*
   apply temporal_preserves_Wf in HTT as HI; auto.
@@ -1515,7 +1529,7 @@ Admitted.
 Theorem temporal_progress (Rc : ℜ) (R : 𝐄) (W: 𝐖) (P : Λ) (R : resources) :
 
          halts (Rc⁺)%rc P -> SRE.halts (R⁺)%sr R -> ST.halts (W⁺)%sk W -> 
-                WFᵢₙ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) ->
+                WFₜₜ(Rc,R,W) -> ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ R) ->
   (* ------------------------------------------------------------------------ *)
        exists (R' : o𝐄) (P': Λ) (W': 𝐖), ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧.
 Proof.
