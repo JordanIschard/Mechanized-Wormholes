@@ -46,6 +46,15 @@ Definition init_locals (W : t) (V : 𝐕) : 𝐕 :=
 
   For each instant, the resource environment is updated at the end. Each local resources may have a new initial term for the next instant. We defined [update_locals] which takes a stock [W] and a resource environment [V] and produces a new stock.
 *)
+Definition update_func (wW: RM.t) (V : 𝐕) (r: resource) (v: Λ) :=
+  match RM.find_data wW r with
+    | None => v
+    | Some rw =>  match V⌊rw⌋ with
+                      Some (⩽ … v' ⩾) =>  v'
+                    | _ => v
+                  end
+  end.
+
 Definition update_readers_func (wW: RM.t) (V : 𝐕) (r: resource) (v: Λ) (rW: 𝐄) :=
   match RM.find_data wW r with
     | None => (⌈r ⤆ v⌉ rW)%sr
@@ -406,42 +415,52 @@ Proof.
     apply SRE.Wf_add; repeat split; auto.
     apply (RE.Wf_find k) in Hfi as []; auto.
 Qed.
-(* 
-Lemma update_readers_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
-  (update_readers W V)⌊r⌋%sr = Some v ->
-  (readers W)⌊r⌋%sr = Some v \/ V⌊r⌋%re = Some (Cell.out v).
+
+(*
+update_readers_func (wW: RM.t) (V : 𝐕) (r: resource) (v: Λ) (rW: 𝐄) 
+*)
+Lemma update_readers_find (r: resource) (v v': Λ) (V: 𝐕) (W: t) :
+  (readers W)⌊r⌋%sr = Some v ->
+  (update_readers W V)⌊r⌋%sr = Some v' ->
+
+  v' = update_func (writers W) V r v.
 Proof.
+  unfold update_func.
   destruct W as [rW wW]; simpl.
-  revert r v. 
-  induction rW using SRE.map_induction; intros r v Hfi.
-  - rewrite update_readers_Empty_eq in Hfi; auto.
-    inversion Hfi.
-  - rewrite (update_readers_Add x e rW1) in Hfi; auto. 
-    unfold SRE.Add in H0; rewrite H0 in *; clear H0.
-    unfold update_readers_func in Hfi.
-    destruct (RM.find_data wW x) eqn:Hfd.
-    + destruct ((V ⌊r0⌋)%re) eqn:Hfi'.
-      ++ destruct r1 as [v' | v'].
-         * destruct (Resource.eq_dec r x) as [| Hneq]; subst.
-           ** left.
-              rewrite SRE.add_eq_o in *; auto.
-           ** rewrite SRE.add_neq_o in *; auto.
-         * destruct (Resource.eq_dec r x) as [| Hneq]; subst.
-           ** right.
-              rewrite SRE.add_eq_o in *; auto.
-              inversion Hfi; subst.
-           ** rewrite SRE.add_neq_o in *; auto.
-       + rewrite (update_readers_add_some_out _ _ v') in Hfi; auto.
-         destruct (Resource.eq_dec r x) as [| Hneq]; subst.
-         ++ rewrite add_eq_o in Hfi; auto.
-            inversion Hfi; subst; auto.
-         ++ rewrite add_neq_o in *; auto.
-    -- rewrite update_readers_add_none in Hfi; auto.
-       destruct (Resource.eq_dec r x) as [| Hneq]; subst.
-       + left.
-         rewrite add_eq_o in *; auto.
-       + rewrite add_neq_o in *; auto.
-Qed.  *)
+  revert r v v' wW.
+  induction rW using SRE.map_induction. 
+  - intros r v v' wW Hfi Hfi'.
+    exfalso.
+    apply (H r v).
+    now apply SRE.find_2.
+  - intros r v v' wW Hfi Hfi'.
+    rewrite (update_readers_Add x e rW1 rW2) in Hfi'; auto.
+    destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- unfold SRE.Add in H0; rewrite H0 in Hfi; clear H0.
+       rewrite SRE.add_eq_o in Hfi; auto; inversion Hfi; subst. 
+       unfold update_readers_func in Hfi'.
+       destruct (RM.find_data wW r).
+       + destruct (V⌊r0⌋).
+         ++ destruct r1.
+            * rewrite SRE.add_eq_o in Hfi'; auto. 
+              inversion Hfi'; auto.
+            * rewrite SRE.add_eq_o in Hfi'; auto.
+              inversion Hfi'; auto.
+         ++ rewrite SRE.add_eq_o in Hfi'; auto. 
+            inversion Hfi'; auto.
+       + rewrite SRE.add_eq_o in Hfi'; auto. 
+         inversion Hfi'; auto.
+    -- unfold SRE.Add in H0; rewrite H0 in Hfi; clear H0.
+       rewrite SRE.add_neq_o in Hfi; auto.
+       unfold update_readers_func in Hfi'.
+       destruct (RM.find_data wW x).
+       + destruct (V⌊r0⌋).
+         ++ destruct r1.
+            * rewrite SRE.add_neq_o in Hfi'; auto.
+            * rewrite SRE.add_neq_o in Hfi'; auto.
+         ++ rewrite SRE.add_neq_o in Hfi'; auto.
+       + rewrite SRE.add_neq_o in Hfi'; auto.
+Qed. 
 
 (** **** [update_locals] properties *)
 
@@ -483,14 +502,25 @@ Proof.
   apply update_readers_Wf; auto.
 Qed.
 
-(* Lemma update_locals_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
+Lemma update_locals_find (r: resource) (v: Λ) (V: 𝐕) (W: t) :
   find r (update_locals W V) = Some v ->
-  find r W = Some v \/ V⌊r⌋%re = Some (Cell.out v).
+  exists v',
+    (readers W)⌊r⌋%sr = Some v' /\
+    v = update_func (writers W) V r v'.
 Proof.
   unfold find, update_locals.
   destruct W as [rW wW]; simpl.
-  apply SRE.update_readers_find.
-Qed. *)
+  intro Hfi.
+  assert (HIn: (r ∈ readers (rW,wW))%sr).
+  { 
+    rewrite <- (update_readers_in_iff _ _ V). 
+    exists v; now apply SRE.find_2. 
+  }
+  destruct HIn as [v' Hfi'].
+  apply SRE.find_1 in Hfi'.
+  exists v'; split; auto.
+  apply (update_readers_find _ v') in Hfi; auto.
+Qed.
 
 (* Lemma update_locals_union (r: resource) (v: Λ) (V: 𝐕) (W W': t) :
   find r (update_locals (union W W') V) = Some v <->
