@@ -1,7 +1,7 @@
 From Coq Require Import Classes.Morphisms Lia.
 From DeBrLevel Require Import LevelInterface Level OptionLevel.
-From Mecha Require Import Var Resource Typ.
-Import VarNotations ResourceNotations TypNotations.
+From Mecha Require Import Var Resource.
+Import VarNotations ResourceNotations.
 
 
 (** * Syntax - Term
@@ -15,7 +15,6 @@ Module Term <: IsLvlDTWL.
 (** *** Definitions *)
 
 Open Scope resource_scope.
-Open Scope typ_scope.
 
 (** **** Type 
 
@@ -129,7 +128,7 @@ Inductive value : t -> Prop :=
   | v_rsf (r : resource) : value (tm_rsf r)
   | v_abs (x : variable) (t : t) : value (tm_abs x t)
 
-  | v_arr   (v : t) : value v -> value (tm_arr v)
+  | v_arr   (v : t) : (* value v -> *) value (tm_arr v)
   | v_first (v : t) : value v -> value (tm_first v)
 
   | v_pair (v1 v2 : t) : value v1 -> value v2 -> value (tm_pair v1 v2)

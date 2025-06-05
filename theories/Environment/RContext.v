@@ -115,6 +115,23 @@ Proof.
     -- unfold Add; reflexivity.
 Qed.
 
+Lemma new_key_in_remove_1 (x: lvl) (t: t) :
+  In x t -> new_key t = max (S x) (new_key (remove x t)).
+Proof.
+  intros HIn.
+  apply new_key_in in HIn as Hlt.
+  assert (HIn': In x t) by assumption.
+  destruct HIn as [v Hfi].
+  apply find_1 in Hfi.
+  apply add_id in Hfi.
+  rewrite <- Hfi.
+  rewrite <- add_remove_1 at 1.
+  assert (HnIn: ~ In x (remove x t)).
+  - rewrite remove_in_iff; intros []; auto.
+  - rewrite new_key_add_max.
+    rewrite remove_add_1; lia.
+Qed.
+
 (** **** specific Wormholes properties *)
 
 Lemma Submap_wh (m : t) (v v' : πΤ) :

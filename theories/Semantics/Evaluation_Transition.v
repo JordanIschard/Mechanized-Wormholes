@@ -151,11 +151,11 @@ Inductive evaluate : lvl -> Λ -> Λ -> Prop :=
       (* ------------------------------- ET-Comp2 *)
              k ⊨ v >>> t ⟼ v >>> t'
 
-  | eT_arr (k : lvl) (t t' : Λ) :
+  (* | eT_arr (k : lvl) (t t' : Λ) :
 
                k ⊨ t ⟼ t' -> 
       (* ------------------------- ET-Arr *)
-           k ⊨ arr(t) ⟼ arr(t')
+           k ⊨ arr(t) ⟼ arr(t') *)
 
   | eT_first (k : lvl) (t t' : Λ) :
                 
@@ -276,7 +276,7 @@ Proof.
   - now inversion Hvt; subst; inversion H4; subst.
 Qed.
 
-Lemma evaluate_wf_weakening_gen (lb k m n : lvl) (t t' : Λ) :
+Lemma evaluate_subst_gen (lb k m n : lvl) (t t' : Λ) :
   lb <= k -> m <= lb -> n <= k -> m <= n -> k - lb = n - m ->
   lb ⊨ t ⟼ t' -> k ⊨ ([⧐ m – {n - m}] t) ⟼ ([⧐ m – {n - m}] t').
 Proof.
@@ -292,10 +292,10 @@ Proof.
   - constructor; try (now rewrite <- Term.shift_value_iff); apply IHeT; lia.
 Qed.
 
-Corollary evaluate_wf_weakening (m n : lvl) (t t' : Λ) :
+Corollary evaluate_subst (m n : lvl) (t t' : Λ) :
   m <= n ->
   m ⊨ t ⟼ t' -> n ⊨ ([⧐ m – {n - m}] t) ⟼ ([⧐ m – {n - m}] t').
-Proof. intros; now apply evaluate_wf_weakening_gen with (lb := m). Qed.
+Proof. intros; now apply evaluate_subst_gen with (lb := m). Qed.
 
 
 (** *** [multi] properties
@@ -312,6 +312,7 @@ Proof.
   eapply rt1n_trans; eauto. 
   now apply IHHmeT.
 Qed.
+
 
 Hint Constructors clos_refl_trans_1n : core.
 Hint Resolve multi_refl multi_trans : core.
@@ -443,7 +444,7 @@ Proof.
   - apply rt1n_trans with <[snd.y]>; auto. 
 Qed.
 
-Lemma multi_arr (k : lvl) (t t' : Λ) : 
+(* Lemma multi_arr (k : lvl) (t t' : Λ) : 
 
             k ⊨ t ⟼⋆ t' -> 
   (* --------------------------- MET-Arr *)
@@ -452,7 +453,7 @@ Proof.
   intro HeT; induction HeT; subst; auto.
   - reflexivity.
   - apply rt1n_trans with <[arr(y)]>; auto. 
-Qed.
+Qed. *)
 
 Lemma multi_first (k : lvl) (t t' : Λ) : 
  
@@ -510,19 +511,42 @@ Proof.
     apply (IHHeT k); auto.
 Qed.
 
-Theorem multi_evaluate_wf_weakening_gen (lb k m n : lvl) (t t' : Λ) :
+Theorem multi_evaluate_subst_gen (lb k m n : lvl) (t t' : Λ) :
   lb <= k -> m <= lb -> n <= k -> m <= n -> k - lb = n - m ->
   lb ⊨ t ⟼⋆ t' -> k ⊨ ([⧐ m – {n - m}] t) ⟼⋆ ([⧐ m – {n - m}] t').
 Proof.
   intros; induction H4; try now constructor.
   eapply rt1n_trans with (y := <[[⧐ m – {n - m}] y ]>); auto.
-  eapply evaluate_wf_weakening_gen with (lb := lb); auto.
+  eapply evaluate_subst_gen with (lb := lb); auto.
 Qed.
 
-Corollary multi_evaluate_wf_weakening (m n : lvl) (t t' : Λ) :
+Corollary multi_evaluate_subst (m n : lvl) (t t' : Λ) :
   m <= n ->
   m ⊨ t ⟼⋆ t' -> n ⊨ ([⧐ m – {n - m}] t) ⟼⋆ ([⧐ m – {n - m}] t').
-Proof. intros; now apply multi_evaluate_wf_weakening_gen with (lb := m). Qed.
+Proof. intros; now apply multi_evaluate_subst_gen with (lb := m). Qed.
+
+Lemma eT_to_MeT (k : lvl) (t t' : Λ) : 
+  k ⊨ t ⟼ t' -> k ⊨ t ⟼⋆ t'.
+Proof.
+  intro eT; induction eT.
+  - now apply multi_appv.
+  - now apply multi_app1.
+  - now apply multi_app2.
+  - now apply multi_fix.
+  - now apply multi_fix1.
+  - now apply multi_pair1.
+  - now apply multi_pair2.
+  - now apply multi_fst1.
+  - now apply multi_fstv.
+  - now apply multi_snd1.
+  - now apply multi_sndv.
+  - now apply multi_comp1. 
+  - now apply multi_comp2.
+  (* - now apply multi_arr.  *)
+  - now apply multi_first. 
+  - now apply multi_wh1. 
+  - now apply multi_wh2.
+Qed.  
 
 (** *** [halts] property *)
 
@@ -555,7 +579,7 @@ Lemma halts_weakening (m n : lvl) (t : Λ) :
 Proof.
   unfold halts; intros. destruct H0 as [t' [HeT Hvt']].
   exists <[[⧐ m – {n - m}] t']>; split.
-  - eapply multi_evaluate_wf_weakening_gen; eauto.
+  - eapply multi_evaluate_subst_gen; eauto.
   - now apply Term.shift_value_iff.
 Qed.
 
@@ -819,8 +843,8 @@ Proof.
   - apply IHt in H2 as H2'; destruct H2'; right.
     -- inversion H; subst; inversion H2; subst; exists v2; now constructor. 
     -- destruct H; exists (Term.tm_snd x); now constructor.
-  - apply IHt in H2 as H2'; destruct H2' as [Hvt | [t' HeT']]; 
-    try (left; now constructor); right; exists <[arr(t')]>; now constructor.
+  (* - apply IHt in H2 as H2'; destruct H2' as [Hvt | [t' HeT']];  *)
+    (* try (left; now constructor); right; exists <[arr(t')]>; now constructor. *)
   - apply IHt in H0 as H0'; destruct H0' as [Hvt | [t' HeT']]; 
     try (left; now constructor); right; exists <[first(t')]>; now constructor.
   - apply IHt1 in H1 as H1'; apply IHt2 in H5 as H5';
@@ -836,4 +860,15 @@ Proof.
        rewrite RC.new_key_wh in HeT2'; auto.
     -- exists <[wormhole(t1';t2)]>; now constructor.
     -- exists <[wormhole(t1';t2)]>; now constructor.
+Qed.
+
+Corollary progress_of_multi_evaluation (Re : ℜ) (t : Λ) (τ : Τ) :
+  (∅)%vc ⋅ Re ⊢ t ∈ τ ->  exists t', Re⁺ ⊨ t ⟼⋆ t'.
+Proof.
+  intro Hwt.
+  apply progress_of_evaluate in Hwt as [Hvt | [t' HeT]].
+  - exists t.
+    reflexivity.
+  - exists t'.
+    now apply eT_to_MeT.
 Qed.

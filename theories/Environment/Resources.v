@@ -1,5 +1,5 @@
 From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Resource.
+From Mecha Require Import Resource .
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
 Import ResourceNotations.
 
@@ -23,6 +23,7 @@ Import St.
 *)
 Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
+
 
 (** *** Properties *)
 

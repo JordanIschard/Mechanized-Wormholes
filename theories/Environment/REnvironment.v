@@ -623,9 +623,9 @@ Proof.
   - repeat split; try (unfold Resource.Wf; lia). 
     -- apply Cell.Wf_weakening with (k := new_key V); auto.
     -- replace (S (S (new_key V))) with ((new_key V) + 2) by lia. 
-       now apply Cell.shift_preserves_wf_1.
+       now apply Cell.shift_preserves_wf.
     -- replace (S (S (new_key V))) with ((new_key V) + 2) by lia. 
-       now apply shift_preserves_wf_1.  
+       now apply shift_preserves_wf.  
   - apply new_key_notin; auto; rewrite shift_new_refl; auto.
   - apply new_key_notin; rewrite new_key_add_l; auto.
     rewrite shift_new_refl; auto.
