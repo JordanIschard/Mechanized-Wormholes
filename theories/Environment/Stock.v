@@ -512,6 +512,51 @@ Proof.
        + eapply IHW; eauto.
 Qed.
 
+Lemma init_locals_find_W r v V W :
+  (r ∉ V)%re ->
+  (init_locals W V)⌊r⌋%re = Some (Cell.inp v) -> 
+  exists r', 
+  (In (r,r',v) W \/ (exists v', In (r',r,v') W /\ v = Term.tm_unit)).
+Proof.
+  revert r v.
+  induction W; intros r v HnIn Hfi; simpl in *.
+  - exfalso; apply HnIn.
+    exists (Cell.inp v); now apply REnvironment.find_2.
+  - destruct a as [[rg rs] v'].
+    destruct (Resource.eq_dec r rg); subst.
+    -- rewrite REnvironment.add_eq_o in Hfi; auto.
+       inversion Hfi; subst.
+       exists rs; auto.
+    -- rewrite REnvironment.add_neq_o in Hfi; auto.
+       destruct (Resource.eq_dec r rs); subst.
+       + rewrite REnvironment.add_eq_o in Hfi; auto.
+         exists rg; right.
+         exists v'; split; auto.
+         inversion Hfi; reflexivity.
+       + rewrite REnvironment.add_neq_o in Hfi; auto.
+         apply IHW in Hfi; auto.
+         destruct Hfi as [r' [HIn| [v'' [HIn Heq]]]].
+         ++ exists r'; auto.
+         ++ subst.
+            exists r'; right.
+            exists v''; auto.
+Qed.
+
+Lemma init_locals_find_V r c V W :
+  ~(In r (keys W)) ->
+  (init_locals W V)⌊r⌋%re = Some c -> 
+  V⌊r⌋%re = Some c.
+Proof.
+  intros; induction W; simpl in *; auto.
+  destruct a as [[rg rs] v'].
+  apply IHW; auto.
+  - intro; apply H; simpl; auto.
+  - rewrite REnvironment.add_neq_o in H0.
+    -- rewrite REnvironment.add_neq_o in H0; auto.
+       intro; subst; apply H; simpl; auto.
+    -- intro; subst; apply H; simpl; auto.
+Qed.
+
 End Stock.
 
 Module StockNotations.

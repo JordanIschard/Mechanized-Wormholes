@@ -1,4 +1,4 @@
-From Coq Require Import Lia Morphisms Lists.List FinFun.
+From Coq Require Import Lia Morphisms Lists.List FinFun Program.
 From Mecha Require Import Resource Resources Term Typ Cell VContext RContext  
                           Type_System Evaluation_Transition  REnvironment Stock.
 Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
@@ -760,10 +760,146 @@ Proof.
     }
 Qed. 
 
+Definition isvalueof (n : lvl) (t v : Λ) := n ⊨ t ⟼⋆ v /\ Term.value v.
 
 
+Lemma isvalueof_eT (n : lvl) (t t' : Λ) (v : Λ) :
+  n ⊨ t ⟼ t' -> isvalueof n t v -> isvalueof n t' v.
+Proof.
+  intros HeT [HmeT Hv].
+  split; auto.
+  revert t' HeT Hv.
+  induction HmeT; intros.
+  - apply evaluate_not_value in HeT; contradiction.
+  - eapply evaluate_deterministic in H; eauto; subst; auto.
+Qed.
+
+Lemma isvalueof_eT' (n : lvl) (t t' : Λ) (v : Λ) :
+  n ⊨ t ⟼ t' -> isvalueof n t' v -> isvalueof n t v.
+Proof.
+  intros HeT [HmeT Hv].
+  split; auto.
+  transitivity t'; auto.
+  now apply eT_to_MeT.
+Qed.
+
+
+Lemma isvalueof_first (n : lvl) (t v : Λ) :
+  isvalueof n <[first(t)]> <[first(v)]> -> isvalueof n t v.
+Proof.
+  intros [HmeT Hvt]; inversion Hvt; subst.
+  split; auto.
+  clear Hvt.
+  dependent induction HmeT; subst; auto.
+  - reflexivity.
+  - inversion H; subst.
+    transitivity t'; auto.
+    now apply eT_to_MeT.
+Qed.
+
+Lemma isvalueof_first' (n : lvl) (t v : Λ) :
+  isvalueof n t v -> isvalueof n <[first(t)]> <[first(v)]>.
+Proof.
+  intros [HmeT Hvt]; split; auto.
+  now apply multi_first.
+Qed.
+
+Lemma isvalueof_wh (n : lvl) (i t v : Λ) :
+  halts n i ->
+  isvalueof (S (S n)) t v -> 
+  exists v', isvalueof n i v' /\ isvalueof n <[wormhole(i;t)]> <[wormhole(v';v)]>.
+Proof.
+  intros [v' [HmeT' Hv']] [HmeT Hv].
+  exists v'.
+  split; split; auto.
+  transitivity <[wormhole(v';t)]>.
+  - now apply multi_wh1.
+  - now apply multi_wh2.
+Qed.
+
+Inductive alt_wt : ℜ -> Λ -> Τ -> list (ℜ * Λ * Τ * Τ) -> Prop :=
+  | awt_arr (Re : ℜ) (t : Λ) (α β : Τ) :
+
+            ∅%vc ⋅ Re ⊢ t ∈ (α → β) -> 
+         alt_wt Re <[arr(t)]> <[α ⟿ β ∣ ∅%s]> [(Re,t,α,β)]
+
+  | awt_first (Re : ℜ) (R : resources) (t : Λ) (α β τ : Τ) l :
+
+         alt_wt Re t <[α ⟿ β ∣ R]> l  ->
+         alt_wt Re <[first(t)]> <[(α × τ) ⟿ (β × τ) ∣ R]> l
+
+  | awt_comp (Re : ℜ) (R R1 R2 : resources) (t1 t2 : Λ) (α β τ : Τ) l1 l2 :
+
+         alt_wt Re t1 <[α ⟿ τ ∣ R1]> l1 -> (R = (R1 ∪ R2))%s -> 
+         alt_wt Re t2 <[τ ⟿ β ∣ R2]> l2 ->
+         alt_wt Re <[t1 >>> t2]> <[α ⟿ β ∣ R]> (List.app l1 l2)
+
+  | awt_rsf (Re : ℜ) (r : resource) (τin τout : Τ) :
+
+              Re ⌊r⌋%rc = Some (τin,τout) ->
+         alt_wt Re <[rsf[r]]> <[τin ⟿ τout ∣ \{{r}}]> nil
+
+  | awt_wh (Re : ℜ) (R R' : resources) (t1 t2 : Λ) (α β τ : Τ) l1 l2 :
+
+         (R = R' \ \{{ (Re⁺)%rc; (S (Re⁺)%rc) }})%s -> 
+
+         alt_wt Re t1 τ l1 ->
+         alt_wt (⌈(S (Re⁺)) ⤆ (τ,<[𝟙]>)⌉ (⌈Re⁺ ⤆ (<[𝟙]>,τ)⌉ Re))%rc t2 <[α ⟿ β ∣ R']> l2 ->
+    (* -------------------------------------------------------------------------------- WT-Wh *)
+        alt_wt Re <[wormhole(t1;t2)]> <[α ⟿ β ∣ R]> (List.app l1 l2).
+
+Definition all_arrow_halting (Rc : ℜ) (t : Λ) (τ : Τ) :=
+  forall v, isvalueof (Rc⁺)%rc t v ->
+  forall l, alt_wt Rc v τ l -> 
+  forall Rc' t' α β, List.In (Rc',t',α,β) l -> 
+  forall v', ∅%vc ⋅ Rc' ⊢ v' ∈ α -> halts (Rc'⁺)%rc <[t' v']>.
+
+Lemma all_arrow_halting_eT (Rc : ℜ) (t t' : Λ) (τ : Τ) :
+  (Rc⁺)%rc ⊨ t ⟼ t' -> all_arrow_halting Rc t τ -> all_arrow_halting Rc t' τ.
+Proof.
+  intros HeT Harrlt v Hivo l Hawt Rc' t1 ty ty' HIn v' Hwt.
+  apply isvalueof_eT' with (t := t) in Hivo; auto.
+  apply Harrlt in Hivo.
+  apply Hivo with (v' := v') in HIn; auto.
+Qed.
+
+Lemma all_arrow_halting_first (Rc : ℜ) (t : Λ) (ty ty1 ty' : Τ) R :
+  all_arrow_halting Rc <[ first( t) ]> <[ ty × ty1 ⟿ ty' × ty1 ∣ R ]> ->
+  all_arrow_halting Rc t <[ ty ⟿ ty' ∣ R ]>.
+Proof.
+  intros Harrlt v Hivo l Halt Rc' t' α β HIn v' Hwt.
+  apply isvalueof_first' in Hivo.
+  apply Harrlt in Hivo.
+  apply Hivo with (v' := v') in HIn; auto.
+  now constructor.
+Qed.
+
+Lemma all_arrow_halting_wh (Rc : ℜ) (i t : Λ) (τ ty ty' : Τ) R :
+  halts (Rc ⁺)%rc i ->
+  all_arrow_halting Rc <[ wormhole( i; t) ]> 
+                       <[ ty ⟿ ty' ∣ (R \ \{{ (Rc ⁺)%rc; S (Rc ⁺)%rc}})%s ]> ->
+  all_arrow_halting (⌈ S (Rc ⁺) ⤆ (τ, <[ 𝟙 ]>) ⌉ (⌈ Rc ⁺ ⤆ (<[ 𝟙 ]>, τ) ⌉ Rc))%rc t 
+                    <[ ty ⟿ ty' ∣ R]>.
+Proof.
+  intros Hlt Harrlt v Hivo l Hawt Rc' t' α β HIn v' Hwt.
+  unfold all_arrow_halting in Harrlt.
+  rewrite RC.new_key_wh in Hivo.
+  eapply isvalueof_wh in Hivo as [v'' [Hivo' Hivo'']]; eauto.
+  specialize (Harrlt <[wormhole( v''; v)]> Hivo'').
+  assert (Hawt' : exists l', alt_wt Rc v'' τ l').
+  { admit. }
+  destruct Hawt' as [l' Hawt'].
+  specialize (Harrlt (l'++l)).
+  destruct Harrlt with (Rc' := Rc') (t' := t') (α := α) (β := β) (v' := v'); auto.
+  - econstructor; eauto; reflexivity.
+  - apply in_or_app; auto.
+  - exists x; auto.
+Admitted.
+
+
+(* 
 Hypothesis all_arrow_halting : forall Rc t α β,
-  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
+  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>. *)
 
 (** *** Typing preservation through functional transition
 
@@ -786,6 +922,7 @@ Hypothesis all_arrow_halting : forall Rc t α β,
   Theorem functional_preserves_typing_gen (Rc : ℜ) (V V1 : 𝐕) (W : 𝐖) (st st' t t' : Λ) 
                                                                       (α β : Τ) (R : resources) :
 
+                all_arrow_halting Rc t <[α ⟿ β ∣ R]> ->
                 fT_inputs_halts (Rc⁺)%rc V st t ->
 
            (* (4) *) ∅%vc ⋅ Rc ⊢ t ∈ (α ⟿ β ∣ R) -> (* (5) *) ∅%vc ⋅ Rc ⊢ st ∈ α -> 
@@ -823,8 +960,8 @@ Hypothesis all_arrow_halting : forall Rc t α β,
           (* (14) *) (forall (r : resource), (r ∈ (R' \ R))%s -> (In r (ST.keys W)) /\ (r ∉ V)) /\
           (* (15) *) (forall (r : resource), (r ∈ R')%s -> RE.used r V1).
 Proof.
-  intros Hltinp Hwt Hwtst fT; revert Rc R α β Hltinp Hwt Hwtst.
-  induction fT; intros Rc R γ β Hltinp Hwt Hwst HWF;
+  intros Harrlt Hltinp Hwt Hwtst fT; revert Rc R α β Harrlt Hltinp Hwt Hwtst.
+  induction fT; intros Rc R γ β Harrlt Hltinp Hwt Hwst HWF;
   
   apply WF_ec_Wf in HWF as HvRc; destruct HvRc as [HvRc HvV];
   apply WF_ec_new in HWF as Hnew;
@@ -834,12 +971,13 @@ Proof.
   - 
     (* clean *)
     move Rc before W; move R before Rc; move γ before R; move β before γ; move fT after IHfT;
-    rename fT into HfT; rename H into HeT; move HeT after HfT; clear all_arrow_halting.
+    rename fT into HfT; rename H into HeT; move HeT after HfT.
     (* clean *)
 
     rewrite <- Hnew in HeT.
     apply evaluate_preserves_typing with (t' := t') in Hwt as Hwt'; auto.
     apply fT_inputs_halts_eT_r with (t2' := t') in Hltinp; auto.
+    apply all_arrow_halting_eT with (t' := t') in Harrlt; auto.
     
   (* fT_eT_sv *)
   - 
@@ -880,7 +1018,10 @@ Proof.
     (** Outputs of the functional transition halt thanks to the hypothesis [all_arrow_halting]. *)
     {
       apply fT_outputs_halts_arr; auto.
-      apply (all_arrow_halting _ _ γ β); auto.
+      eapply Harrlt with (v := <[arr(t)]>) (l := [(Rc,t,γ,β)]) (β := β) (Rc' := Rc); eauto.
+      - constructor; auto; reflexivity.
+      - now constructor.
+      - simpl; auto.
     }
     split.
     (** The output value is well-typed. *)
@@ -934,6 +1075,7 @@ Proof.
       now apply RC.Ext.new_key_Submap.
     }
     do 2 (split; auto).
+    apply all_arrow_halting_first in Harrlt; auto.
     
   (* fT_comp *)
   -
@@ -1161,6 +1303,13 @@ Proof.
       rewrite Hlcl2 in HfiV1; auto; simpl in *.
       now apply (RE.used_find _ <[[⧐{V1 ⁺} – {V2 ⁺ - V1 ⁺}] v]>%tm).
     }
+    {
+      intros v Hivo.
+      admit.
+    }
+    {
+      admit.
+    }
 
   (* fT_rsf *)
   -
@@ -1346,7 +1495,11 @@ Proof.
            + rewrite Hnew.
              apply RE.Ext.new_key_notin; auto.
     }
-Qed.
+    {
+      eapply all_arrow_halting_wh; eauto.
+      admit.
+    }
+Admitted.
 
 (** ---- *)
 
