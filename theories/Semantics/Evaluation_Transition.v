@@ -292,12 +292,93 @@ Proof.
   - constructor; try (now rewrite <- Term.shift_value_iff); apply IHeT; lia.
 Qed.
 
+
 Corollary evaluate_subst (m n : lvl) (t t' : Λ) :
   m <= n ->
   m ⊨ t ⟼ t' -> n ⊨ ([⧐ m – {n - m}] t) ⟼ ([⧐ m – {n - m}] t').
 Proof. intros; now apply evaluate_subst_gen with (lb := m). Qed.
 
+Lemma evaluate_shift_e_gen (lb k m n : lvl) (t t' : Λ) :
+  lb <= k -> n <= lb -> m <= k -> n <= m -> k - lb = m - n ->
+  k ⊨ ([⧐ n – {m - n}] t) ⟼ t' -> 
+  exists t1, lb ⊨ t ⟼ t1 /\ t' = <[[⧐ n – {m - n}] t1]>.
+Proof.
+  revert lb k m n t'; induction t; 
+  intros lb k m n t' Hle Hle1 Hle2 Hle3 Heq HeT;
+  try (now inversion HeT).
+  - simpl in *; inversion HeT; subst.
+    -- destruct t1; try inversion H; subst.
+       exists <[[x0 := t2 ~ lb] t1]>.
+       split.
+       + rewrite <- Term.shift_value_iff in H3.
+         constructor; auto.
+       + rewrite subst_shift; auto.
+         replace (lb + (m - n)) with k by lia.
+         reflexivity.
+    -- apply IHt1 with (lb := lb) in H3  as [t1'' [HeT']]; auto; subst.
+       exists <[t1'' t2]>; split.
+       + now constructor.
+       + simpl; auto.
+    -- rewrite <- Term.shift_value_iff in H2.
+       apply IHt2 with (lb := lb) in H4 as [t2'' [HeT']]; auto; subst.
+       exists <[t1 t2'']>; split; auto.
+  - simpl in *.
+    inversion HeT; subst.
+    -- apply IHt1 with (lb := lb) in H3 as [t1'' [HeT']]; auto; subst.
+       exists <[⟨t1'',t2⟩]>; split; auto.
+    -- rewrite <- Term.shift_value_iff in H2.
+       apply IHt2 with (lb := lb) in H4 as [t2'' [HeT']]; auto; subst.
+       exists <[⟨t1,t2''⟩]>; split; auto.
+  - simpl in *.
+    inversion HeT; subst.
+    -- destruct t; try inversion H1; subst.
+       exists <[[x := {Term.tm_fix <[\x, t ]>} ~ lb] t]>; split.
+       + constructor; auto.
+       + rewrite subst_shift; auto.
+         replace (lb + (m - n)) with k by lia.
+         reflexivity.
+    -- apply IHt with (lb := lb) in H1 as [t'' [HeT']]; auto; subst.
+       exists (Term.tm_fix t''); split; auto.
+  - inversion HeT; subst.
+    -- apply IHt with (lb := lb) in H1 as [t'' [HeT']]; auto; subst.
+       exists (Term.tm_fst t''); split; auto.
+    -- destruct t; inversion H; subst.
+       rewrite <- Term.shift_value_iff in H0,H2.
+       exists t1; split; auto.       
+  - inversion HeT; subst.
+    -- apply IHt with (lb := lb) in H1 as [t'' [HeT']]; auto; subst.
+       exists (Term.tm_snd t''); split; auto.
+    -- destruct t; inversion H; subst.
+       rewrite <- Term.shift_value_iff in H0,H2.
+       exists t2; split; auto.
+  - simpl in *; inversion HeT; subst.
+    apply IHt with (lb := lb) in H1 as [t'' [HeT']]; auto; subst.
+    exists <[first(t'')]>; split; auto.
+  - simpl in *; inversion HeT; subst.
+    -- apply IHt1 with (lb := lb) in H3 as [t1'' [HeT']]; auto; subst.
+       exists <[t1'' >>> t2]>; split; auto.
+    -- rewrite <- Term.shift_value_iff in H2.
+       apply IHt2 with (lb := lb) in H4 as [t2'' [HeT']]; auto; subst.
+       exists <[t1 >>> t2'']>; split; auto.
+  - simpl in *; inversion HeT; subst.
+    -- apply IHt1 with (lb := lb) in H3 as [t1'' [HeT']]; auto; subst.
+       exists <[wormhole(t1'';t2)]>; split; auto.
+    -- apply IHt2 with (lb := S (S lb)) in H4 as [t2'' [HeT']]; 
+       auto; subst; try lia.
+       rewrite <- Term.shift_value_iff in H2.
+       exists <[wormhole(t1;t2'')]>; split; auto.
+Qed.     
 
+Corollary evaluate_shift_e (m n : lvl) (t t' : Λ) :
+  n <= m ->
+  m ⊨ ([⧐ n – {m - n}] t) ⟼ t' -> 
+  exists t1, n ⊨ t ⟼ t1 /\ t' = <[[⧐ n – {m - n}] t1]>.
+Proof.
+  intros.
+  now apply evaluate_shift_e_gen with (lb := n) (k := m).
+Qed.
+
+  
 (** *** [multi] properties
 
   The reflexive transitive closure of the evaluation transition lifts [evaluate] rules. In addition, we have identity rules for variable, [unit] and [rsf] terms.
@@ -547,6 +628,23 @@ Proof.
   - now apply multi_wh1. 
   - now apply multi_wh2.
 Qed.  
+
+Lemma multi_evaluate_shift_e (m n : lvl) (t t' : Λ) :
+  n <= m ->
+  m ⊨ ([⧐ n – {m - n}] t) ⟼⋆ t' -> 
+  exists t1, n ⊨ t ⟼⋆ t1 /\ t' = <[[⧐ n – {m - n}] t1]>.
+Proof.
+  intros; revert H; dependent induction H0; intros.
+  - exists t; split; auto.
+    reflexivity.
+  - apply evaluate_shift_e in H as [t1 [HeT]]; auto; subst.
+    specialize (IHclos_refl_trans_1n n t1).
+    destruct IHclos_refl_trans_1n; auto.
+    destruct H as [HeT']; subst.
+    exists x; split; auto.
+    apply eT_to_MeT in HeT.
+    transitivity t1; auto.
+Qed.
 
 (** *** [halts] property *)
 
