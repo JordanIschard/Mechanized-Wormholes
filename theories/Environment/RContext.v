@@ -1,4 +1,4 @@
-From Coq Require Import Lia Classes.Morphisms.
+From Coq Require Import Lia Classes.Morphisms FunctionalExtensionality.
 From Mecha Require Import Typ Resource.
 From DeBrLevel Require Import LevelInterface Level MapLevelInterface MapLevelLVLD.
 Import ResourceNotations TypNotations.
@@ -172,14 +172,12 @@ Proof.
     apply new_key_notin in HIn; auto.
   - repeat split. 
     -- unfold Resource.Wf; lia.
-    -- apply PairTyp.Wf_weakening with (n := new_key m); auto.
-    -- apply PairTyp.Wf_weakening with (n := new_key m); auto.
+    -- apply PairTyp.Wf_weakening with (k := new_key m); auto.
     -- apply Wf_add_notin.
        + apply new_key_notin; lia.
        + repeat split.
          ++ unfold Resource.Wf; lia.
-         ++ apply PairTyp.Wf_weakening with (n := new_key m); auto.
-         ++ apply PairTyp.Wf_weakening with (n := new_key m); auto.
+         ++ apply PairTyp.Wf_weakening with (k := new_key m); auto.
          ++ apply Wf_weakening with (k := new_key m); auto.
 Qed.
 

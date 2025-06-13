@@ -659,6 +659,13 @@ Proof.
   - exists t''; split; try assumption; now apply rt1n_trans with (y := t').     
 Qed.
 
+Corollary evaluate_preserves_halting' (k : lvl) (t t' : Λ) :
+  halts k t -> k ⊨ t ⟼ t' -> halts k t'.
+Proof.
+  intros.
+  rewrite evaluate_preserves_halting with (t' := t')in H; auto.
+Qed.
+
 Lemma multi_preserves_halting (k : lvl) (t t' : Λ) :
   k ⊨ t ⟼⋆ t' -> (halts k t <-> halts k t').
 Proof.

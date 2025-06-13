@@ -239,7 +239,173 @@ End Typ.
 
 
 (** ** Module - Pair of types *)
-Module PairTyp <: IsBdlLvlETWL := IsBdlLvlPairETWL Typ Typ.
+Module PairTyp <: IsBdlLvlETWL.
+  
+Definition t : Type := Typ.t * Typ.t.
+Definition eq := @Logic.eq t.
+
+#[export] Instance eq_equiv : Equivalence eq := _.
+
+
+Definition shift (m n : resource) (tp : t) :=
+  let (p1,p2) := tp in 
+  (Typ.shift m n p1,Typ.shift m n p2).
+
+Definition Wf (m : resource) (tp : t) :=
+  let (p1,p2) := tp in 
+  Typ.Wf m p1 /\ Typ.Wf m p2.
+
+
+#[export] Hint Resolve eq_refl eq_sym eq_trans : core.
+
+Lemma eq_dec (t1 t2: t) : {eq t1 t2} + {~ eq t1 t2}.
+Proof.
+  unfold eq.
+  destruct t1 as [p1 p2];
+  destruct t2 as [p1' p2'].
+  destruct (Typ.eq_dec p1 p1'); subst;
+  destruct (Typ.eq_dec p2 p2'); 
+  unfold Typ.eq in * ; subst; auto;
+  right;
+  intro c; inversion c; contradiction.
+Qed.
+
+Lemma eq_leibniz (t1 t2: t) : eq t1 t2 -> t1 = t2. 
+Proof. auto. Qed.
+
+(** **** [shift] properties *)
+
+Lemma shift_zero_refl (lb : lvl) (t : t) : shift lb 0 t = t.
+Proof.
+  destruct t as [p1 p2]; simpl.
+  now do 2 rewrite Typ.shift_zero_refl.
+Qed.
+
+#[export] Instance shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
+
+Lemma shift_eq_iff (lb k : lvl) (t t1 : t) :
+  t = t1 <-> (shift lb k t) = (shift lb k t1).
+Proof.
+  split; intro Heq.
+  - now subst.
+  - destruct t as [p1 p2];
+    destruct t1 as [p1' p2'];
+    simpl in *. 
+    inversion Heq.
+    rewrite <- Typ.shift_eq_iff in H0,H1; subst.
+    reflexivity.
+Qed.
+
+Lemma shift_trans (lb k m : lvl) (t : t) :
+  shift lb k (shift lb m t) = shift lb (k + m) t.
+Proof.
+  destruct t as [p1 p2]; simpl.
+  now do 2 rewrite Typ.shift_trans.
+Qed.
+
+Lemma shift_permute (lb k m : lvl) (t : t) :
+  shift lb k (shift lb m t) = shift lb m (shift lb k t).
+Proof.
+  destruct t as [p1 p2]; simpl.
+  now f_equal; rewrite Typ.shift_permute.
+Qed.
+
+Lemma shift_permute_1 (lb k m : lvl) (t : t) :
+  (shift lb k (shift lb m t)) = (shift (lb + k) m (shift lb k t)).
+Proof.
+  destruct t as [p1 p2]; simpl.
+  f_equal;
+  now rewrite Typ.shift_permute_1.
+Qed.
+
+Lemma shift_permute_2 (lb k m n : lvl) (t : t) :
+  lb <= k -> (shift lb m (shift k n t)) = (shift (k + m) n (shift lb m t)).
+Proof.
+  intro Hle.
+  destruct t as [p1 p2]; simpl.
+  f_equal; rewrite Typ.shift_permute_2; auto.
+Qed.
+
+Lemma shift_unfold (lb k m : lvl) (t : t) :
+  (shift lb (k + m) t) = (shift (lb + k) m (shift lb k t)). 
+Proof.
+  destruct t as [p1 p2]; simpl.
+  f_equal; now rewrite Typ.shift_unfold.
+Qed.
+
+Lemma shift_unfold_1 (k m n : lvl) (t : t) :
+  k <= m -> m <= n -> 
+  (shift m (n - m) (shift k  (m - k) t)) = (shift k (n - k) t).
+Proof.
+  intros.
+  destruct t as [p1 p2]; simpl.
+  f_equal; rewrite Typ.shift_unfold_1; auto.
+Qed.
+
+Lemma shift_wf_refl m k t : Wf m t -> (shift m k t) = t.
+Proof.
+  destruct t as [p1 p2]; simpl.
+  intros [Hwf1 Hwf2].
+  now f_equal; apply Typ.shift_wf_refl.
+Qed.
+
+(** **** [Wf] properties *)
+
+#[export] Instance Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
+
+Lemma Wf_weakening (k m : lvl) (t : t) : (k <= m) -> Wf k t -> Wf m t.
+Proof.
+  unfold Wf.
+  destruct t as [p1 p2].
+  intros Hle [Hwfp1 Hwfp2].
+  split; eapply Typ.Wf_weakening; eauto.
+Qed.
+
+Theorem shift_preserves_wf_1 (lb k m : lvl) (t : t) :
+  Wf k t -> Wf (k + m) (shift lb m t).
+Proof.
+  unfold Wf.
+  destruct t as [p1 p2].
+  intros [Hwfp1 Hwfp2].
+  simpl.
+  split; now apply Typ.shift_preserves_wf_1.
+Qed.
+
+Theorem shift_preserves_wf (k m : lvl) (t : t) :
+  Wf k t -> Wf (k + m) (shift k m t).
+Proof. intros; now apply shift_preserves_wf_1. Qed. 
+
+Theorem shift_preserves_wf_zero (k : lvl) (t : t) :
+  Wf k t -> Wf k (shift k 0 t).
+Proof. 
+  unfold Wf.
+  destruct t as [p1 p2].
+  intros [Hwfp1 Hwfp2].
+  simpl.
+  split; now apply Typ.shift_preserves_wf_zero.
+Qed. 
+
+Lemma shift_preserves_wf_gen (lb k m n : lvl) (t : t) :
+    m <= n -> lb <= k -> m <= lb -> n <= k -> n - m = k - lb -> 
+    Wf lb t -> Wf k (shift m (n - m) t).
+Proof.
+  unfold Wf.
+  destruct t as [p1 p2].
+  intros.
+  destruct H4 as [Hwfp1 Hwfp2].
+  simpl.
+  split; apply Typ.shift_preserves_wf_gen with (lb := lb); auto.
+Qed.
+
+Lemma shift_preserves_wf_2 (m n : lvl) (t : t) :
+  m <= n -> Wf m t -> Wf n (shift m (n - m) t).
+Proof. 
+  intros Hle Hvt. 
+  eapply shift_preserves_wf_gen; eauto. 
+Qed.
+
+  
+End PairTyp.
 
 (** ---- *)
 

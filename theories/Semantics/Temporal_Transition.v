@@ -1,4 +1,4 @@
-From Coq Require Import Lia Morphisms Lists.List Arith Lists.Streams.
+(* From Coq Require Import Lia Morphisms Lists.List Arith Lists.Streams.
 From Mecha Require Import Resource Resources Term Typ Cell VContext RContext  
                           Type_System Evaluation_Transition Functional_Transition 
                           REnvironment Stock SREnvironment.
@@ -809,4 +809,4 @@ Proof. admit.
 Admitted.
 
 
-End temporal.
+End temporal. *)
