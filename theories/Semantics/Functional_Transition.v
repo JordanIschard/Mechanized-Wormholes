@@ -67,11 +67,11 @@ Inductive functional : 𝐕 -> Λ -> Λ -> 𝐕 -> Λ -> Λ -> 𝐖 -> Prop :=
   (* ----------------------------------------------------------- *)
        ⪡ V ; st ; arr(t) ⪢ ⭆ ⪡ V ; (t st) ; arr(t) ; [] ⪢ 
 
-  | fT_first (v1 v1' v2 t t' : Λ) (α : Τ) (V V1 : 𝐕) (W : 𝐖) :
+  | fT_first (v1 v1' v2 t t' : Λ) (α τ : Τ) (V V1 : 𝐕) (W : 𝐖) :
 
                         ⪡ V ; v1 ; t ⪢ ⭆ ⪡ V1 ; v1' ; t' ; W ⪢ ->
   (* ------------------------------------------------------------------------------------------ *)
-       ⪡ V ; ⟨v1,v2⟩ ; first(t) ⪢ ⭆ ⪡ V1 ; ⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩ ; first(t') ; W ⪢
+       ⪡ V ; ⟨v1,v2⟩ ; first(τ:t) ⪢ ⭆ ⪡ V1 ; ⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩ ; first(τ:t') ; W ⪢
 
   | fT_comp (st st' st'' t1 t1' t2 t2' : Λ) (V V1 V2 : 𝐕) (W W': 𝐖) :
 
@@ -316,13 +316,13 @@ Proof.
   now rewrite <- HeT.
 Qed.
 
-Lemma fT_inputs_halts_first (Rc: ℜ) (V: 𝐕) (t1 t2 t3: Λ) :
-  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(t3)]> -> fT_inputs_halts (Rc⁺)%rc V t1 t3.
+Lemma fT_inputs_halts_first (Rc: ℜ) (V: 𝐕) (τ:Τ) (t1 t2 t3: Λ) :
+  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(τ:t3)]> -> fT_inputs_halts (Rc⁺)%rc V t1 t3.
 Proof.
   intros [HltV [Hltpair Hltfirst]]. 
   do 2 (split; auto).
   - now apply halts_pair in Hltpair as [].
-  - now apply halts_first.
+  - now apply halts_first in Hltfirst.
 Qed.
 
 Lemma fT_inputs_halts_comp_l (Rc: ℜ) (V: 𝐕) (t1 t2 t3: Λ) :
@@ -393,11 +393,11 @@ Proof.
   apply ST.halts_nil.
 Qed.
 
-Lemma fT_outputs_halts_first (Rc Rc': ℜ) (V V': 𝐕) (W: 𝐖) (t1 t1' t2 t3 t3': Λ) :
+Lemma fT_outputs_halts_first (Rc Rc': ℜ) (V V': 𝐕) (W: 𝐖) (τ : Τ) (t1 t1' t2 t3 t3': Λ) :
   (Rc ⊆ Rc')%rc -> 
-  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(t3)]> ->
+  fT_inputs_halts (Rc⁺)%rc V <[⟨t1, t2⟩]> <[first(τ:t3)]> ->
   fT_outputs_halts (Rc'⁺)%rc V' W t1' t3' ->
-  fT_outputs_halts (Rc'⁺)%rc V' W <[⟨t1', [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t2⟩]> <[first(t3')]>.
+  fT_outputs_halts (Rc'⁺)%rc V' W <[⟨t1', [⧐{(Rc⁺)%rc} – {(Rc'⁺)%rc - (Rc⁺)%rc}] t2⟩]> <[first(τ:t3')]>.
 Proof.
   intros Hsub [_ [Hltpair Hltfirst]] [HltV [HltW [Hlt1' Hlt3']]].
   repeat split; auto.
@@ -492,6 +492,7 @@ Proof.
     destruct IHfT as [HvV1 [Hvst' [Hvt'' [HvW Hlt]]]]; auto.
     repeat split; auto; try (now destruct HvW); try (constructor); auto.
     now apply Term.shift_preserves_wf_2.
+    apply Typ.Wf_weakening with (k := V⁺); auto.
   (* fT_comp *)
   - inversion Hvt; subst; 
     destruct IHfT1 as [HvV1 [Hvst' [Hvt1' [HvW1 Hlt1]]]]; auto;
@@ -783,9 +784,8 @@ Proof.
   now apply eT_to_MeT.
 Qed.
 
-
-Lemma isvalueof_first (n : lvl) (t v : Λ) :
-  isvalueof n <[first(t)]> <[first(v)]> -> isvalueof n t v.
+Lemma isvalueof_first (n : lvl) (τ : Τ) (t v : Λ) :
+  isvalueof n <[first(τ:t)]> <[first(τ:v)]> -> isvalueof n t v.
 Proof.
   intros [HmeT Hvt]; inversion Hvt; subst.
   split; auto.
@@ -794,11 +794,12 @@ Proof.
   - reflexivity.
   - inversion H; subst.
     transitivity t'; auto.
-    now apply eT_to_MeT.
+    -- now apply eT_to_MeT.
+    -- apply (IHHmeT τ); auto.
 Qed.
 
-Lemma isvalueof_first' (n : lvl) (t v : Λ) :
-  isvalueof n t v -> isvalueof n <[first(t)]> <[first(v)]>.
+Lemma isvalueof_first' (n : lvl) (τ: Τ) (t v : Λ) :
+  isvalueof n t v -> isvalueof n <[first(τ:t)]> <[first(τ:v)]>.
 Proof.
   intros [HmeT Hvt]; split; auto.
   now apply multi_first.
@@ -865,13 +866,13 @@ Inductive alt_wt : Λ -> list Λ -> Prop :=
       alt_wt t2 l2 ->
       alt_wt <[⟨t1,t2⟩]> (l1 ++ l2)
 
-  | awt1_abs x (t : Λ) : alt_wt <[\x, t]> nil
+  | awt1_abs x (τ:Τ) (t : Λ) : alt_wt <[\x:τ, t]> nil
 
   | awt1_arr (t : Λ) :
       alt_wt <[arr(t)]> [t]
 
-  | awt1_first (t : Λ) l :
-      alt_wt t l -> alt_wt <[first(t)]> l
+  | awt1_first (t : Λ) (τ:Τ) l :
+      alt_wt t l -> alt_wt <[first(τ:t)]> l
 
   | awt1_comp (t1 t2 : Λ) l1 l2 :
       alt_wt t1 l1 -> alt_wt t2 l2 ->
@@ -923,12 +924,12 @@ Proof.
   eapply Hivo with (v' := v') in HIn; eauto.
 Qed.
 
-Lemma all_arrow_halting_first Rc (t : Λ) :
-  all_arrow_halting Rc <[ first( t) ]> ->
+Lemma all_arrow_halting_first Rc (τ:Τ) (t : Λ) :
+  all_arrow_halting Rc <[ first(τ:t) ]> ->
   all_arrow_halting Rc t.
 Proof.
   intros Harrlt v Hivo l Hawt t1 HIn v' Rc' ty ty' [Hsub [Hlt [Hwt Hwt']]].
-  apply isvalueof_first' in Hivo.
+  apply isvalueof_first' with (τ := τ) in Hivo.
   apply Harrlt in Hivo.
   eapply Hivo with (v' := v') in HIn; eauto.
   now constructor.
@@ -1236,11 +1237,11 @@ Proof.
     (* clean *)
     inversion Hwst; subst; move Rc before W; move R before Rc;
     clear α Hwst; rename α0 into α; rename β0 into γ; rename H3 into Hwv1; rename H5 into Hwv2;
-    inversion Hwt; subst; clear Hwt; rename H4 into Hwt; rename H7 into Hvγ; rename β0 into β;
+    inversion Hwt; subst; clear Hwt; rename H4 into Hwt; rename H8 into Hvγ; rename β0 into β;
     move α before R; move β before α; move γ before β; move Hvγ before HvRc.
     (* clean *)
 
-    apply (fT_inputs_halts_first _ _ _ v2 _) in Hltinp as Hltinp'.
+    apply (fT_inputs_halts_first _ _ _ _ v2 _) in Hltinp as Hltinp'.
     apply IHfT with (R := R) (β := β) in Hwv1 as IH; auto; clear IHfT.
     destruct IH as [Hunsd [Hlcl [Rc' [R' [HsubRc [HsubR [Hltout [Hwtv1' [Hwt' 
                    [HWF' [HwtW [HInRW Husd]]]]]]]]]]]].
@@ -1260,7 +1261,7 @@ Proof.
     rewrite <- Hnew, <- Hnew'.
     do 2 (split; auto); split.
     (* Outputs of the functional transition halt. *)
-    { now apply (fT_outputs_halts_first _ _ V _ _ v1 _ _ t). }
+    { now apply (fT_outputs_halts_first _ _ V _ _ _ v1 _ _ t). }
     split.
     (* The output value is well-typed. *)
     {
@@ -1755,7 +1756,7 @@ Proof.
 
     (* clean *)
     move α before tv; move τ before α; move β before α; clear Hwt;
-    rename H4 into Hwt; move Hwt before Hwtv; rename H6 into Hwfτ;
+    rename H4 into Hwt; move Hwt before Hwtv; rename H7 into Hwfτ;
     move tv' before tv; move Hwtv' before Hwtv.
     (* clean *)
 
@@ -1776,10 +1777,13 @@ Proof.
        move W before V1.
        (* clean *)
 
-       exists V1, <[⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩]>, <[first(t')]>, W.
+       exists V1, <[⟨v1',[⧐ {V⁺} – {V1⁺ - V⁺}] v2⟩]>, 
+                  <[first({Typ.multi_shift m n τ}:t')]>, W.
        rewrite (WF_ec_new Rc V) in HmeT; auto.
        apply fT_MeT_sv with (st' := <[ ⟨ v1, v2 ⟩ ]>); auto.
+       apply fT_first.
        now constructor.
+       apply fT.
     -- exists v1; split; auto; reflexivity.
     -- now apply all_arrow_halting_first in Harrlt. 
 

@@ -1,7 +1,7 @@
 From Coq Require Import Classes.Morphisms Lia.
 From DeBrLevel Require Import LevelInterface Level OptionLevel.
-From Mecha Require Import Var Resource.
-Import VarNotations ResourceNotations.
+From Mecha Require Import Var Resource Typ.
+Import VarNotations ResourceNotations TypNotations.
 
 
 (** * Syntax - Term
@@ -23,14 +23,14 @@ Open Scope resource_scope.
 Inductive raw : Type :=
   | tm_unit   : raw
   | tm_var (x : variable) : raw
-  | tm_abs (x : variable) (t : raw) : raw
+  | tm_abs (x : variable) (τ : Τ) (t : raw) : raw
   | tm_app  (t1 t2 : raw) : raw
   | tm_pair (t1 t2 : raw) : raw
   | tm_fix   (t : raw) : raw
   | tm_fst   (t : raw) : raw
   | tm_snd   (t : raw) : raw
   | tm_arr   (t : raw) : raw
-  | tm_first (t : raw) : raw
+  | tm_first (τ : Τ) (t : raw) : raw
   | tm_rsf (r : resource) : raw
   | tm_comp (t1 t2 : raw) : raw
   | tm_wh   (t1 t2 : raw) : raw
@@ -47,12 +47,12 @@ Fixpoint shift (lb k : lvl) (e : t) : t :=
   match e with
   | tm_rsf r => tm_rsf ([⧐ lb – k] r)
 
-  | tm_abs x t0 => tm_abs x (shift lb k t0)
+  | tm_abs x ty t0 => tm_abs x (Typ.shift lb k ty) (shift lb k t0)
   | tm_fix t0   => tm_fix   (shift lb k t0)
   | tm_fst t0   => tm_fst   (shift lb k t0)
   | tm_snd t0   => tm_snd   (shift lb k t0)
   | tm_arr t0   => tm_arr   (shift lb k t0)
-  | tm_first t0 => tm_first (shift lb k t0)
+  | tm_first ty t0 => tm_first (Typ.shift lb k ty) (shift lb k t0)
 
   | tm_app  t1 t2 => tm_app  (shift lb k t1) (shift lb k t2)
   | tm_pair t1 t2 => tm_pair (shift lb k t1) (shift lb k t2)
@@ -97,7 +97,8 @@ However,
 Inductive Wf' : lvl -> t -> Prop :=
   | wfΛ_unit (k : lvl) : Wf' k tm_unit
   | wfΛ_var  (k : lvl) (x : variable) : Wf' k (tm_var x)
-  | wfΛ_abs  (k : lvl) (x : variable) (t : t) : Wf' k t -> Wf' k (tm_abs x t)
+  | wfΛ_abs  (k : lvl) (ty : Τ) (x : variable) (t : t) : 
+             Typ.Wf k ty -> Wf' k t -> Wf' k (tm_abs x ty t)
 
   | wfΛ_app  (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' k t2 -> Wf' k (tm_app t1 t2)
   | wfΛ_pair (k : lvl) (t1 t2 : t) : Wf' k t1 -> Wf' k t2 -> Wf' k (tm_pair t1 t2)
@@ -106,7 +107,8 @@ Inductive Wf' : lvl -> t -> Prop :=
   | wfΛ_fst   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_fst t) 
   | wfΛ_snd   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_snd t)
   | wfΛ_arr   (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_arr t)
-  | wfΛ_first (k : lvl) (t : t) : Wf' k t -> Wf' k (tm_first t)
+  | wfΛ_first (k : lvl) (ty : Τ) (t : t) : 
+              Typ.Wf k ty -> Wf' k t -> Wf' k (tm_first ty t)
 
   | wfΛ_rsf (k : lvl) (r : resource) : (k ⊩ r)%r ->  Wf' k (tm_rsf r)
 
@@ -126,10 +128,10 @@ Definition Wf := Wf'.
 Inductive value : t -> Prop :=
   | v_unit : value tm_unit
   | v_rsf (r : resource) : value (tm_rsf r)
-  | v_abs (x : variable) (t : t) : value (tm_abs x t)
+  | v_abs (x : variable) (ty : Τ) (t : t) : value (tm_abs x ty t)
 
   | v_arr   (v : t) : (* value v -> *) value (tm_arr v)
-  | v_first (v : t) : value v -> value (tm_first v)
+  | v_first (ty : Τ) (v : t) : value v -> value (tm_first ty v)
 
   | v_pair (v1 v2 : t) : value v1 -> value v2 -> value (tm_pair v1 v2)
   | v_comp (v1 v2 : t) : value v1 -> value v2 -> value (tm_comp v1 v2)
@@ -166,8 +168,13 @@ Proof.
     -- now left.
     -- right; intro c; inversion c; subst; clear c; now contradiction n.
   - destruct (Var.eqb_spec x x0); subst;
-    destruct (IHt1 t2); subst; try (right; intro c; inversion c; subst; now contradiction).
-    now left.
+    destruct (IHt1 t2); subst; 
+    try (right; intro c; inversion c; subst; now contradiction).
+    destruct (Typ.eq_dec τ τ0); try unfold Typ.eq in *; subst; auto.
+    right; intro c; inversion c; contradiction.
+  - destruct (IHt1 t2); destruct (Typ.eq_dec τ τ0); 
+    try unfold Typ.eq in *; subst; auto;
+    right; intro c; inversion c; contradiction.
   - destruct (Resource.eq_dec r r0); subst; try now left. right; intro c; inversion c; subst;
     contradiction.
 Qed.
@@ -179,7 +186,8 @@ Proof. auto. Qed.
 
 Lemma shift_zero_refl (lb : lvl) (t : t) : shift lb 0 t = t.
 Proof.
-  induction t; simpl; f_equal; auto.
+  induction t; simpl; f_equal; auto;
+  try (apply Typ.shift_zero_refl).
   apply Resource.shift_zero_refl.
 Qed.
 
@@ -192,20 +200,24 @@ Proof.
   - now subst.
   - revert t1 Heq; induction t; intros t' Heq; destruct t'; 
     simpl in *; try (now inversion Heq); try (inversion Heq;f_equal; eauto).
-    eapply Resource.shift_eq_iff; eauto.
+    -- eapply Typ.shift_eq_iff; eauto.
+    -- eapply Typ.shift_eq_iff; eauto.
+    -- eapply Resource.shift_eq_iff; eauto.
 Qed.
 
 Lemma shift_trans (lb k m : lvl) (t : t) :
   shift lb k (shift lb m t) = shift lb (k + m) t.
 Proof.
-  induction t; simpl; f_equal; auto.
+  induction t; simpl; f_equal; auto;
+  try (apply Typ.shift_trans).
   apply Resource.shift_trans.
 Qed.
 
 Lemma shift_permute (lb k m : lvl) (t : t) :
   shift lb k (shift lb m t) = shift lb m (shift lb k t).
 Proof.
-  induction t; simpl; f_equal; auto.
+  induction t; simpl; f_equal; auto;
+  try (apply Typ.shift_permute).
   apply Resource.shift_permute.
 Qed.
 
@@ -221,14 +233,16 @@ Qed.
 Lemma shift_permute_1 (lb k m : lvl) (t : t) :
   eq (shift lb k (shift lb m t)) (shift (lb + k) m (shift lb k t)).
 Proof.
-  unfold eq; induction t; simpl; f_equal; auto.
+  unfold eq; induction t; simpl; f_equal; auto;
+  try (apply Typ.shift_permute_1).
   apply Resource.shift_permute_1.
 Qed.
 
 Lemma shift_permute_2 (lb k m n : lvl) (t : t) :
   lb <= k -> eq (shift lb m (shift k n t)) (shift (k + m) n (shift lb m t)).
 Proof.
-  unfold eq; induction t; simpl; intros; f_equal; auto.
+  unfold eq; induction t; simpl; intros; f_equal; auto;
+  try (apply Typ.shift_permute_2; auto).
   now apply Resource.shift_permute_2.
 Qed.
 
@@ -238,7 +252,11 @@ Proof.
   induction t; simpl; auto;
   try (rewrite IHt1; rewrite IHt2; now reflexivity);
   try (rewrite IHt; now reflexivity).
-  now rewrite Resource.shift_unfold.
+  - unfold eq; f_equal; auto. 
+    now rewrite Typ.shift_unfold.
+  - unfold eq; f_equal; auto.
+    now rewrite Typ.shift_unfold.
+  - now rewrite Resource.shift_unfold.
 Qed.
 
 Lemma shift_unfold_1 (k m n : lvl) (t : t) :
@@ -248,7 +266,11 @@ Proof.
   intros Hlekm Hlemn; induction t; simpl; auto;
   try (rewrite IHt1; rewrite IHt2; now reflexivity);
   try (rewrite IHt; now reflexivity).
-  now rewrite Resource.shift_unfold_1.
+  - unfold eq; f_equal; auto. 
+    now rewrite Typ.shift_unfold_1.
+  - unfold eq; f_equal; auto.
+    now rewrite Typ.shift_unfold_1.
+  - now rewrite Resource.shift_unfold_1.
 Qed.
 
 (** **** [Wf] properties *)
@@ -259,6 +281,12 @@ Lemma Wf_weakening (k m : lvl) (t : t) : (k <= m) -> Wf k t -> Wf m t.
 Proof.
   unfold Wf; revert k m; induction t; simpl; intros k m Hle Hvt; 
   auto; try (inversion Hvt; subst; now eauto).
+  - inversion Hvt; subst; constructor.
+    -- eapply Typ.Wf_weakening; eauto.
+    -- eapply IHt; eauto.
+  - inversion Hvt; subst; constructor.
+    -- eapply Typ.Wf_weakening; eauto.
+    -- eapply IHt; eauto.
   - inversion Hvt; subst; constructor; eapply Resource.Wf_weakening; eauto.
   - inversion Hvt; subst; apply wfΛ_wh.
     -- eapply IHt1; eauto.
@@ -270,6 +298,10 @@ Theorem shift_preserves_wf_1 (lb k m : lvl) (t : t) :
 Proof.
   unfold Wf; revert lb k m; induction t; intros lb k m Hvt; 
   inversion Hvt; subst; simpl; auto.
+  - constructor; eauto.
+    now apply Typ.shift_preserves_wf_1.
+  - constructor; eauto.
+    now apply Typ.shift_preserves_wf_1.
   - constructor; now apply Resource.shift_preserves_wf_1.
   - apply wfΛ_wh; auto. 
     replace (S (S (k + m))) with ((S (S k)) + m); auto; lia.
@@ -296,6 +328,8 @@ Proof.
   inversion Hvt; subst; constructor;
   try (apply IHt1 with lb; now auto);
   try (apply IHt2 with lb; now auto); try (apply IHt with lb; now auto).
+  - apply Typ.shift_preserves_wf_gen with lb; auto.
+  - apply Typ.shift_preserves_wf_gen with lb; auto.
   - apply Resource.shift_preserves_wf_gen with lb; auto.
   - apply IHt2 with (lb := S (S lb)); auto; lia.
 Qed.
@@ -392,15 +426,15 @@ Proof.
   destruct ks; simpl; auto; now rewrite IHlbs.
 Qed.
 
-Lemma multi_shift_abs (lbs ks : list lvl) (x : variable) (t : t) :
-  multi_shift lbs ks (tm_abs x t) = tm_abs x (multi_shift lbs ks t).
+Lemma multi_shift_abs (lbs ks : list lvl) (x : variable) (τ : Τ) (t : t) :
+  multi_shift lbs ks (tm_abs x τ t) = tm_abs x (Typ.multi_shift lbs ks τ) (multi_shift lbs ks t).
 Proof. 
   unfold multi_shift; revert ks; induction lbs; intro ks; simpl; auto.
   destruct ks; simpl; auto; now rewrite IHlbs.
 Qed.
 
-Lemma multi_shift_first (lbs ks : list lvl) (t : t) :
-  multi_shift lbs ks (tm_first t) = tm_first (multi_shift lbs ks t).
+Lemma multi_shift_first (lbs ks : list lvl) (τ : Τ) (t : t) :
+  multi_shift lbs ks (tm_first τ t) = tm_first (Typ.multi_shift lbs ks τ) (multi_shift lbs ks t).
 Proof. 
   unfold multi_shift; revert ks; induction lbs; intro ks; simpl; auto.
   destruct ks; simpl; auto; now rewrite IHlbs.
@@ -482,8 +516,10 @@ Notation "value( t )" := (Term.value t) (at level 20, no associativity).
 (* Notation "'isFV(' r ',' t ')'" := (Term.appears_free_in r t) (at level 40, t custom wh). *)
 
 Notation "t1 t2"     := (Term.tm_app t1 t2) (in custom wh at level 70, left associativity).
-Notation "\ x , t" := (Term.tm_abs x t) 
-                      (in custom wh at level 90, x at level 99, t custom wh at level 99, 
+Notation "\ x : ty , t" := (Term.tm_abs x ty t) 
+                      (in custom wh at level 90, x at level 99, 
+                                                 ty custom wh at level 99,
+                                                 t custom wh at level 99, 
                        left associativity).
 Notation "'unit'" := (Term.tm_unit) (in custom wh at level 0).
 Notation "⟨ t1 ',' t2 ⟩" := (Term.tm_pair t1 t2) 
@@ -498,7 +534,7 @@ Notation "'rsf[' r ']'" := (Term.tm_rsf r) (in custom wh at level 0, r constr, n
 
 Notation "'arr(' t ')'"   := (Term.tm_arr t) 
                              (in custom wh at level 0, t custom wh at level 99, no associativity).
-Notation "'first(' t ')'" := (Term.tm_first t) (in custom wh at level 0).
+Notation "'first(' ty : t ')'" := (Term.tm_first ty t) (in custom wh at level 0).
 Notation " t1 '>>>' t2 "  := (Term.tm_comp t1 t2) (in custom wh at level 60, left associativity).
 Notation "'wormhole(' t1 ';' t2 ')'" := (Term.tm_wh t1 t2) 
                                         (in custom wh at level 23, t1 custom wh, t2 custom wh, 

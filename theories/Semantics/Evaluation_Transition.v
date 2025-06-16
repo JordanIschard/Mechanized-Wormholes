@@ -43,13 +43,13 @@ Reserved Notation "'[' x ':=' v '~' lb '–' k ']' t" (in custom wh at level 66,
 Fixpoint subst (lb : lvl) (k : lvl) (x : variable) (v t : Λ) : Λ :=
   match t with
     | Term.tm_var y => if (x =? y)%v then <[[⧐ lb – k] v]> else t 
-    | <[\y,t]>      => if (x =? y)%v then <[\y,t]> else <[\y,[x := v ~ lb – k] t]>
+    | <[\y:τ,t]>      => if (x =? y)%v then <[\y:τ,t]> else <[\y:τ,[x := v ~ lb – k] t]>
 
     | <[fst.t]>    => <[fst.([x := v ~ lb – k]t)]>
     | <[snd.t]>    => <[snd.([x := v ~ lb – k]t)]>
     | <[Fix t]>    => <[Fix ([x := v ~ lb – k]t)]>
     | <[arr(t)]>   => <[arr([x := v ~ lb – k]t)]>
-    | <[first(t)]> => <[first([x := v ~ lb – k]t)]>
+    | <[first(τ:t)]> => <[first(τ:[x := v ~ lb – k]t)]>
 
     | <[t1 t2]>   => <[ ([x := v ~ lb – k]t1) ([x := v ~ lb – k]t2)]>
     | <[⟨t1,t2⟩]> => <[⟨([x := v ~ lb – k]t1),([x := v ~ lb – k]t2)⟩]>
@@ -73,11 +73,11 @@ Notation "'[' x ':=' v '~' lb ']' t" := (subst lb 0 x v t)
 Reserved Notation "k '⊨' t '⟼' t1" (at level 57, t custom wh, t1 custom wh, no associativity).
 
 Inductive evaluate : lvl -> Λ -> Λ -> Prop :=
-  | eT_appv (k : lvl) (x : variable) (t v : Λ) :
+  | eT_appv (k : lvl) (x : variable) (τ : Τ) (t v : Λ) :
 
                          value(v) ->
       (* ------------------------------------- ET-Appv *)
-           k ⊨ ((\x,t) v) ⟼ ([x:= v ~ k] t)
+           k ⊨ ((\x:τ,t) v) ⟼ ([x:= v ~ k] t)
 
   | eT_app1 (k : lvl) (t1 t1' t2 : Λ) :
 
@@ -91,10 +91,10 @@ Inductive evaluate : lvl -> Λ -> Λ -> Prop :=
       (* ------------------------------- ET-App2 *)
               k ⊨ (v t) ⟼ (v t') 
 
-  | eT_fixv (k : lvl) (f : variable) (t : Λ) :
+  | eT_fixv (k : lvl) (f : variable) (τ : Τ) (t : Λ) :
 
       (* --------------------------------------------------- ET-Fixv *)
-          k ⊨ (Fix (\f,t)) ⟼ ([f := (Fix (\f,t)) ~ k] t)
+          k ⊨ (Fix (\f:τ,t)) ⟼ ([f := (Fix (\f:τ,t)) ~ k] t)
 
 
   | eT_fix1 (k : lvl) (t t' : Λ) :
@@ -157,11 +157,11 @@ Inductive evaluate : lvl -> Λ -> Λ -> Prop :=
       (* ------------------------- ET-Arr *)
            k ⊨ arr(t) ⟼ arr(t') *)
 
-  | eT_first (k : lvl) (t t' : Λ) :
+  | eT_first (k : lvl) (τ: Τ) (t t' : Λ) :
                 
                  k ⊨ t ⟼ t' -> 
       (* ----------------------------- ET-First *)
-           k ⊨ first(t) ⟼ first(t')
+           k ⊨ first(τ:t) ⟼ first(τ:t')
 
   | eT_wh1 (k : lvl) (t1 t1' t2 : Λ) :
 
@@ -223,7 +223,8 @@ Proof.
     now apply Term.shift_preserves_wf_2.
   - inversion Hvt; subst. 
     simpl; destruct (Var.eqb_spec y x); subst; auto.
-    constructor; apply IHt; auto.
+    constructor; auto. 
+    apply IHt; auto.
   - inversion Hvt; subst. 
     simpl; constructor; auto.
     -- now apply IHt1.
@@ -283,10 +284,10 @@ Proof.
   intros Hlelbk Hlemlb Hlenk Hlemn Heq eT.
   revert k m n Hlelbk Hlemlb Hlenk Hlemn Heq; induction eT; 
   intros; simpl; eauto; try (constructor; eauto; now apply Term.shift_value_iff).
-  - rewrite subst_shift; auto; rewrite <- Heq at 3. 
+  - rewrite subst_shift; auto; rewrite <- Heq at 4. 
     replace (k + (k0 - k)) with k0 by lia.
     constructor; now apply Term.shift_value_iff.
-  - rewrite subst_shift; auto; rewrite <- Heq at 2. 
+  - rewrite subst_shift; auto; rewrite <- Heq at 3. 
     replace (k + (k0 - k)) with k0 by lia.
     constructor; now apply Term.shift_value_iff.
   - constructor; try (now rewrite <- Term.shift_value_iff); apply IHeT; lia.
@@ -332,8 +333,8 @@ Proof.
   - simpl in *.
     inversion HeT; subst.
     -- destruct t; try inversion H1; subst.
-       exists <[[x := {Term.tm_fix <[\x, t ]>} ~ lb] t]>; split.
-       + constructor; auto.
+       exists <[[x := {Term.tm_fix <[\x:τ0, t ]>} ~ lb] t]>; split.
+       + apply eT_fixv; auto.
        + rewrite subst_shift; auto.
          replace (lb + (m - n)) with k by lia.
          reflexivity.
@@ -352,8 +353,8 @@ Proof.
        rewrite <- Term.shift_value_iff in H0,H2.
        exists t2; split; auto.
   - simpl in *; inversion HeT; subst.
-    apply IHt with (lb := lb) in H1 as [t'' [HeT']]; auto; subst.
-    exists <[first(t'')]>; split; auto.
+    apply IHt with (lb := lb) in H3 as [t'' [HeT']]; auto; subst.
+    exists <[first(τ: t'')]>; split; auto.
   - simpl in *; inversion HeT; subst.
     -- apply IHt1 with (lb := lb) in H3 as [t1'' [HeT']]; auto; subst.
        exists <[t1'' >>> t2]>; split; auto.
@@ -439,11 +440,11 @@ Proof.
   - apply rt1n_trans with <[t1 y]>; auto.
 Qed.
 
-Lemma multi_appv (k : lvl) (x : variable) (v t : Λ) :
+Lemma multi_appv (k : lvl) (x : variable) (τ : Τ) (v t : Λ) :
 
                     value(v) -> 
   (* ----------------------------------------- MET-Appv *)
-       k ⊨ ((\x, t) v) ⟼⋆ ([x := v ~ k] t).
+       k ⊨ ((\x:τ, t) v) ⟼⋆ ([x := v ~ k] t).
 Proof. 
   intro Hv; apply rt1n_trans with (y := <[[x := v ~ k] t]>); auto.
 Qed.
@@ -459,12 +460,12 @@ Proof.
   - apply rt1n_trans with <[Fix y]>; auto.
 Qed.
 
-Lemma multi_fix (k : lvl) (x : variable) (t : Λ) :
+Lemma multi_fix (k : lvl) (x : variable) (τ : Τ) (t : Λ) :
 
   (* ------------------------------------------------------- MET-Fix *)
-       k ⊨ (Fix (\x, t)) ⟼⋆ ([x := (Fix (\x, t)) ~ k] t).
+       k ⊨ (Fix (\x:τ, t)) ⟼⋆ ([x := (Fix (\x:τ, t)) ~ k] t).
 Proof. 
-  apply rt1n_trans with (y := <[[x := (Fix (\x, t)) ~ k] t]>); auto.
+  apply rt1n_trans with (y := <[[x := (Fix (\x:τ, t)) ~ k] t]>); auto.
 Qed.
 
 Lemma multi_pair1 (k : lvl) (t t' t2 : Λ) : 
@@ -536,15 +537,15 @@ Proof.
   - apply rt1n_trans with <[arr(y)]>; auto. 
 Qed. *)
 
-Lemma multi_first (k : lvl) (t t' : Λ) : 
+Lemma multi_first (k : lvl) (τ : Τ) (t t' : Λ) : 
  
               k ⊨ t ⟼⋆ t' -> 
   (* ------------------------------- MET-First *)
-       k ⊨ first(t) ⟼⋆ first(t').
+       k ⊨ first(τ:t) ⟼⋆ first(τ:t').
 Proof.
   intros HeT; induction HeT; subst; auto.
   - reflexivity.
-  - apply rt1n_trans with <[first(y)]>; auto. 
+  - apply rt1n_trans with <[first(τ:y)]>; auto. 
 Qed.
 
 Lemma multi_comp1 (k : lvl) (t t' t2 : Λ) : 
@@ -727,15 +728,16 @@ Proof.
     -- now constructor.
 Qed.
 
-Lemma halts_first (k : lvl) (t : Λ) :
-  halts k <[first(t)]> <-> halts k t.
+Lemma halts_first (k : lvl) (τ : Τ) (t : Λ) :
+  halts k <[first(τ:t)]> <-> halts k t.
 Proof.
   split; intros HA.
   - destruct HA as [t' [HmeT Hvt]]; dependent induction HmeT.
     -- inversion Hvt; subst; exists t; split; auto.  apply rt1n_refl.
-    -- inversion H; subst. apply (IHHmeT t') in Hvt; eauto.
+    -- inversion H; subst. 
+       apply (IHHmeT τ t') in Hvt; eauto.
        rewrite evaluate_preserves_halting; eauto.
-  - destruct HA as [t' [HmeT Hvt']]; exists <[first(t')]>; split; auto.
+  - destruct HA as [t' [HmeT Hvt']]; exists <[first(τ:t')]>; split; auto.
     -- now apply multi_first.
     -- now constructor.
 Qed.
@@ -845,9 +847,9 @@ Proof.
     -- rewrite VContext.add_neq_o in HfΓ; auto. 
   (* abstraction *)
   - destruct (Var.eqb_spec y x); subst; constructor; auto.
-    -- now rewrite VContext.add_shadow in H3.
-    -- rewrite VContext.add_add_2 in H3; auto.
-       apply (IHt _ _ _ _ _ β y HvRe H3 Hwv Hsub).
+    -- now rewrite VContext.add_shadow in H5.
+    -- rewrite VContext.add_add_2 in H5; auto.
+       apply (IHt _ _ _ _ _ β y HvRe H5 Hwv Hsub).
   (* wormhole *)
   - apply RC.Ext.new_key_Submap in Hsub as Hle.
     replace (S (S (Re⁺ - Re1⁺))) with ((S (S (Re⁺))) - Re1⁺) by lia.
@@ -940,7 +942,7 @@ Proof.
     -- right; destruct H; exists <[⟨x,t2⟩]>; now constructor.
   - apply IHt in H2 as H2'; destruct H2'; right.
     -- inversion H2; subst; inversion H; subst.
-       exists <[[x := (Fix (\x,t0)) ~ {Re⁺}] t0]>; now constructor.
+       exists <[[x := (Fix (\x:τ',t0)) ~ {Re⁺}] t0]>; now constructor.
     -- destruct H; exists (Term.tm_fix x); now constructor.
   - apply IHt in H2 as H2'; destruct H2'; right.
     -- inversion H; subst; inversion H2; subst; exists v1; now constructor. 
@@ -950,8 +952,8 @@ Proof.
     -- destruct H; exists (Term.tm_snd x); now constructor.
   (* - apply IHt in H2 as H2'; destruct H2' as [Hvt | [t' HeT']];  *)
     (* try (left; now constructor); right; exists <[arr(t')]>; now constructor. *)
-  - apply IHt in H0 as H0'; destruct H0' as [Hvt | [t' HeT']]; 
-    try (left; now constructor); right; exists <[first(t')]>; now constructor.
+  - apply IHt in H3 as H0'; destruct H0' as [Hvt | [t' HeT']]; auto.
+    right; exists <[first(τ:t')]>; now constructor.
   - apply IHt1 in H1 as H1'; apply IHt2 in H5 as H5';
     destruct H1' as [Hvt1 | [t1' HeT1']]; destruct H5' as [Hvt2 | [t2' HeT2']];
     try (left; now constructor); right.

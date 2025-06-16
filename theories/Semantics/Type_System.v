@@ -30,7 +30,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
          (⌈x ⤆ α⌉ Γ)%vc ⋅ Re ⊢ t ∈ β -> (Re⁺ ⊩ α)%ty ->
     (* --------------------------------------------------- WT-Abs *)
-                  Γ ⋅ Re ⊢ (\x, t) ∈ (α → β)
+                  Γ ⋅ Re ⊢ (\x :α, t) ∈ (α → β)
 
   | wt_app  (Γ : Γ) (Re : ℜ) (t1 t2 : Λ) (α β : Τ) :
 
@@ -77,7 +77,7 @@ Inductive well_typed : Γ -> ℜ -> Λ -> Τ -> Prop :=
 
          Γ ⋅ Re ⊢ t ∈ (α ⟿ β ∣ R) -> (Re⁺ ⊩ τ)%ty ->
     (* ------------------------------------------------ WT-First *)
-         Γ ⋅ Re ⊢ first(t) ∈ ((α × τ) ⟿ (β × τ) ∣ R)
+         Γ ⋅ Re ⊢ first(τ:t) ∈ ((α × τ) ⟿ (β × τ) ∣ R)
 
   | wt_comp (Γ : Γ) (Re : ℜ) (R R1 R2 : resources) (t1 t2 : Λ) (α β τ : Τ) :
 
@@ -118,15 +118,15 @@ Proof.
   unfold Term.eq,Typ.eq in *; subst; split.
   - intro wt; revert Γ' HGeq Re1 HReq; induction wt; intros; eauto.
     -- constructor; now rewrite <- HGeq.
-    -- rewrite HReq in *; constructor; auto.
+    -- constructor; try (now rewrite <- HReq). 
        apply IHwt; auto; now rewrite HGeq.
-    -- constructor; auto; now rewrite <- HReq.
+    -- constructor; auto; try (now rewrite <- HReq). 
     -- constructor; auto; now rewrite <- HReq.
     -- apply wt_wh with (R' := R') (τ := τ); auto;
        try (apply IHwt2; auto); now rewrite <- HReq.
   - intro wt; revert Γ HGeq Re HReq; induction wt; intros; eauto.
     -- constructor; now rewrite HGeq.
-    -- rewrite <- HReq in *; constructor; auto.
+    -- constructor; try (now rewrite HReq). 
        apply IHwt; auto; now rewrite <- HGeq.
     -- constructor; auto; now rewrite HReq.
     -- constructor; auto; now rewrite HReq.
@@ -137,7 +137,39 @@ Qed.
 Lemma wt_deterministic (Γ : Γ) (Re : ℜ) (t : Λ) (α β : Τ) :
   Γ ⋅ Re ⊢ t ∈ α -> Γ ⋅ Re ⊢ t ∈ β -> α = β.
 Proof.
-Abort.
+  revert Γ Re α β; induction t;
+  intros G Re α β Hwt Hwt'; 
+  inversion Hwt; subst; inversion Hwt'; subst; auto.
+  - rewrite H2 in H3; inversion H3; auto.
+  - f_equal; auto.
+    apply IHt with (α :=β0) in H7; auto.
+  - apply IHt2 with (α := α0) in H7; auto; subst.
+    apply IHt1 with (α := <[α1 → α]>) in H4; auto.
+    now inversion H4; subst.
+  - f_equal; 
+    try (now apply (IHt1 G Re); auto);
+    try (now apply (IHt2 G Re); auto).
+  - apply (IHt G Re <[α → α]>) in H3; auto.
+    inversion H3; now subst.
+  - apply (IHt G Re <[α × β0]>) in H3; auto.
+    now inversion H3.
+  - apply (IHt G Re <[α0 × α]>) in H3; auto.
+    now inversion H3.
+  - apply (IHt G Re <[α0 → β0]>) in H3; auto.
+    inversion H3; f_equal; auto.
+  - apply (IHt G Re <[α0 ⟿ β0 ∣ R]>) in H4; auto.
+    inversion H4; f_equal; auto.
+  - rewrite H2 in H3; inversion H3; f_equal; auto.
+  - apply (IHt1 G Re <[α0 ⟿ τ ∣ R1]>) in H3; auto.
+    inversion H3; subst; clear H3.
+    apply (IHt2 G Re <[τ0 ⟿ β0 ∣ R2]>) in H9; auto.
+    inversion H9; subst; clear H9.
+    apply Resources.eq_leibniz in H2,H4; subst; auto.
+  - apply (IHt1 G Re τ) in H11; auto; subst.
+    apply (IHt2 G _ <[α0 ⟿ β0 ∣ R']>) in H13; auto.
+    inversion H13; subst; clear H13.
+    apply Resources.eq_leibniz in H1,H4; subst; auto.
+Qed.
 
 (** *** Used resource names come from the resource context
 
@@ -180,7 +212,7 @@ Theorem well_typed_implies_Wf (Γ : Γ) (Re : ℜ) (t : Λ) (τ : Τ) :
   (* -------------------------------------------------------------------------------------- *)
                       (* (4) *) Re⁺ ⊩ t /\ (* (5) *) (Re⁺ ⊩ τ)%ty.
 Proof.
-  revert Γ Re τ; induction t; simpl; intros Γ Re τ HvΓ HvRe Hwt; inversion Hwt; subst;
+  revert Γ Re τ; induction t; simpl; intros Γ Re ty HvΓ HvRe Hwt; inversion Hwt; subst;
   try (apply IHt in H2 as [Hvt Hvf]; auto; inversion Hvf; subst; now repeat constructor).
   (* unit *)
   - repeat constructor.
@@ -188,8 +220,8 @@ Proof.
   - split; try constructor. 
     now apply (VC.Wf_find (Re⁺)) in H2.
   (* abstraction *)
-  - apply (IHt (⌈x ⤆ α⌉ Γ)%vc _ β) in HvRe as [Hvt Hvf]; auto.
-    -- split; auto; constructor; assumption.
+  - apply (IHt (⌈x ⤆ τ⌉ Γ)%vc _ β) in HvRe; auto. 
+    -- destruct HvRe; split; auto; constructor; assumption.
     -- now apply VContext.Wf_add.
   (* application *)
   - apply IHt1 in H3 as [Hvt1 Hvf]; eauto.
@@ -200,7 +232,7 @@ Proof.
   - apply IHt1 in H3 as [Hvt1 Hvα]; apply IHt2 in H5 as [Hvt2 Hvβ]; auto; 
     now repeat constructor.
   (* first *)
-  - apply IHt in H0 as [Hvt Hvf]; auto; inversion Hvf; subst.
+  - apply IHt in H3 as [Hvt Hvf]; auto; inversion Hvf; subst.
     repeat constructor; auto.
   (* rsf *)
   - apply RC.Wf_find with (lb := Re⁺) in H2 as [Hvr Hvf]; auto.
