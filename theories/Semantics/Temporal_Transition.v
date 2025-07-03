@@ -1,4 +1,4 @@
-(* From Coq Require Import Lia Morphisms Lists.List Arith Lists.Streams.
+From Coq Require Import Lia Morphisms Lists.List Arith Lists.Streams.
 From Mecha Require Import Resource Resources Term Typ Cell VContext RContext  
                           Type_System Evaluation_Transition Functional_Transition 
                           REnvironment Stock SREnvironment.
@@ -698,9 +698,6 @@ Qed.
 
 (** ** Preservation - Temporal *)
 
-Hypothesis all_arrow_halting : forall Rc t α β,
-  ∅%vc ⋅ Rc ⊢ arr(t) ∈ (α ⟿ β ∣ ∅%s) -> forall v, ∅%vc ⋅ Rc ⊢ v ∈ α -> halts (Rc⁺)%rc <[t v]>.
-
 Hypothesis put_well_behaves : 
   forall n Rc R, 
   (forall r, (r ∈ R)%sr -> 
@@ -722,6 +719,7 @@ Theorem temporal_preserves_typing (n : nat) (Rc : ℜ) (R R': 𝐄)
                                   (W W' : 𝐖) (P P' : Λ) (Rs : resources) :
 
        halts (Rc⁺)%rc P -> SRE.halts (R⁺)%sr R -> ST.halts (W⁺)%sk W ->
+       all_arrow_halting Rc P ->
                              WFₜₜ(Rc,R,W) -> 
           
                     ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
@@ -733,9 +731,9 @@ Theorem temporal_preserves_typing (n : nat) (Rc : ℜ) (R R': 𝐄)
           
                      ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ Rs') /\ 
      
-      halts (Rc1⁺)%rc P' /\ ST.halts (W'⁺)%sk W'.
+      halts (Rc1⁺)%rc P' /\ ST.halts (W'⁺)%sk W' /\ all_arrow_halting Rc1 P'.
 Proof.
-  intros HltP HltW HR HWF HwtP HTT.
+  intros HltP HltW HR Harrlt HWF HwtP HTT.
   assert (HTT': # n ⟦ R; W; P ⟧ ⟾ ⟦ R'; W'; P' ⟧) by assumption.
   destruct HTT as [Vout [Wnew [_tv [HfT [HeqR HeqW]]]]].
 
@@ -743,7 +741,7 @@ Proof.
   with (Rc := Rc) (α := <[𝟙]>) (β := <[𝟙]>) (R := Rs)
   in HfT; auto.
   - destruct HfT as [Hunsd [Hunsd' [Rc1 [Rs' [HsubRc [HsubRs 
-                    [Hout [Hwt [Hwt' [HWF' [HwW [Hdisj Husd]]]]]]]]]]]]. 
+                    [Hout [Harrlt' [Hwt [Hwt' [HWF' [HwW [Hdisj Husd]]]]]]]]]]]]]. 
     exists Rc1, Rs'.
     do 3 (split; auto).
     {
@@ -763,6 +761,7 @@ Proof.
     admit. }
     do 2 (split; auto).
     { now destruct Hout as [_ [_ [_ ]]]. }
+    split; auto.
     { 
       rewrite HeqW.
       rewrite ST.update_locals_new_key.
@@ -795,7 +794,7 @@ Admitted.
 
 (** ** Progress - Temporal *)
 
-Theorem temporal_progress (n : nat) (Rc : ℜ) (R : resources) (W: 𝐖) (P : Λ) (Rs : resources) :
+(* Theorem temporal_progress (n : nat) (Rc : ℜ) (R : resources) (W: 𝐖) (P : Λ) (Rs : resources) :
 
           halts (Rc⁺)%rc P -> ST.halts (W⁺)%sk W ->
  
@@ -806,7 +805,7 @@ Theorem temporal_progress (n : nat) (Rc : ℜ) (R : resources) (W: 𝐖) (P : Λ
        exists (P': Λ) (W': 𝐖), #n ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧.
 Proof. admit.
 
-Admitted.
+Admitted. *)
 
 
-End temporal. *)
+End temporal.
