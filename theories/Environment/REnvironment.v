@@ -226,10 +226,21 @@ Proof.
     -- now apply Hsub.
 Qed. 
 
+Lemma diff_in_false (m m' : t) :
+  (forall x, In x (diff m m') <-> False) -> (forall x, In x m -> In x m').
+Proof.
+  intros.
+  destruct (In_dec m' x); auto.
+  exfalso.
+  rewrite <- (H x).
+  apply diff_in_iff; split; auto.
+Qed.
+
+
 (** **** [new_key] properties *)
 
 Lemma new_key_incl (m m': t) :
- (forall r, In r m -> In r m') ->  new_key m <=  new_key m'.
+ (forall r, In r m -> In r m') ->  new_key m <=  new_key m'. 
 Proof.
   revert m'.
   induction m using map_induction; intros m' Hsub.

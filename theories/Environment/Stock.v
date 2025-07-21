@@ -153,6 +153,7 @@ Proof.
     lia.
 Qed.
 
+
 Lemma max_key_app (st st' : t) :
   max_key (st ++ st') = max (max_key st) (max_key st').
 Proof.
@@ -287,6 +288,9 @@ Proof.
        now rewrite <- keys_in_shift.
 Qed.
 
+    
+
+
 Lemma update_locals_max_key (V : 𝐕) (t : t) :
   max_key (update_locals t V) = max_key t.
 Proof.
@@ -305,6 +309,90 @@ Proof.
   destruct (V⌊rs⌋)%re as [ov|]; try (destruct ov); 
   simpl; now rewrite update_locals_max_key.
 Qed.
+
+Lemma update_locals_In r r' v (V : 𝐕) (t : t) :
+  In (r,r',v) (update_locals t V) -> 
+  (In (r,r',v) t /\ V⌊r'⌋ <> Some (Cell.out v))%re \/ 
+  (exists v', In (r,r',v') t /\ V⌊r'⌋ = Some (Cell.out v))%re.
+Proof.
+  revert r; induction t; simpl; intros.
+  - inversion H.
+  - destruct a as [[rr rw] p].
+    destruct (V⌊rw⌋)%re eqn:Hfi.
+    -- destruct r0.
+       + destruct H.
+         ++ inversion H; subst.
+            left; split; auto.
+            intro.
+            rewrite H0 in *; inversion Hfi.
+         ++ apply IHt in H.
+            destruct H as [[HIn Hneq]|[v' [HIn Heq]]]; auto.
+            right.
+            exists v'; auto.
+       + destruct H.
+         ++ inversion H; subst.
+            right; exists p; split; auto.
+         ++ apply IHt in H.
+            destruct H as [[HIn Hneq]|[v' [HIn Heq]]]; auto.
+            right.
+            exists v'; auto.
+    -- destruct H.
+       + inversion H; subst.
+         left; split; auto.
+         intro; rewrite H0 in *; inversion Hfi.
+       + apply IHt in H.
+         destruct H as [[HIn Hneq]|[v' [HIn Heq]]]; auto.
+         right.
+         exists v'; auto.
+Qed.
+
+Lemma update_locals_keys_In r (V : 𝐕) (t : t) :
+  In r (keys (update_locals t V)) <-> In r (keys t).
+Proof.
+  revert r; induction t; simpl; intro.
+  - split; auto.
+  - destruct a as [[rr rw] p].
+    destruct (V⌊rw⌋)%re;
+    try (destruct r0); simpl; 
+    split; intros [|[|]]; auto;
+    do 2 right;
+    try (now rewrite <- IHt);
+    try (now rewrite IHt).
+Qed.
+
+
+Lemma update_locals_NoDup_keys (st : t) V :
+  NoDup (keys st) -> NoDup (keys (update_locals st V)).
+Proof.
+  induction st; simpl; auto.
+  destruct a as [[rr rw] p]; intro HND.
+  inversion HND; subst.
+  inversion H2; subst.
+  destruct (V⌊rw⌋)%re;
+  try (destruct r); simpl.
+  - constructor.
+    -- simpl; intros [|]; subst.
+       + apply H1; simpl; auto.
+       + rewrite update_locals_keys_In in H.
+         apply H1; simpl; auto.
+    -- constructor; auto.
+       rewrite update_locals_keys_In; auto.
+  - constructor.
+    -- simpl; intros [|]; subst.
+       + apply H1; simpl; auto.
+       + rewrite update_locals_keys_In in H.
+         apply H1; simpl; auto.
+    -- constructor; auto.
+       rewrite update_locals_keys_In; auto.
+ - constructor.
+    -- simpl; intros [|]; subst.
+       + apply H1; simpl; auto.
+       + rewrite update_locals_keys_In in H.
+         apply H1; simpl; auto.
+    -- constructor; auto.
+       rewrite update_locals_keys_In; auto.
+Qed.
+
 
 Lemma Wf_cons_1 (k : lvl) p (t : t) :
   Wf k (p :: t) -> Wf k t.
@@ -370,6 +458,34 @@ Proof.
        apply IHW; auto.
 Qed.
 
+Lemma update_locals_not_nil t V :
+  update_locals t V <> [] <-> t <> [].
+Proof.
+  induction t; simpl; split; auto;
+  destruct a as [[rr rw] p].
+  - destruct (V⌊rw⌋)%re; try destruct r; 
+    intros H c; inversion c.
+  - intro H.
+    destruct (V⌊rw⌋)%re; try destruct r; 
+    intros c; inversion c.
+Qed.
+
+Lemma app_not_nil A (t1 t2 : list A) :
+  t1 ++ t2 <> [] -> t1 <> [] \/ t2 <> [].
+Proof.
+  destruct t1; simpl; auto.
+  intros. 
+  left.
+  intro c; inversion c.
+Qed.
+
+Lemma shift_not_nil m n t :
+  (shift n m t) <> [] <-> t <> [].
+Proof.
+  destruct t; simpl; split; auto.
+  - intros H c; inversion c.
+  - intros H c; inversion c.
+Qed.
 
 (** **** [eqDom] properties *)
 Definition eqDom' (V : 𝐕) (W: t) := forall (r : resource), (r ∈ V)%re <-> In r (keys W).

@@ -1,0 +1,15 @@
+What is ArityLists ?
+	Give information about the number of consecutive occurrences for each elements
+Why Recursion Level is required ?
+
+
+dac :
+	ArityLists
+	SplitFunctions
+	CombineFunctions
+	BaseFunctions
+	RecursionLevel           (allow us to set up a threshold. You can stop the use of parallel decomposition with this.)
+	AlternativeFunctions     (function used when the recursion level is reached)
+	Input ---> Output
+
+slide 17 : delta is ill-formed
