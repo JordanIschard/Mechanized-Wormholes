@@ -5,7 +5,7 @@ Import ResourceNotations.
 
 (** * Environment - Resources
 
-  Wormholes types contains a signal function arrow that carries a set of resources used by the signal function during the functional transition. We define a set of resource directly via the [Levels] contained in [DeBrLevel] library. The set module is based on [MSet].
+  Wormholes types contains a signal function arrow that carries a resource set. We define a set of resource directly via the [Levels] contained in [DeBrLevel] library. The set module is based on [MSet].
 *)
 
 (** ** Module - Resources *)
@@ -19,7 +19,7 @@ Import St.
 (** **** Multi shift 
 
   As said in [Resource.v], the proof of progress of the functional transition requires multiple
-  shift with different well-formedness level and shifts. Thus we also define [multi_shift] here. 
+  shift with different well-formedness level and shifts. Thus, we also define [multi_shift] here. 
 *)
 Definition multi_shift (lbs : list lvl) (ks : list lvl) (t : t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).

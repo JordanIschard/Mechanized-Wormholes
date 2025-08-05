@@ -7,10 +7,10 @@ Import ResourceNotations TermNotations REnvironmentNotations CellNotations
 
 (** * Environment - Simple Resource Environment
 
-  In the functional transition there are two kind of environment: the resource environment and the stock. The former, defined in [REnvironment.v], represents the local memory during an instant. The latter, defined in [Stock.v], keeps local resource names with their initial value. In addition, in the temporal transition we also need a simple map between resource names and terms.
+  For the temporal transition, we need to define a map that binds global resources with terms. Indeed, it simulates the information that come from the external environment.
 *)
 
-(** ** Module - Virtual Resource Environment - Reader *)
+(** ** Module - Simple Resource Environment *)
 Module SREnvironment <: IsLvlET.
 
 Include MakeLvlMapLVLD Term.
@@ -23,19 +23,18 @@ Module RE := REnvironment.
 
 (** **** Initialize an environment
 
-  For each instant, local resource names that represent a reading interaction have their memory cells initialized as unused with a certain term. Same idea for global input resource names in the temporal transition. This function takes a reader environment [sr] and an environement [V] and produces an environment where all resource names in [sr] are initialized.
+  For each instant, global resources are initialized with a certain term. Consequently, we define [init_globals] that takes a simple environment [sr] and an environement [V] and produces an environment where all resource names in [sr] are initialized.
 *)
 Definition init_func (r: resource) (v: Λ) (V: 𝐕) := (⌈ r ⤆ ⩽ v … ⩾ ⌉ V)%re.
 
-Definition init_readers (sr: t) (V: 𝐕) := fold init_func sr V.
+Definition init_g (sr: t) (V: 𝐕) := fold init_func sr V.
 
-Definition init_globals (sr: t) : 𝐕 := init_readers sr (∅)%re.
+Definition init_globals (sr: t) : 𝐕 := init_g sr (∅)%re.
 
 
 (** **** Halts 
 
-  In the functional transition proofs, we assume that all elements in the virtual resource environment [W] halts. Thus, we define this property here with [For_all].
-  An environment has the halting property if and only if each term in it halts. 
+  An environment holds the halting property if and only if each term in it halts. 
 *)
 Definition halts (k : lvl) := For_all (fun _ d => ET.halts k d).
 
@@ -104,7 +103,7 @@ Proof.
     rewrite new_key_add_max; lia.
 Qed.
 
-(** **** [init_readers] properties *)
+(** **** [init_g] properties *)
 
 #[export] Instance init_func_eq : Proper (Logic.eq ==> Logic.eq ==> RE.eq ==> RE.eq) init_func.
 Proof.
@@ -121,37 +120,37 @@ Qed.
 
 #[local] Hint Resolve init_func_eq init_func_diamond RE.Equal_equiv : core.
 
-Lemma init_readers_Empty (sr: t) (V: 𝐕) :
-  Empty sr -> RE.eq (init_readers sr V) V.
+Lemma init_g_Empty (sr: t) (V: 𝐕) :
+  Empty sr -> RE.eq (init_g sr V) V.
 Proof.
-  intro Hemp; unfold init_readers.
+  intro Hemp; unfold init_g.
   rewrite fold_Empty with (eqA := RE.eq); now auto.
 Qed.
 
-Lemma init_readers_add (r: resource) (v: Λ) (sr: t) (V: 𝐕) :
+Lemma init_g_add (r: resource) (v: Λ) (sr: t) (V: 𝐕) :
   ~ (In r sr) ->
-  RE.eq (init_readers (add r v sr) V) (⌈ r ⤆ (⩽ v … ⩾)⌉ (init_readers sr V))%re. 
+  RE.eq (init_g (add r v sr) V) (⌈ r ⤆ (⩽ v … ⩾)⌉ (init_g sr V))%re. 
 Proof.
-  unfold init_readers; intro HnIn.
+  unfold init_g; intro HnIn.
   rewrite fold_Add with (eqA := RE.eq); eauto.
   - unfold init_func at 1; reflexivity.
   - red; reflexivity.
 Qed.
 
-#[export] Instance init_readers_proper : Proper (eq ==> RE.eq ==> RE.eq) init_readers.
+#[export] Instance init_g_proper : Proper (eq ==> RE.eq ==> RE.eq) init_g.
 Proof.
-  intros sr sr' Heqrs V V' HeqV; unfold init_readers.
+  intros sr sr' Heqrs V V' HeqV; unfold init_g.
   eapply fold_Proper with (eqA := RE.eq); now eauto.
 Qed.
 
-Lemma init_readers_find_1 (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
-  ((init_readers sr V)⌊r⌋)%re = Some v -> 
+Lemma init_g_find_1 (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
+  ((init_g sr V)⌊r⌋)%re = Some v -> 
   find r sr = Some (Cell.extract v) \/ V⌊r⌋%re = Some v.
 Proof.
   revert r v; induction sr using map_induction; intros r v Hfi.
-  - rewrite init_readers_Empty in Hfi; auto.
+  - rewrite init_g_Empty in Hfi; auto.
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add in Hfi; auto.
+    rewrite init_g_add in Hfi; auto.
     rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
     -- inversion Hfi; subst; clear Hfi.
        left; rewrite add_eq_o; auto.
@@ -159,88 +158,88 @@ Proof.
        left; now rewrite add_neq_o.
 Qed. 
 
-Lemma init_readers_find (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
-  ((init_readers sr V)⌊r⌋)%re = Some v -> In r sr \/ V⌊r⌋%re = Some v.
+Lemma init_g_find (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
+  ((init_g sr V)⌊r⌋)%re = Some v -> In r sr \/ V⌊r⌋%re = Some v.
 Proof.
   revert r v; induction sr using map_induction; intros r v Hfi.
-  - rewrite init_readers_Empty in Hfi; auto.
+  - rewrite init_g_Empty in Hfi; auto.
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add in Hfi; auto.
+    rewrite init_g_add in Hfi; auto.
     rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
     -- now rewrite add_in_iff; repeat left.
     -- rewrite add_in_iff.
        apply IHsr1 in Hfi as [HIn | Hfi]; auto.
 Qed.
 
-Lemma init_readers_find_inp (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
+Lemma init_g_find_inp (sr: t) (V: 𝐕) (r: resource) (v : 𝑣) :
   (forall r, V⌊r⌋%re = Some v -> exists v', v = Cell.inp v') ->
-  ((init_readers sr V)⌊r⌋)%re = Some v -> exists v', v = Cell.inp v'. 
+  ((init_g sr V)⌊r⌋)%re = Some v -> exists v', v = Cell.inp v'. 
 Proof.
   revert r v; induction sr using map_induction; intros r v HV Hfi.
-  - rewrite init_readers_Empty in Hfi; auto.
+  - rewrite init_g_Empty in Hfi; auto.
     now apply (HV r).
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add in Hfi; auto.
+    rewrite init_g_add in Hfi; auto.
     rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
     -- inversion Hfi; subst; now exists e.
     -- apply IHsr1 in Hfi; auto.
 Qed.
 
-Lemma init_readers_in_iff  (sr: t) (V: 𝐕) (r: resource) :
-  (r ∈ (init_readers sr V))%re <-> In r sr \/ (r ∈ V)%re.
+Lemma init_g_in_iff  (sr: t) (V: 𝐕) (r: resource) :
+  (r ∈ (init_g sr V))%re <-> In r sr \/ (r ∈ V)%re.
 Proof.
   revert r; induction sr using map_induction; intro r; split.
-  - rewrite init_readers_Empty; auto.
+  - rewrite init_g_Empty; auto.
   - intros [HIn | HIn].
     -- destruct HIn as [v HM].
        exfalso; now apply (H r v).
-    -- rewrite init_readers_Empty; auto.
+    -- rewrite init_g_Empty; auto.
   - intro HIn.
     unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add in HIn; auto.
+    rewrite init_g_add in HIn; auto.
     rewrite add_in_iff.
     apply RE.add_in_iff in HIn as [| HIn]; subst; auto.
     apply IHsr1 in HIn as [HIn | HIn]; auto.
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
     rewrite add_in_iff.
-    rewrite init_readers_add; auto.
+    rewrite init_g_add; auto.
     rewrite RE.add_in_iff.
     intros [[Heq | HIn] | HIn]; subst; auto; 
     right; rewrite IHsr1; auto.
 Qed.
 
-Lemma init_readers_in_unused (sr: t) (V: 𝐕) (r: resource) :
-  In r sr -> REnvironment.unused r (init_readers sr V).
+Lemma init_g_in_unused (sr: t) (V: 𝐕) (r: resource) :
+  In r sr -> REnvironment.unused r (init_g sr V).
 Proof.
   revert r; induction sr using map_induction; intros r HIn.
   - exfalso; destruct HIn as [v HM]; now apply (H r v).
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add; auto; 
+    rewrite init_g_add; auto; 
     apply add_in_iff in HIn as [| HIn]; subst.
     -- apply RE.unused_add_eq; now red.
     -- assert (Hneq : r <> x) by (intro; subst; contradiction).
        apply RE.unused_add_neq; auto.
 Qed.
 
-Lemma init_readers_unused (r: resource) (V: 𝐕) (sr: t) :
-  RE.unused r V -> RE.unused r (init_readers sr V).
+Lemma init_g_unused (r: resource) (V: 𝐕) (sr: t) :
+  RE.unused r V -> RE.unused r (init_g sr V).
 Proof.
   revert r; induction sr using map_induction; intros r Hunsd.
-  - rewrite init_readers_Empty; auto.
+  - rewrite init_g_Empty; auto.
   - unfold SREnvironment.Add in *; rewrite H0 in *; clear H0.
-    rewrite init_readers_add; auto.
+    rewrite init_g_add; auto.
     destruct (Resource.eq_dec r x) as [| Hneq]; subst.
     -- apply RE.unused_add_eq; now red.
     -- apply RE.unused_add_neq; auto.
 Qed.
 
-Lemma init_readers_add_remove (r: resource) (v: Λ) (sr: t) (V: 𝐕) :
-  RE.eq (init_readers (add r v sr) V) (init_readers (add r v sr) (RE.Raw.remove r V)).
+Lemma init_g_add_remove (r: resource) (v: Λ) (sr: t) (V: 𝐕) :
+  RE.eq (init_g (add r v sr) V) (init_g (add r v sr) (RE.Raw.remove r V)).
 Proof.
   revert r v V; induction sr using map_induction; intros r v V.
-  - rewrite init_readers_add.
-    -- rewrite init_readers_add.
-       + do 2 (rewrite init_readers_Empty; auto).
+  - rewrite init_g_add.
+    -- rewrite init_g_add.
+       + do 2 (rewrite init_g_Empty; auto).
          clear H sr; revert r v; induction V using RE.map_induction; intros r v.
          ++ assert (RE.eq (RE.Raw.remove r V) V).
             { 
@@ -265,19 +264,19 @@ Proof.
     -- rewrite add_shadow.
        now apply IHsr1.
     -- rewrite add_add_2; auto.
-       rewrite init_readers_add.
-       + symmetry; rewrite init_readers_add.
+       rewrite init_g_add.
+       + symmetry; rewrite init_g_add.
          ++ now rewrite <- IHsr1.
          ++ rewrite add_in_iff; intros [|]; subst; contradiction.
        + rewrite add_in_iff; intros [|]; subst; contradiction.
 Qed.
 
-Lemma init_readers_add_1 (r: resource) (v : 𝑣) (sr: t) (V: 𝐕) :
+Lemma init_g_add_1 (r: resource) (v : 𝑣) (sr: t) (V: 𝐕) :
   ~ (In r sr) ->
-  RE.eq (init_readers sr (⌈r ⤆ v⌉ V))%re (⌈r ⤆ v⌉ (init_readers sr V))%re. 
+  RE.eq (init_g sr (⌈r ⤆ v⌉ V))%re (⌈r ⤆ v⌉ (init_g sr V))%re. 
 Proof.
   revert r v V; induction sr using map_induction; intros r v V HnIn.
-  - now do 2 (rewrite init_readers_Empty; auto).
+  - now do 2 (rewrite init_g_Empty; auto).
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
     assert (r <> x /\ ~In r sr1).
     { 
@@ -288,20 +287,20 @@ Proof.
         rewrite add_in_iff; auto.
     }
     destruct H0 as [Hneq HnIn'].
-    do 2 (rewrite init_readers_add; auto).
+    do 2 (rewrite init_g_add; auto).
     rewrite RE.add_add_2; auto.
     now rewrite IHsr1; auto.
 Qed.
 
-Lemma init_readers_new_key (V: 𝐕) (t : t) : ((init_readers t V)⁺)%re = max (new_key t) (V⁺)%re.
+Lemma init_g_new_key (V: 𝐕) (t : t) : ((init_g t V)⁺)%re = max (new_key t) (V⁺)%re.
 Proof.
   revert V.
   induction t using map_induction; intro V.
   - rewrite new_key_Empty; auto; simpl.
-    rewrite init_readers_Empty; auto.
+    rewrite init_g_Empty; auto.
   - unfold SREnvironment.Add in *; rewrite H0 in *; clear H0.
-    rewrite init_readers_add_remove.
-    rewrite init_readers_add; auto.
+    rewrite init_g_add_remove.
+    rewrite init_g_add; auto.
     rewrite new_key_add_max; auto.
     rewrite RE.Ext.new_key_add_max.
     rewrite IHt1.
@@ -312,18 +311,18 @@ Proof.
       rewrite n; lia.
 Qed.
 
-Lemma init_readers_Wf (k : lvl) (V: 𝐕) (t : t) :
-  Wf k t /\ (k ⊩ V)%re -> (k ⊩ init_readers t V)%re.
+Lemma init_g_Wf (k : lvl) (V: 𝐕) (t : t) :
+  Wf k t /\ (k ⊩ V)%re -> (k ⊩ init_g t V)%re.
 Proof.
   revert k V.
   induction t using map_induction; intros k V  [Hvt HvV].
-  - rewrite init_readers_Empty; auto.
+  - rewrite init_g_Empty; auto.
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
     apply Wf_add_notin in Hvt as [Hvx [Hve Hvt1]]; auto.
-    rewrite init_readers_add_remove.
-    rewrite init_readers_add; auto.
+    rewrite init_g_add_remove.
+    rewrite init_g_add; auto.
     apply RE.Wf_add_notin.
-    -- rewrite init_readers_in_iff; intros [|]; auto.
+    -- rewrite init_g_in_iff; intros [|]; auto.
        apply RE.remove_in_iff in H0 as []; auto.
     -- do 2 (split; auto).
        apply IHt1; split; auto.
@@ -334,12 +333,12 @@ Qed.
 
 Lemma init_globals_Empty (t : t) :
   Empty t -> RE.eq (init_globals t) (∅)%re.
-Proof. apply init_readers_Empty. Qed.
+Proof. apply init_g_Empty. Qed.
 
 Lemma init_globals_add (r: resource) (v: Λ) (t : t) :
   ~ (In r t) ->
   RE.eq (init_globals (add r v t)) (⌈ r ⤆ (⩽ v … ⩾)⌉ (init_globals t))%re. 
-Proof. apply init_readers_add. Qed.
+Proof. apply init_g_add. Qed.
 
 #[export] Instance init_globals_eq : Proper (eq ==> RE.eq) init_globals.
 Proof. unfold init_globals; intros t t' Heqt; now rewrite Heqt. Qed.  
@@ -348,7 +347,7 @@ Lemma init_globals_find (t : t) (r: resource) (v : 𝑣) :
   ((init_globals t)⌊r⌋)%re = Some v -> In r t.
 Proof. 
   intros Hfi. 
-  apply init_readers_find in Hfi as [HIn | Hfi]; auto.
+  apply init_g_find in Hfi as [HIn | Hfi]; auto.
   inversion Hfi.
 Qed.
 
@@ -356,9 +355,9 @@ Lemma init_globals_in_iff  (t : t) (r: resource) :
   (r ∈ (init_globals t))%re <-> In r t.
 Proof.
   split; intros HIn. 
-  - apply init_readers_in_iff in HIn as [HIn | HIn]; auto.
+  - apply init_g_in_iff in HIn as [HIn | HIn]; auto.
     inversion HIn; inversion H.
-  - now apply init_readers_in_iff; left.
+  - now apply init_g_in_iff; left.
 Qed. 
 
 Lemma init_globals_find_iff (t : t) (v: Λ) (r: resource) : 
@@ -392,7 +391,7 @@ Qed.
 
 Lemma init_globals_in_unused (t : t) (r: resource) :
   In r t -> RE.unused r (init_globals t).
-Proof. apply init_readers_in_unused. Qed.
+Proof. apply init_g_in_unused. Qed.
 
 Lemma init_globals_find_e (t : t) (v : 𝑣) (r: resource) : 
   ((init_globals t)⌊r⌋)%re = Some v -> exists v', (v = ⩽ v' … ⩾)%type.
@@ -517,13 +516,13 @@ Proof.
   apply halts_weakening; auto; lia.
 Qed.
 
-Lemma halts_init_readers (k : lvl) (sr: t) (V: 𝐕) :
-  halts k sr -> RE.halts k V -> RE.halts k (init_readers sr V).
+Lemma halts_init_g (k : lvl) (sr: t) (V: 𝐕) :
+  halts k sr -> RE.halts k V -> RE.halts k (init_g sr V).
 Proof.
   induction sr using map_induction; intros Hltrs HltV.
-  - now rewrite init_readers_Empty.
+  - now rewrite init_g_Empty.
   - unfold SREnvironment.Add in H0; rewrite H0 in *; clear H0.
-    rewrite init_readers_add; auto.
+    rewrite init_g_add; auto.
     apply RE.halts_add; simpl.
     apply halts_add_iff in Hltrs as [Hkte Htlrs1]; auto. 
 Qed.
@@ -531,7 +530,7 @@ Qed.
 Lemma halts_init_globals (k : lvl) (sr: t) :
   halts k sr -> RE.halts k (init_globals sr).
 Proof.
-  intro Hlt; apply halts_init_readers; auto.
+  intro Hlt; apply halts_init_g; auto.
   intros r d Hfi; inversion Hfi.
 Qed.
 
@@ -554,7 +553,7 @@ End SREnvironment.
 
 (** ---- *)
 
-(** ** Notation - Virtual Resource Environment - Reader *)
+(** ** Notation - Simple Resource Environment *)
 
 Module SREnvironmentNotations.
 

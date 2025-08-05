@@ -3,7 +3,7 @@ From DeBrLevel Require Import LevelInterface Level.
 
 (** * Syntax - Resource
 
-  Resources are names that are either bound to I/O or introduced by the binder, named wormhole.In the original paper, a resource is an element taken from a certain infinite countable set. We choose De-Bruijn level as representation to avoid captures issues. Consequently, in this formalization, a resource name is a level. It is a direct use of the [Level] module of [DeBrLevel] library.
+  Resources are names that are either bound to I/O or introduced by the binder, named wormhole. In the original paper, a resource is an element taken from a certain infinite countable set. We choose De-Bruijn level as representation to avoid captures issues. Consequently, in this formalization, a resource name is a level. It is a direct use of the [Level] module of [DeBrLevel] library.
 *)
 
 (** ** Module - Resource *)
@@ -15,14 +15,14 @@ Include Level.
 
 (** **** Multi shift 
 
-  During the functional transition, defined in [FT_Definition], the signal function is updated multiple times for different well-formednes level and shift. Consequently, we define a [multi_shift] function that applies [n] shifts for two lists [lbs] and [ks] of length [n].
+  During the functional transition, defined in [Functional_Transition.v], the signal function is updated multiple times for different well-formed levels through shift applications. Consequently, we define a [multi_shift] function that applies [n] shifts for two lists [lbs] and [ks] of length [n].
 *)
-Definition multi_shift (lbs : list Lvl.t) (ks : list Lvl.t) (t : t) :=
+Definition multi_shift (lbs: list Lvl.t) (ks: list Lvl.t) (t: t) :=
   List.fold_right (fun lbk acc => shift (fst lbk) (snd lbk) acc) t (List.combine lbs ks).
 
 (** *** Properties *)
 
-Lemma multi_shift_wf_refl (lbs ks : list Lvl.t) (lb : Lvl.t) (t : t):
+Lemma multi_shift_wf_refl (lbs ks: list Lvl.t) (lb: Lvl.t) (t: t) :
   Wf lb t -> (forall i, List.In i lbs -> lb <= i) -> multi_shift lbs ks t = t.
 Proof.
   revert ks; unfold multi_shift. 

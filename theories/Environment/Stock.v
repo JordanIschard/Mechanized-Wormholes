@@ -6,17 +6,37 @@ From MMaps Require Import MMaps.
 Import ResourceNotations TermNotations ListNotations REnvironmentNotations
        CellNotations.
 
+(** * Environment - Stock
+
+  In the functional transition, there is an environment that saves the local resources and their initial expression. We define it as a list of triplets where a triplet is already defined in [Triplet] module. 
+*)
+
+(** ** Module - Stock *)
 Module Stock <: IsLvlET.
+
+(** *** Definitions *)
 
 Include IsLvlListETWL Triplet.
 
+(** **** Halts
+
+  A stock holds the halting property if all terms in it halt.
+*)
 Definition halts (m : lvl) (st : t) :=
  List.Forall (fun (tp: Triplet.t) =>  let (_,v) := tp 
                                       in Evaluation_Transition.halts m v) st.
 
+(** **** Get all keys
+
+  It gets all keys in the triplet list and gathers them in a list.
+*)
 Definition keys (st : t) :=
  fold_right (fun '((rg,rs),_) acc => rg :: rs :: acc) [] st.
 
+(** **** Definition of [new_key]
+
+  Acts the same that the [new_key] function from maps.
+*)
 Definition max_key (st : t) :=
   fold_right (fun '((rg,rs),_) acc => max (max rg rs) acc) 0 st.
 
@@ -26,12 +46,20 @@ Definition new_key (st : t) :=
     | _  => (max_key st) + 1
   end.
 
+(** **** Initialize locals 
+
+  At the beginning of the temporal transition, the local resources are initialized thanks to the stock. For each triplet [(r,r',v)], [r] is initialized as unused with [v] and [r'] is initialized as unused with [unit]
+*)
 Fixpoint init_locals (st : t) (V : 𝐕) : 𝐕 :=
   match st with
     | [] => V
     | (r,r',v) :: st' => (⌈r ⤆ ⩽ v … ⩾⌉(⌈r' ⤆ ⩽ unit … ⩾⌉ (init_locals st' V)))%re
   end.
 
+(** **** Update locals
+
+  At the end of the temporal transition, each expression bound to local resources is updated regards of the resource environment. If the writing resource is used then the expression is replaced by the new one, otherwise nothing changes.
+*)
 Fixpoint update_locals (st : t) (V : 𝐕) : t :=
   match st with
     | [] => []
@@ -40,6 +68,37 @@ Fixpoint update_locals (st : t) (V : 𝐕) : t :=
                             | _ => (r,r',v) :: (update_locals st' V)
                           end
   end.
+
+(** **** Domain equality between stock and resource environment *)
+
+Definition eqDom' (V : 𝐕) (W: t) := forall (r : resource), (r ∈ V)%re <-> In r (keys W).
+
+(** *** Properties *)
+
+Lemma app_not_nil A (t1 t2 : list A) :
+  t1 ++ t2 <> [] -> t1 <> [] \/ t2 <> [].
+Proof.
+  destruct t1; simpl; auto.
+  intros. 
+  left.
+  intro c; inversion c.
+Qed.
+
+Lemma Wf_cons_1 (k : lvl) p (t : t) :
+  Wf k (p :: t) -> Wf k t.
+Proof.
+  intros Hwf r HIn; apply Hwf; simpl; auto.
+Qed.
+
+Lemma shift_not_nil m n t :
+  (shift n m t) <> [] <-> t <> [].
+Proof.
+  destruct t; simpl; split; auto.
+  - intros H c; inversion c.
+  - intros H c; inversion c.
+Qed.
+
+(** **** [halts] properties *)
 
 Lemma halts_nil (m : lvl) : halts m [].
 Proof. 
@@ -69,6 +128,48 @@ Proof.
     -- now apply IHst.
 Qed.
 
+Lemma halts_init_locals (m : lvl) (st : t) (V : 𝐕) :
+  halts m st -> REnvironment.halts m V -> 
+  REnvironment.halts m (init_locals st V).
+Proof.
+  induction st.
+  - simpl; intros.
+    intros k v Hfi.
+    now apply H0 in Hfi.
+  - intros Hlt HltV.
+    destruct a as [[rg rs] v'].
+    simpl.
+    inversion Hlt; subst.
+    apply IHst in H2; auto.
+    apply REnvironment.halts_add; split.
+    -- now simpl.
+    -- apply REnvironment.halts_add; split; auto.
+       simpl.
+       exists <[unit]>; split; auto.
+       reflexivity.
+Qed.
+
+Lemma halts_update_locals (k : lvl) (W : t) (V : 𝐕) :
+  REnvironment.halts k V -> halts k W -> halts k (update_locals W V).
+Proof.
+  induction W; intros HltV HltW.
+  - now simpl.
+  - destruct a as [[rg rs] v].
+    inversion HltW; subst. 
+    simpl in *.
+    destruct (V⌊rs⌋)%re eqn:Hfi.
+    -- destruct r.
+       + constructor; auto.
+         apply IHW; auto.
+       + constructor.
+         ++ apply HltV in Hfi.
+            now simpl in *.
+         ++ apply IHW; auto.
+    -- constructor; auto.
+       apply IHW; auto.
+Qed.
+
+(** **** [keys] properties *)
 
 Lemma keys_in_app (r : resource) (st st' : t) :
   In r (keys (st ++ st')) <-> In r (keys st) \/ In r (keys st').
@@ -86,32 +187,6 @@ Proof.
        + do 2 right.
          apply IHst; auto.
 Qed.
-
-(* Lemma shift_in (m n : lvl) (tp : Triplet.t) (st : t) :
-  In tp st <-> In (Triplet.shift m n tp) (shift m n st).
-Proof.
-  revert r; induction st; simpl; intro r.
-  - split; auto.
-  - destruct a as [[rg rs] v]; simpl; split.
-    -- intros [|[|HIn]]; subst; auto.
-       do 2 right.
-       now apply IHst.
-    -- intros [|[|HIn]].
-       + apply Resource.shift_eq_iff in H; subst; auto.
-       + apply Resource.shift_eq_iff in H; subst; auto.
-       + apply IHst in HIn; auto.
-Qed. *)
-
-
-(* Lemma shift_in_e (m n : lvl) (tp : Triplet.t) (st : t) :
-  In tp (shift m n st) -> exists tp', Logic.eq tp (Triplet.shift m n tp').
-Proof.
-  revert tp; induction st; simpl; intro tp.
-  - intro Hc; inversion Hc.
-  - destruct a as [[rg rs] v]; simpl. intros [| HIn]; subst.
-    -- now exists (rg,rs,v).
-    -- auto.
-Qed. *)
 
 Lemma keys_in_shift (m n : lvl) (r : resource) (st : t) :
   In r (keys st) <-> In ([⧐m – n] r)%r (keys (shift m n st)).
@@ -153,6 +228,7 @@ Proof.
     lia.
 Qed.
 
+(** **** [max_key] and [new_key] properties *)
 
 Lemma max_key_app (st st' : t) :
   max_key (st ++ st') = max (max_key st) (max_key st').
@@ -238,6 +314,8 @@ Proof.
     now rewrite <- keys_in_shift.
 Qed.
 
+(** **** [NoDup] properties *)
+
 Lemma NoDup_keys_app (st st' : t) :
   NoDup (keys st) -> NoDup (keys st') ->
   (forall r, In r (keys st') -> ~ In r (keys st)) ->
@@ -287,9 +365,8 @@ Proof.
        simpl in *.
        now rewrite <- keys_in_shift.
 Qed.
-
-    
-
+ 
+(** **** [update_locals] properties *)
 
 Lemma update_locals_max_key (V : 𝐕) (t : t) :
   max_key (update_locals t V) = max_key t.
@@ -360,7 +437,6 @@ Proof.
     try (now rewrite IHt).
 Qed.
 
-
 Lemma update_locals_NoDup_keys (st : t) V :
   NoDup (keys st) -> NoDup (keys (update_locals st V)).
 Proof.
@@ -394,12 +470,6 @@ Proof.
 Qed.
 
 
-Lemma Wf_cons_1 (k : lvl) p (t : t) :
-  Wf k (p :: t) -> Wf k t.
-Proof.
-  intros Hwf r HIn; apply Hwf; simpl; auto.
-Qed.
-
 Lemma update_locals_Wf (k: lvl) (V : 𝐕) (W: t) :
   Wf k W /\ (k ⊩ V)%re -> Wf k (update_locals W V).
 Proof.
@@ -417,47 +487,6 @@ Proof.
   repeat split; auto.
 Qed.
 
-Lemma halts_init_locals (m : lvl) (st : t) (V : 𝐕) :
-  halts m st -> REnvironment.halts m V -> 
-  REnvironment.halts m (init_locals st V).
-Proof.
-  induction st.
-  - simpl; intros.
-    intros k v Hfi.
-    now apply H0 in Hfi.
-  - intros Hlt HltV.
-    destruct a as [[rg rs] v'].
-    simpl.
-    inversion Hlt; subst.
-    apply IHst in H2; auto.
-    apply REnvironment.halts_add; split.
-    -- now simpl.
-    -- apply REnvironment.halts_add; split; auto.
-       simpl.
-       exists <[unit]>; split; auto.
-       reflexivity.
-Qed.
-
-Lemma halts_update_locals (k : lvl) (W : t) (V : 𝐕) :
-  REnvironment.halts k V -> halts k W -> halts k (update_locals W V).
-Proof.
-  induction W; intros HltV HltW.
-  - now simpl.
-  - destruct a as [[rg rs] v].
-    inversion HltW; subst. 
-    simpl in *.
-    destruct (V⌊rs⌋)%re eqn:Hfi.
-    -- destruct r.
-       + constructor; auto.
-         apply IHW; auto.
-       + constructor.
-         ++ apply HltV in Hfi.
-            now simpl in *.
-         ++ apply IHW; auto.
-    -- constructor; auto.
-       apply IHW; auto.
-Qed.
-
 Lemma update_locals_not_nil t V :
   update_locals t V <> [] <-> t <> [].
 Proof.
@@ -470,25 +499,7 @@ Proof.
     intros c; inversion c.
 Qed.
 
-Lemma app_not_nil A (t1 t2 : list A) :
-  t1 ++ t2 <> [] -> t1 <> [] \/ t2 <> [].
-Proof.
-  destruct t1; simpl; auto.
-  intros. 
-  left.
-  intro c; inversion c.
-Qed.
-
-Lemma shift_not_nil m n t :
-  (shift n m t) <> [] <-> t <> [].
-Proof.
-  destruct t; simpl; split; auto.
-  - intros H c; inversion c.
-  - intros H c; inversion c.
-Qed.
-
-(** **** [eqDom] properties *)
-Definition eqDom' (V : 𝐕) (W: t) := forall (r : resource), (r ∈ V)%re <-> In r (keys W).
+(** **** [eqDom'] properties *)
 
 #[export] Instance eqDom'_iff : Proper (REnvironment.eq ==> eq ==> iff) eqDom'.
 Proof.
@@ -566,6 +577,7 @@ Proof.
       destruct H as [Hc|[Hc|HIn']]; subst; try contradiction; auto.
 Qed.
 
+(** **** [init_locals] properties *)
 
 Lemma init_locals_in_iff (r : resource) (W : t) (V : 𝐕) :
   (r ∈ (init_locals W V))%re <-> In r (keys W) \/ (r ∈ V)%re.
@@ -675,8 +687,13 @@ Qed.
 
 End Stock.
 
+(** ---- *)
+
+(** ** Notation - Stock *)
+
 Module StockNotations.
-  (** *** Scope *)
+
+(** *** Scope *)
 Declare Scope stock_scope.
 Delimit Scope stock_scope with sk.
 

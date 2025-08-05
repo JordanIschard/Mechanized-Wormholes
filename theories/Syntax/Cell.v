@@ -5,7 +5,7 @@ Import ResourceNotations TermNotations.
 
 (** * Syntax - Cell 
 
-  A local memory cell is used in the resource environment, defined in [REnvironment.v]. It has two states: unused, used. For each states, the cell carries a term. However, its meaning differs. Indeed, when a cell is unused, then the term in it is the input term available during the instant. If the cell is used, then the term is the output term which will be given to the global environment at the end of the instant.
+  A local memory cell is used in the resource environment, defined in [REnvironment.v]. It has two states: unused and used. For each states, the cell carries a term. However, its meaning differs. Indeed, when a cell is unused, then the term in it is the input term available during the instant. If the cell is used, then the term is the output term which will be given to the global (or the local) environment at the end of the instant.
 *)
 
 (** ** Module - Cell *)
@@ -15,7 +15,7 @@ Open Scope term_scope.
 
 (** *** Definitions  *)
 
-(** **** Type
+(** **** An inductive definition of a cell
 
   A cell has two disjoints states structurally represented by  [<t .>], for unused state, and [<. t>], for used state, where [t] is a term.
 *)

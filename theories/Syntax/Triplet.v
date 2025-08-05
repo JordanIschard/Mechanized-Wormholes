@@ -4,22 +4,45 @@ From DeBrLevel Require Import LevelInterface.
 From MMaps Require Import MMaps.
 Import ResourceNotations TermNotations.
 
+(** * Syntax - Triplet
+
+  In the functional transition definition, there is a triplet that saves locale resources with their initial value. We define it here.
+*)
+
+(** ** Module - Term *)
 Module Triplet <: IsLvlET.
 
+(** *** Definitions *)
+
+(** **** The definition of a triplet 
+
+  It contains the two local resources as well as the initial value.
+*)
 Definition t : Type := resource * resource * Λ.
 Definition eq := @Logic.eq t.
 
 #[export] Instance eq_equiv : Equivalence eq := _.
 
+(** **** The shift function 
 
+  As in the [PairTyp] module, the shift function applies the appropriate shift function on each elements.
+*)
 Definition shift (m n : resource) (tp : t) :=
   let '(rg,rs,v) := tp in 
   (([⧐ m – n] rg)%r,([⧐ m – n] rs)%r,(Term.shift m n v)%tm).
 
+(** **** The well-formed property 
+
+  A triplet is well-formed under a level [m] if each of its elements are well-formed under [m].
+*)
 Definition Wf (m : resource) (tp : t) :=
   let '(rg,rs,v) := tp in 
   Resource.Wf m rg /\ Resource.Wf m rs /\ Term.Wf m v.
 
+
+(** *** Properties *)
+
+(** **** [eq] properties *)
 
 #[export] Hint Resolve eq_refl eq_sym eq_trans : core.
 
