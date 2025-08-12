@@ -1,9 +1,6 @@
 From Coq Require Import Lia Arith.PeanoNat Classical_Prop Morphisms SetoidList.
-From Mecha Require Import Resource Resources Term Typ Cell RContext.
-From Mecha Require Evaluation_Transition.
+From Mecha Require Import Resource Cell RContext SyntaxNotation.
 From DeBrLevel Require Import LevelInterface MapLevelInterface MapLevelLVLD MapExtInterface MapExt.
-Import ResourceNotations TermNotations CellNotations TypNotations 
-       ResourcesNotations SetNotations RContextNotations.
 
 
 (** * Environment - Resource Environment
@@ -11,71 +8,63 @@ Import ResourceNotations TermNotations CellNotations TypNotations
   The functional transition, defined in [Functional_Transition.v], requires a local memory represented by an environment. We defined here the resource environment which maps resource names with memory cells, defined in [Cell.v]. This environment is an interface between the program and the outside.
 *)
 
-(** ** Module - Resource Environment *)
 Module REnvironment <: IsLvlET.
 
-(** *** Definitions *)
+(** ** Definitions *)
 Include MakeLvlMapLVLD Cell.
 Import Raw Ext.
 
 Open Scope cell_scope.
 Open Scope term_scope.
 
-Module ET := Evaluation_Transition.
-Module RS := Resources.St.
 Module RC := RContext.
 
-
-(** **** Halts 
-
-  In the functional transition proofs, we assume that all elements in the input resource environment halts. Thus, we define this property here with [For_all].
-  An environment has the halting property if and only if each term in it halts. 
-*)
-Definition halts (k : lvl) := For_all (fun _ d => ET.halts k (Cell.extract d)).
-
-(** **** To be used or not to be *)
+(** *** To be used or not to be *)
 
 Definition   used r (V: t) : Prop := Cell.opt_used (find r V). 
 Definition unused r (V: t) : Prop := Cell.opt_unused (find r V).
 
-(** **** Domain equality with [RContext]
+(** *** Domain equality with [RContext]
 
   We define the domain equality as follows: for all key [k], [k] is in the resource context if and only if [k] is in the resource environment. This property is already define in [MMaps], however we need it for maps with different data and the one in [MMaps] library does not match.
 *)
-Definition eqDom (Rc : ℜ) (V : t) := forall (r : resource), (r ∈ Rc)%rc <-> In r V.
+Definition eqDom (Rc : RC.t) (V : t) := 
+  forall (r : resource), RC.Raw.In r Rc <-> In r V.
 
-(** *** Properties *)
+(** ** Properties *)
 
-(** **** [eqDom] properties *)
+(** *** [eqDom] properties *)
 
 #[export] Instance eqDom_iff : Proper (RC.eq ==> eq ==> iff) eqDom.
 Proof.
   intros Re Re1 HeqRe V V1 HeqV; unfold eqDom; split; intros.
-  - rewrite <- HeqRe; rewrite <- HeqV; auto.
-  - rewrite HeqRe; rewrite HeqV; auto.
+  - eapply RC.rcontext_in_iff in HeqRe; auto.
+    rewrite <- HeqRe; rewrite <- HeqV; auto.
+  - eapply RC.rcontext_in_iff in HeqRe; auto.
+    rewrite HeqRe; rewrite HeqV; auto.
 Qed.
 
-Lemma eqDom_In (r: resource) (Rc: ℜ) (V: t) :
-  eqDom Rc V -> (r ∈ Rc)%rc <-> In r V.
+Lemma eqDom_In (r: resource) (Rc: RC.t) (V: t) :
+  eqDom Rc V -> RC.Raw.In r Rc <-> In r V.
 Proof. unfold eqDom; intro HeqDom; auto. Qed.
 
-Lemma eqDom_MapsTo (r: resource) (α β: Τ) (Rc: ℜ) (V: t) :
-  eqDom Rc V -> RC.Raw.MapsTo r (α,β) Rc -> exists (v : 𝑣), MapsTo r v V.
+Lemma eqDom_MapsTo (r: resource) (A B: Τ) (Rc: RC.t) (V: t) :
+  eqDom Rc V -> RC.Raw.MapsTo r (A,B) Rc -> exists (v : 𝑣), MapsTo r v V.
 Proof. 
   intros HeqDom HM.
   assert (HIn : In r V).
   { 
     rewrite <- (eqDom_In _ Rc); auto.
-    now exists (α,β). 
+    now exists (A,B). 
   }
   destruct HIn as [v HM']; now exists v.
 Qed.
 
-Lemma eqDom_Empty (Rc : ℜ) (V: t):
- eqDom Rc V -> (isEmpty(Rc))%rc <-> Empty V.
+Lemma eqDom_Empty (Rc : RC.t) (V: t):
+ eqDom Rc V -> RC.Empty Rc <-> Empty V.
 Proof.
   intro HeqDom; split; intros HEmp r v HM.
-  - assert (HnIn : (r ∉ Rc)%rc).
+  - assert (HnIn : ~ RC.Raw.In r Rc).
     { intros [v' HM']; now apply (HEmp r v'). }
     apply HnIn. 
     rewrite (eqDom_In _ _ V); auto. 
@@ -87,7 +76,7 @@ Proof.
     now exists v.
 Qed.
 
-Lemma eqDom_is_empty (Rc : ℜ) (V: t):
+Lemma eqDom_is_empty (Rc : RC.t) (V: t):
   eqDom Rc V -> RC.Raw.is_empty Rc = is_empty V.
 Proof.
   intro HeqDom.
@@ -104,18 +93,19 @@ Proof.
     rewrite HisEmp in *. inversion HisEmp'.
 Qed.
 
-Lemma eqDom_find (Rc : ℜ) (V: t):
+Lemma eqDom_find (Rc : RC.t) (V: t):
   eqDom Rc V -> 
-  forall (r : resource) (α β : Τ), Rc⌊r⌋%rc = Some (α, β) -> exists v, (find r V = Some v)%type.
+  forall (r : resource) (A B : Τ), 
+    RC.Raw.find r Rc = Some (A, B) -> exists v, (find r V = Some v)%type.
 Proof. 
-  intros HeqDom r α β HfiRc.
+  intros HeqDom r A B HfiRc.
   apply RC.find_2 in HfiRc.
   apply eqDom_MapsTo with (V := V) in HfiRc as [v HM]; auto.
   now exists v; apply find_1.
 Qed.
 
-Lemma eqDom_max (Rc : ℜ) (V: t):
-  eqDom Rc V -> max(Rc)%rc = max_key V.
+Lemma eqDom_max (Rc : RC.t) (V: t):
+  eqDom Rc V -> RC.Ext.max_key Rc = max_key V.
 Proof.
   revert V; induction Rc using RC.map_induction; intros V HeqDom.
   - rewrite RC.Ext.max_key_Empty; auto.
@@ -124,7 +114,9 @@ Proof.
   - assert (HIn: In x V). 
     { 
       unfold eqDom in *; rewrite <- HeqDom. 
-      unfold RC.Add in *; rewrite H0.
+      unfold RC.Add in *.
+      eapply RC.rcontext_in_iff in H0; auto.
+      rewrite H0.
       rewrite RC.add_in_iff; auto. 
     }
     assert (HIn': In x V) by auto.
@@ -132,7 +124,9 @@ Proof.
     apply find_1 in Hfi.
     apply add_id in Hfi as Heq; rewrite <- Heq.
     rewrite <- add_remove_1.
-    unfold RC.Add in H0; rewrite H0 in *; clear H0 Heq.
+    unfold RC.Add in H0; 
+    eapply RC.Ext.max_key_eq in H0 as H0'; auto.
+    rewrite H0' in *; clear H0' Heq.
     rewrite RC.Ext.max_key_add_max.
     rewrite max_key_add_max.
 
@@ -143,17 +137,21 @@ Proof.
        -- contradiction.
        -- rewrite remove_in_iff; split; auto.
           apply HeqDom.
+          eapply RC.rcontext_in_iff in H0; auto.
+          rewrite H0.
           rewrite RC.add_in_iff; auto.
      - apply remove_in_iff in HIn as [Hneq HIn].
        apply HeqDom in HIn.
+       eapply RC.rcontext_in_iff in H0; auto.
+       rewrite H0 in *.
        apply RC.add_in_iff in HIn as [| HIn]; subst; auto.
        contradiction.
     }
     rewrite <- IHRc1; auto.
 Qed.
 
-Lemma eqDom_new (Rc : ℜ) (V: t):
-  eqDom Rc V -> Rc⁺%rc = new_key V.
+Lemma eqDom_new (Rc : RC.t) (V: t):
+  eqDom Rc V -> RC.Ext.new_key Rc = new_key V.
 Proof.
   unfold RC.Ext.new_key, new_key; intro HeqDom.
   apply eqDom_is_empty in HeqDom as HisEmp.
@@ -163,7 +161,7 @@ Proof.
 Qed.
 
 
-(** **** [diff] properties *)
+(** *** [diff] properties *)
 
 Lemma diff_Empty_l (m m': t) : Empty m -> Empty (diff m m').
 Proof.
@@ -237,7 +235,7 @@ Proof.
 Qed.
 
 
-(** **** [new_key] properties *)
+(** *** [new_key] properties *)
 
 Lemma new_key_incl (m m': t) :
  (forall r, In r m -> In r m') ->  new_key m <=  new_key m'. 
@@ -293,7 +291,7 @@ Proof.
        + rewrite remove_in_iff; intros []; auto.
 Qed.
 
-(** **** [unused] properties *)
+(** *** [unused] properties *)
 
 #[export] Instance unused_iff : Proper (Logic.eq ==> eq ==> iff) unused.
 Proof.
@@ -351,7 +349,7 @@ Proof.
   unfold unused; intro unsd.
   destruct (find r V) eqn:Hfi; simpl in *; try contradiction.
   destruct r0; simpl in *; try contradiction.
-  now exists λ.
+  now exists t0.
 Qed.
 
 Lemma unused_find_iff (r: resource) (V V': t) :
@@ -373,7 +371,7 @@ Proof.
     apply shift_find_e_1 in Hfi as HI.
     destruct HI as [[r' Heqr] [v' Heqv]]; subst.
     destruct v'; simpl in *; inversion Heqv; subst; clear Heqv.
-    replace (⩽ [⧐m – n] λ … ⩾) with (([⧐m – n] ⩽ λ … ⩾)) in Hfi by auto.
+    replace (⩽ [⧐m – n] t0 … ⩾) with (([⧐m – n] ⩽ t0 … ⩾)) in Hfi by auto.
     rewrite <- shift_find_iff in Hfi.
     apply (Wf_find m) in Hfi as HI; auto.
     destruct HI as [Hvr' _].
@@ -396,7 +394,7 @@ Proof.
   - inversion H.
 Qed.
 
-(** **** [used] properties *)
+(** *** [used] properties *)
 
 #[export] Instance used_iff : Proper (Logic.eq ==> eq ==> iff) used.
 Proof.
@@ -454,7 +452,7 @@ Proof.
   unfold used; intro unsd.
   destruct (find r V) eqn:Hfi; simpl in *; try contradiction.
   destruct r0; simpl in *; try contradiction.
-  now exists λ.
+  now exists t0.
 Qed.
 
 Lemma used_find_iff (r: resource) (V V': t) :
@@ -476,7 +474,7 @@ Proof.
     apply shift_find_e_1 in Hfi as HI.
     destruct HI as [[r' Heqr] [v' Heqv]]; subst.
     destruct v'; simpl in *; inversion Heqv; subst; clear Heqv.
-    replace (⩽…  [⧐m – n] λ⩾) with (([⧐m – n] ⩽…  λ⩾)) in Hfi by auto.
+    replace (⩽…  [⧐m – n] t0⩾) with (([⧐m – n] ⩽…  t0⩾)) in Hfi by auto.
     rewrite <- shift_find_iff in Hfi.
     apply (Wf_find m) in Hfi as HI; auto.
     destruct HI as [Hvr' _].
@@ -499,7 +497,7 @@ Proof.
   - inversion H.
 Qed.
 
-(** **** [new_key] properties *)
+(** *** [new_key] properties *)
 
 Lemma new_key_wh (v v' : 𝑣) (V: t) :
   new_key (add (S (new_key V)) v 
@@ -602,7 +600,7 @@ Proof.
        subst; contradiction.
 Qed.
 
-(** **** [Wf] properties *)
+(** *** [Wf] properties *)
 
 Lemma Wf_remove (k x: lvl) (t: t) : Wf k t -> Wf k (remove x t).
 Proof.
@@ -622,7 +620,7 @@ Proof.
        rewrite remove_in_iff; intros []; auto.
 Qed.
 
-(** **** [Wf] properties *)
+(** *** [Wf] properties *)
 
 Lemma Wf_wh (v v' : 𝑣) (V: t) :
   Wf (new_key V) V -> ((new_key V) ⊩ v)%cl -> ((new_key V) ⊩ v')%cl -> 
@@ -654,37 +652,6 @@ Proof.
   rewrite new_key_wh; now apply Wf_wh.
 Qed.
 
-(** **** [halts] properties *)
-
-Lemma halts_add (k : lvl) (r: resource) (v: 𝑣) (V: t) :
-  (ET.halts k (Cell.extract v)) /\ halts k V -> halts k (add r v V).
-Proof.
-  intros [Hltv Hltm] r' v' Hfi.
-  destruct (Resource.eq_dec r r') as [| Hneq]; subst.
-  - rewrite add_eq_o in Hfi; auto.
-    inversion Hfi; subst; auto.
-  - rewrite add_neq_o in Hfi; auto.
-    now apply Hltm in Hfi.
-Qed.
-
-Lemma halts_weakening (m n : lvl) (V: t) : 
-  m <= n -> halts m V -> halts n (shift m (n - m) V).
-Proof.
-  intros Hle Hlt r v Hfi. 
-  apply shift_find_e_1 in Hfi as HI.
-  destruct HI as [[r' Heqr'] [v' Heqv']]; subst.
-  rewrite <- shift_find_iff in Hfi. 
-  destruct v'; simpl in *; 
-  apply ET.halts_weakening; auto; apply Hlt in Hfi; now simpl in *.
-Qed.
-
-Lemma halts_weakening_1 (m n : lvl) (V: t) : 
-  halts m V -> halts (m + n) (shift m n V).
-Proof.
-  intro Hlt; replace n with ((m + n) - m) at 2 by lia.
-  apply halts_weakening; auto; lia.
-Qed.
-
 (** *** Morphisms *)
 
 #[export] Instance renvironment_in_iff : Proper (Logic.eq ==> eq ==> iff) In.
@@ -697,80 +664,15 @@ Proof.
   now rewrite Heqk, Heqd, HeqV, HeqV1. 
 Qed.
 
-#[export] Instance renvironment_halts_iff : Proper (Logic.eq ==> eq ==> iff) halts. 
-Proof. unfold halts; intros m n Heqm V V' HeqV; subst; now rewrite HeqV. Qed.
+#[export] Instance renvironment_for_all_iff :
+  Proper (Logic.eq ==> eq ==> iff) For_all.
+Proof.
+  intros P' P HeqP t t' Heqt; subst.
+  split; intros HFa r v Hfi.
+  - rewrite <- Heqt in Hfi.
+    now apply HFa.
+  - rewrite Heqt in Hfi.
+    now apply HFa.
+Qed.
 
 End REnvironment.
-
-(** ---- *)
-
-(** ** Notation - Resource Environment *)
-
-Module REnvironmentNotations.
-
-(** *** Scope *)
-Declare Scope renvironment_scope.
-Delimit Scope renvironment_scope with re.
-
-(** *** Notations *)
-Definition 𝐕 := REnvironment.t.
-
-Notation "∅" := REnvironment.Raw.empty (at level 0, no associativity) : renvironment_scope. 
-Notation "t '⁺'" := (REnvironment.Ext.new_key t) (at level 16) : renvironment_scope.
-Notation "r '∉' t" := (~ (REnvironment.Raw.In r t)) 
-                       (at level 75, no associativity) : renvironment_scope. 
-Notation "'isEmpty(' t ')'" := (REnvironment.Empty t) (at level 20, no associativity) : renvironment_scope. 
-Notation "t '⌊' x '⌋'"  := (REnvironment.Raw.find x t) (at level 15, x constr) : renvironment_scope.
-Notation "'max(' t ')'"  := (REnvironment.Ext.max_key t) (at level 15) : renvironment_scope.
-Notation "⌈ x ⤆ v '⌉' t"  := (REnvironment.Raw.add x v t) 
-                              (at level 15, x constr, v constr) : renvironment_scope.
-Notation "'[⧐' lb '–' k ']' t" := (REnvironment.shift lb k t) 
-                                   (at level 65, right associativity) : renvironment_scope.
-
-Infix "⊆" := REnvironment.Submap (at level 60, no associativity) : renvironment_scope. 
-Infix "∈" := REnvironment.Raw.In (at level 60, no associativity) : renvironment_scope. 
-Infix "=" := REnvironment.eq : renvironment_scope.
-Infix "⊩" := REnvironment.Wf (at level 20, no associativity) : renvironment_scope.
-
-(** *** Morphisms *)
-
-Import REnvironment.
-
-#[export] Instance renvionment_equiv_eq : Equivalence REnvironment.eq := _.
-
-#[export] Instance renvionment_max_eq : Proper (eq ==> Logic.eq) (Ext.max_key) := Ext.max_key_eq.
-
-#[export] Instance renvionment_new_eq : Proper (eq ==> Logic.eq) (Ext.new_key) := Ext.new_key_eq. 
-
-#[export] Instance renvionment_in_iff :  Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
-
-#[export] Instance renvionment_find_eq : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
-
-#[export] Instance renvionment_Empty_iff : Proper (eq ==> iff) (Empty) := _.
-
-#[export] Instance renvionment_Add_iff : 
-  Proper (Resource.eq ==> Cell.eq ==> eq ==> eq ==> iff) (@REnvironment.Add Cell.t) := _.
-
-#[export] Instance renvionment_add_eq : 
-  Proper (Resource.eq ==> Cell.eq ==> REnvironment.eq ==> REnvironment.eq) (@Raw.add Cell.t) := _.
-
-#[export] Instance renvionment_remove_eq : 
-  Proper (Resource.eq ==> eq ==> eq) (@Raw.remove Cell.t) := _.
-
-#[export] Instance renvionment_Submap_iff : Proper (eq ==> eq ==> iff) Submap := _.
-
-#[export] Instance renvionment_Submap_po : PreOrder Submap := Submap_po.
-
-#[export] Instance renvionment_Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
-
-#[export] Instance renvionment_shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
-
-#[export] Instance renvionment_halts_iff : Proper (Logic.eq ==> eq ==> iff) halts := _. 
-
-#[export] Instance renvionment_unused_iff : Proper (Logic.eq ==> eq ==> iff) unused := _.
-
-#[export] Instance renvionment_used_iff : Proper (Logic.eq ==> eq ==> iff) used := _.
-
-#[export] Instance renvironment_eqDom_iff : Proper (RC.eq ==> eq ==> iff) eqDom := _.
-
-End REnvironmentNotations.

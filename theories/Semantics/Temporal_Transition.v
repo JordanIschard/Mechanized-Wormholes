@@ -1,10 +1,9 @@
 From Coq Require Import Lia Morphisms Lists.List Arith Lists.Streams.
-From Mecha Require Import Resource Resources Term Typ Cell VContext RContext  
+From Mecha Require Import Resource Term Typ Cell 
+                          VContext RContext REnvironment Stock SREnvironment
                           Type_System Evaluation_Transition Functional_Transition 
-                          REnvironment Stock SREnvironment.
-Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
-       VContextNotations RContextNotations REnvironmentNotations ResourcesNotations 
-       SetNotations StockNotations SREnvironmentNotations.
+                          SyntaxNotation EnvNotation.
+Import ListNotations.
 
 (** * Semantics - Temporal
 
@@ -13,11 +12,6 @@ Import ResourceNotations TermNotations TypNotations CellNotations ListNotations
 
 
 (** ** Definition - Temporal *)
-
-Module RE := REnvironment.
-Module SRE := SREnvironment.
-Module ST := Stock.
-Module RC := RContext.
 
 
 
@@ -97,14 +91,14 @@ Section put_props.
 Variable put : resource * (option Λ) -> Λ. 
 
 #[export] Instance aux_eq (V: 𝐕) : Proper (eq ==> SRE.eq ==> SRE.eq) 
-  (fun (k: resource) (acc : SRE.t) => (⌈k ⤆ put (k, put_aux k V) ⌉ acc)%sr).
+  (fun (k: resource) (acc : 𝐄) => (⌈k ⤆ put (k, put_aux k V) ⌉ acc)%sr).
 Proof.
   intros r' r Heqr R R' HeqR; subst.
   now rewrite HeqR.
 Qed.
 
 Lemma aux_diamond  (V: 𝐕) : SRE.Diamond SRE.eq 
-  (fun (k: resource) (_: Λ) (acc : SRE.t) => (⌈ k ⤆ put (k, put_aux k V) ⌉ acc)%sr).
+  (fun (k: resource) (_: Λ) (acc : 𝐄) => (⌈ k ⤆ put (k, put_aux k V) ⌉ acc)%sr).
 Proof.
   intros r r' _ _ R1 R R' Hneq Heq Heq'.
   rewrite <- Heq, <- Heq'.
@@ -202,7 +196,6 @@ Proof.
   revert V.
   induction R using SRE.map_induction; intros V Hwfput HwfR.
   - rewrite puts_Empty_iff; auto.
-    apply SRE.Wf_empty.
   - unfold SRE.Add in H0; rewrite H0 in *.
     rewrite puts_add; auto.
     apply SRE.Wf_add_notin in HwfR as [Hwfx [_ Hwfe1]]; auto.
@@ -226,7 +219,6 @@ Proof.
   revert V.
   induction R using SRE.map_induction; intros V Hwfput Hleq HwfV.
   - rewrite puts_Empty_iff; auto.
-    apply SRE.Wf_empty.
   - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
     rewrite puts_add; auto.
     apply SRE.Wf_add_notin.
@@ -239,20 +231,20 @@ Qed.
 
 Lemma puts_halts (k: lvl) (R : 𝐄)  (V: 𝐕) :
   (forall r v, halts k (put (r,v)))%tm ->
-  SRE.halts k (puts put R V).
+  halts_sre k (puts put R V).
 Proof.
   intro Hyput.
   induction R using SRE.map_induction.
-  - apply SRE.halts_Empty.
+  - apply halts_sre_Empty.
     now apply puts_Empty.
   - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
     rewrite puts_add; auto.
-    apply SRE.halts_add; split; auto.
+    apply halts_sre_add; split; auto.
 Qed.
 
 Lemma puts_halts_1 (R : 𝐄)  (V: 𝐕) :
   (forall r v, halts (R⁺)%sr (put (r,v)))%tm ->
-  SRE.halts ((puts put R V)⁺)%sr (puts put R V).
+  halts_sre ((puts put R V)⁺)%sr (puts put R V).
 Proof.
   intro Hyput.
   apply puts_halts.
@@ -280,6 +272,390 @@ Qed.
 
 End put_props.
 
+(** *** [init_g] properties *)
+
+#[export] Instance init_func_eq : 
+  Proper (Logic.eq ==> Logic.eq ==> RE.eq ==> RE.eq) SRE.init_func.
+Proof.
+  intros k' k Heqk d' d Heqd V V' HeqV; subst; unfold SRE.init_func.
+  now rewrite HeqV.
+Qed.
+
+Lemma init_func_diamond : SRE.Diamond RE.eq SRE.init_func.
+Proof.
+  unfold SRE.init_func; intros k k' d d' sr rs1 sr' Hneq Heq Heq'.
+  rewrite <- Heq; rewrite <- Heq'.
+  now rewrite RE.add_add_2; auto.
+Qed.
+
+#[local] Hint Resolve init_func_eq init_func_diamond RE.Equal_equiv : core.
+
+Lemma init_g_Empty (sr: 𝐄) (V: 𝐕) :
+  SRE.Empty sr -> RE.eq (SRE.init_g sr V) V.
+Proof.
+  intro Hemp; unfold SRE.init_g.
+  rewrite SRE.fold_Empty with (eqA := RE.eq); now auto.
+Qed.
+
+Lemma init_g_add (r: resource) (v: Λ) (sr: 𝐄) (V: 𝐕) :
+  (r ∉ sr)%sr ->
+  RE.eq (SRE.init_g (SRE.Raw.add r v sr) V) (⌈ r ⤆ (⩽ v … ⩾)⌉ (SRE.init_g sr V))%re. 
+Proof.
+  unfold SRE.init_g; intro HnIn.
+  rewrite SRE.fold_Add with (eqA := RE.eq); eauto.
+  - unfold SRE.init_func at 1; reflexivity.
+  - red; reflexivity.
+Qed.
+
+#[export] Instance init_g_proper : 
+  Proper (SRE.eq ==> RE.eq ==> RE.eq) SRE.init_g.
+Proof.
+  intros sr sr' Heqrs V V' HeqV; unfold SRE.init_g.
+  eapply SRE.fold_Proper with (eqA := RE.eq); eauto.
+Qed.
+
+Lemma init_g_find_1 (sr: 𝐄) (V: 𝐕) (r: resource) (v : 𝑣) :
+  ((SRE.init_g sr V)⌊r⌋)%re = Some v -> 
+  sr⌊r⌋%sr = Some (Cell.extract v) \/ V⌊r⌋%re = Some v.
+Proof.
+  revert r v; induction sr using SRE.map_induction; intros r v Hfi.
+  - rewrite init_g_Empty in Hfi; auto.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add in Hfi; auto.
+    rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- inversion Hfi; subst; clear Hfi.
+       left; rewrite SRE.add_eq_o; auto.
+    -- apply IHsr1 in Hfi as [Hfi | Hfi]; auto.
+       left; now rewrite SRE.add_neq_o.
+Qed. 
+
+Lemma init_g_find (sr: 𝐄) (V: 𝐕) (r: resource) (v : 𝑣) :
+  ((SRE.init_g sr V)⌊r⌋)%re = Some v -> 
+  (r ∈ sr)%sr \/ V⌊r⌋%re = Some v.
+Proof.
+  revert r v; induction sr using SRE.map_induction; intros r v Hfi.
+  - rewrite init_g_Empty in Hfi; auto.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add in Hfi; auto.
+    rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- now rewrite SRE.add_in_iff; repeat left.
+    -- rewrite SRE.add_in_iff.
+       apply IHsr1 in Hfi as [HIn | Hfi]; auto.
+Qed.
+
+Lemma init_g_find_inp (sr: 𝐄) (V: 𝐕) (r: resource) (v : 𝑣) :
+  (forall r, V⌊r⌋%re = Some v -> exists v', (v = Cell.inp v')%type) ->
+  ((SRE.init_g sr V)⌊r⌋)%re = Some v -> exists v', (v = Cell.inp v')%type. 
+Proof.
+  revert r v; induction sr using SRE.map_induction; intros r v HV Hfi.
+  - rewrite init_g_Empty in Hfi; auto.
+    now apply (HV r).
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add in Hfi; auto.
+    rewrite RE.add_o in Hfi; destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- inversion Hfi; subst; now exists e.
+    -- apply IHsr1 in Hfi; auto.
+Qed.
+
+Lemma init_g_in_iff  (sr: 𝐄) (V: 𝐕) (r: resource) :
+  (r ∈ (SRE.init_g sr V))%re <-> (r ∈ sr)%sr \/ (r ∈ V)%re.
+Proof.
+  revert r; induction sr using SRE.map_induction; intro r; split.
+  - rewrite init_g_Empty; auto.
+  - intros [HIn | HIn].
+    -- destruct HIn as [v HM].
+       exfalso; now apply (H r v).
+    -- rewrite init_g_Empty; auto.
+  - intro HIn.
+    unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add in HIn; auto.
+    rewrite SRE.add_in_iff.
+    apply RE.add_in_iff in HIn as [| HIn]; subst; auto.
+    apply IHsr1 in HIn as [HIn | HIn]; auto.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite SRE.add_in_iff.
+    rewrite init_g_add; auto.
+    rewrite RE.add_in_iff.
+    intros [[Heq | HIn] | HIn]; subst; auto; 
+    right; rewrite IHsr1; auto.
+Qed.
+
+Lemma init_g_in_unused (sr: 𝐄) (V: 𝐕) (r: resource) :
+  (r ∈ sr)%sr -> REnvironment.unused r (SRE.init_g sr V).
+Proof.
+  revert r; induction sr using SRE.map_induction; intros r HIn.
+  - exfalso; destruct HIn as [v HM]; now apply (H r v).
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add; auto; 
+    apply SRE.add_in_iff in HIn as [| HIn]; subst.
+    -- apply RE.unused_add_eq; now red.
+    -- assert (Hneq : r <> x) by (intro; subst; contradiction).
+       apply RE.unused_add_neq; auto.
+Qed.
+
+Lemma init_g_unused (r: resource) (V: 𝐕) (sr: 𝐄) :
+  RE.unused r V -> RE.unused r (SRE.init_g sr V).
+Proof.
+  revert r; induction sr using SRE.map_induction; intros r Hunsd.
+  - rewrite init_g_Empty; auto.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_g_add; auto.
+    destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+    -- apply RE.unused_add_eq; now red.
+    -- apply RE.unused_add_neq; auto.
+Qed.
+
+Lemma init_g_add_remove (r: resource) (v: Λ) (sr: 𝐄) (V: 𝐕) :
+  RE.eq (SRE.init_g (SRE.Raw.add r v sr) V) 
+        (SRE.init_g (SRE.Raw.add r v sr) (RE.Raw.remove r V)).
+Proof.
+  revert r v V; induction sr using SRE.map_induction; intros r v V.
+  - rewrite init_g_add.
+    -- rewrite init_g_add.
+       + do 2 (rewrite init_g_Empty; auto).
+         clear H sr; revert r v; induction V using RE.map_induction; intros r v.
+         ++ assert (RE.eq (RE.Raw.remove r V) V).
+            { 
+              unfold RE.eq; rewrite RE.remove_id.
+              intros [v1 HM]; now apply (H r v1).
+            }
+            now rewrite H0.
+         ++ unfold RE.Add in H0; rewrite H0 in *; clear H0.
+            destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+            * rewrite RE.add_shadow.
+              rewrite RE.add_remove_1.
+              now rewrite RE.add_shadow.
+            * rewrite RE.add_add_2; auto.
+              rewrite RE.remove_add_2; auto.
+              symmetry.
+              rewrite RE.add_add_2; auto.
+              now rewrite IHV1.
+       + intros [v1 HM]; now apply (H r v1).
+    -- intros [v1 HM]; now apply (H r v1).
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    destruct (Resource.eq_dec r x) as [| Hneq]; subst.
+    -- rewrite SRE.add_shadow.
+       now apply IHsr1.
+    -- rewrite SRE.add_add_2; auto.
+       rewrite init_g_add.
+       + symmetry; rewrite init_g_add.
+         ++ now rewrite <- IHsr1.
+         ++ rewrite SRE.add_in_iff; intros [|]; subst; contradiction.
+       + rewrite SRE.add_in_iff; intros [|]; subst; contradiction.
+Qed.
+
+Lemma init_g_add_1 (r: resource) (v : 𝑣) (sr: 𝐄) (V: 𝐕) :
+  (r ∉ sr)%sr ->
+  RE.eq (SRE.init_g sr (⌈r ⤆ v⌉ V))%re (⌈r ⤆ v⌉ (SRE.init_g sr V))%re. 
+Proof.
+  revert r v V; induction sr using SRE.map_induction; intros r v V HnIn.
+  - now do 2 (rewrite init_g_Empty; auto).
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    assert (r <> x /\ (r ∉ sr1)%sr).
+    { 
+      split; intro; subst.
+      - apply HnIn.
+        rewrite SRE.add_in_iff; auto.
+      - apply HnIn.
+        rewrite SRE.add_in_iff; auto.
+    }
+    destruct H0 as [Hneq HnIn'].
+    do 2 (rewrite init_g_add; auto).
+    rewrite RE.add_add_2; auto.
+    now rewrite IHsr1; auto.
+Qed.
+
+Lemma init_g_new_key (V: 𝐕) (t: 𝐄) : 
+  ((SRE.init_g t V)⁺)%re = max (t⁺)%sr (V⁺)%re.
+Proof.
+  revert V.
+  induction t using SRE.map_induction; intro V.
+  - rewrite SRE.Ext.new_key_Empty; auto; simpl.
+    rewrite init_g_Empty; auto.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_g_add_remove.
+    rewrite init_g_add; auto.
+    rewrite SRE.Ext.new_key_add_max; auto.
+    rewrite RE.Ext.new_key_add_max.
+    rewrite IHt1.
+    destruct (RE.In_dec V x).
+    + apply RE.new_key_in_remove_1 in i as HI.
+      rewrite HI; lia.
+    + apply RE.remove_id in n.
+      rewrite n; lia.
+Qed.
+
+Lemma init_g_Wf (k : lvl) (V: 𝐕) (t : 𝐄) :
+  (k ⊩ t)%sr /\ (k ⊩ V)%re -> (k ⊩ SRE.init_g t V)%re.
+Proof.
+  revert k V.
+  induction t using SRE.map_induction; intros k V  [Hvt HvV].
+  - rewrite init_g_Empty; auto.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    apply SRE.Wf_add_notin in Hvt as [Hvx [Hve Hvt1]]; auto.
+    rewrite init_g_add_remove.
+    rewrite init_g_add; auto.
+    apply RE.Wf_add_notin.
+    -- rewrite init_g_in_iff; intros [|]; auto.
+       apply RE.remove_in_iff in H0 as []; auto.
+    -- do 2 (split; auto).
+       apply IHt1; split; auto.
+       now apply RE.Wf_remove.
+Qed.
+
+Lemma halts_sre_init_g (k : lvl) (sr: 𝐄) (V: 𝐕) :
+  halts_sre k sr -> halts_re k V -> 
+  halts_re k (SRE.init_g sr V).
+Proof.
+  induction sr using SRE.map_induction; intros Hltrs HltV.
+  - now rewrite init_g_Empty.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_g_add; auto.
+    apply halts_re_add; simpl.
+    apply halts_sre_add_iff in Hltrs as [Hkte Htlrs1]; auto. 
+Qed.
+
+(** **** [init_globals] properties *)
+
+Lemma init_globals_Empty (sr: 𝐄) :
+  SRE.Empty sr -> RE.eq (SRE.init_globals sr) (∅)%re.
+Proof. apply init_g_Empty. Qed.
+
+Lemma init_globals_add (r: resource) (v: Λ) (sr: 𝐄) :
+  (r ∉ sr)%sr ->
+  RE.eq (SRE.init_globals (SRE.Raw.add r v sr)) 
+        (⌈ r ⤆ (⩽ v … ⩾)⌉ (SRE.init_globals sr))%re. 
+Proof. apply init_g_add. Qed.
+
+#[export] Instance init_globals_eq : 
+  Proper (SRE.eq ==> RE.eq) SRE.init_globals.
+Proof. unfold SRE.init_globals; intros sr sr' Heqt; now rewrite Heqt. Qed.  
+
+Lemma init_globals_find (sr: 𝐄) (r: resource) (v : 𝑣) :
+  ((SRE.init_globals sr)⌊r⌋)%re = Some v -> (r ∈ sr)%sr.
+Proof. 
+  intros Hfi. 
+  apply init_g_find in Hfi as [HIn | Hfi]; auto.
+  inversion Hfi.
+Qed.
+
+Lemma init_globals_in_iff  (sr: 𝐄) (r: resource) :
+  (r ∈ (SRE.init_globals sr))%re <-> (r ∈ sr)%sr.
+Proof.
+  split; intros HIn. 
+  - apply init_g_in_iff in HIn as [HIn | HIn]; auto.
+    inversion HIn; inversion H.
+  - now apply init_g_in_iff; left.
+Qed. 
+
+Lemma init_globals_find_iff (sr: 𝐄) (v: Λ) (r: resource) : 
+  ((SRE.init_globals sr)⌊r⌋)%re = Some (⩽v …⩾) <-> (sr⌊r⌋)%sr = Some v.
+Proof.
+  revert r v; induction sr using SRE.map_induction; intros r v; split; intro Hfi.
+  - rewrite init_globals_Empty in Hfi; auto. 
+    inversion Hfi.
+  - apply SRE.Empty_eq in H.
+    rewrite H in Hfi.
+    inversion Hfi.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_globals_add in Hfi; auto.
+    destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- rewrite RE.add_eq_o in Hfi; auto.
+       inversion Hfi; subst; clear Hfi.
+       now rewrite SRE.add_eq_o.
+    -- rewrite RE.add_neq_o in Hfi; auto.
+       rewrite SRE.add_neq_o; auto.
+       now rewrite <- IHsr1.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_globals_add; auto.
+    destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- rewrite SRE.add_eq_o in Hfi; auto.
+       inversion Hfi; subst; clear Hfi.
+       now rewrite RE.add_eq_o.
+    -- rewrite SRE.add_neq_o in Hfi; auto.
+       rewrite RE.add_neq_o; auto.
+       now rewrite IHsr1.
+Qed.
+
+Lemma init_globals_in_unused (sr: 𝐄) (r: resource) :
+  (r ∈ sr)%sr -> RE.unused r (SRE.init_globals sr).
+Proof. apply init_g_in_unused. Qed.
+
+Lemma init_globals_find_e (sr: 𝐄) (v : 𝑣) (r: resource) : 
+  ((SRE.init_globals sr)⌊r⌋)%re = Some v -> exists v', (v = ⩽ v' … ⩾)%type.
+Proof.
+  revert r v; induction sr using SRE.map_induction; intros r v Hfi.
+  - rewrite init_globals_Empty in Hfi; auto.
+    inversion Hfi.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_globals_add in Hfi; auto.
+    destruct (Resource.eq_dec x r) as [| Hneq]; subst.
+    -- rewrite RE.add_eq_o in Hfi; auto.
+       inversion Hfi; subst; clear Hfi.
+       now exists e.
+    -- rewrite RE.add_neq_o in Hfi; auto.
+       now apply (IHsr1 r v).
+Qed.
+
+Lemma init_globals_Wf (k : lvl) (sr: 𝐄) :
+  (k ⊩ sr)%sr <-> (k ⊩ SRE.init_globals sr)%re.
+Proof.
+  induction sr using SRE.map_induction; split; intro Hvt.
+  - rewrite init_globals_Empty; auto.
+  - now apply SRE.Wf_Empty.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    apply SRE.Wf_add_notin in Hvt as [Hvx [Hve Hvt]]; auto.
+    rewrite init_globals_add; auto.
+    apply RE.Wf_add_notin.
+    -- now rewrite init_globals_in_iff.
+    -- repeat split; auto.
+       now rewrite <- IHsr1.
+  - unfold SRE.Add in H0; rewrite H0 in *; clear H0.
+    rewrite init_globals_add in Hvt; auto.
+    apply RE.Wf_add_notin in Hvt as [Hvx [Hve Hvt]]; auto.
+    -- apply SRE.Wf_add_notin; auto.
+       repeat split; auto.
+       now rewrite IHsr1.
+    -- now rewrite init_globals_in_iff.
+Qed.
+
+Lemma init_globals_shift (m n : lvl) (sr: 𝐄) :
+  RE.eq (SRE.init_globals ([⧐ m – n] sr)%sr) 
+        ([⧐ m – n] (SRE.init_globals sr))%re.
+Proof.
+  induction sr using SRE.map_induction.
+  - rewrite SRE.shift_Empty; auto.
+    rewrite init_globals_Empty; auto.
+    rewrite RE.shift_Empty; try reflexivity.
+    apply RE.empty_1.
+  - unfold SRE.Add in *; rewrite H0; clear H0.
+    rewrite SRE.shift_add.
+    rewrite init_globals_add.
+    -- rewrite init_globals_add; auto.
+       rewrite RE.shift_add; simpl.
+       now rewrite IHsr1.
+    -- now rewrite <- SRE.shift_in_iff.
+Qed.
+
+Lemma init_globals_new_key (sr: 𝐄) : ((SRE.init_globals sr)⁺)%re = (sr⁺)%sr.
+Proof.
+  induction sr using SRE.map_induction.
+  - rewrite SRE.Ext.new_key_Empty; auto.
+    rewrite init_globals_Empty; auto.
+  - unfold SRE.Add in *; rewrite H0 in *; clear H0.
+    rewrite init_globals_add; auto.
+    rewrite SRE.Ext.new_key_add_max.
+    rewrite RE.Ext.new_key_add_max; lia.
+Qed.
+
+Lemma halts_sre_init_globals (k : lvl) (sr: 𝐄) :
+  halts_sre k sr -> halts_re k (SRE.init_globals sr).
+Proof.
+  intro Hlt; apply halts_sre_init_g; auto.
+  intros r d Hfi; inversion Hfi.
+Qed.
+
+
 (** *** [init_input_env] property *)
 
 Lemma init_input_env_in_iff (R: 𝐄) (W: 𝐖) (r: resource) : 
@@ -287,7 +663,7 @@ Lemma init_input_env_in_iff (R: 𝐄) (W: 𝐖) (r: resource) :
 Proof.
   unfold init_input_env.
   rewrite ST.init_locals_in_iff.
-  rewrite SRE.init_globals_in_iff.
+  rewrite init_globals_in_iff.
   now rewrite SRE.shift_in_new_key.
 Qed.
 
@@ -298,7 +674,7 @@ Proof.
   rewrite ST.init_locals_new_key.
   replace (Nat.max (R⁺)%sr (W⁺)%sk) with (Nat.max (W ⁺)%sk (R⁺)%sr) by lia.
   f_equal.
-  rewrite SRE.init_globals_new_key.
+  rewrite init_globals_new_key.
   rewrite SRE.shift_new_refl; auto.
 Qed.
 
@@ -316,13 +692,13 @@ Proof.
     split.
     -- intros r Hc; inversion Hc.
     -- replace (R⁺ - R⁺)%sr with 0 by lia.
-       apply SRE.init_globals_Wf.
+       apply init_globals_Wf.
        now rewrite SRE.shift_zero_refl.
   - assert (p :: W <> []) by (intro Hc; inversion Hc).
     apply HnEmp in H. 
     remember (p :: W) as W'.
     rewrite max_r by lia; split; auto.
-    apply SRE.init_globals_Wf.
+    apply init_globals_Wf.
     apply SRE.shift_preserves_wf_2; auto; lia.
 Qed.
 
@@ -334,7 +710,7 @@ Proof.
   unfold init_input_env in Hfi.
   apply ST.init_locals_find_e in Hfi; auto.
   clear Hfi; intro Hfi.
-  now apply SRE.init_globals_find_e in Hfi.
+  now apply init_globals_find_e in Hfi.
 Qed.
 
 Lemma init_input_env_W r v R W :
@@ -346,7 +722,7 @@ Proof.
   intros HnIn Hfi.
   unfold init_input_env in *.
   apply ST.init_locals_find_W in Hfi; auto.
-  rewrite SRE.init_globals_in_iff.
+  rewrite init_globals_in_iff.
   intro HIn.
   rewrite SRE.shift_in_new_key in HIn; contradiction.
 Qed.
@@ -360,7 +736,7 @@ Proof.
   intros.
   unfold init_input_env in *.
   apply ST.init_locals_find_V in H0; auto.
-  apply SRE.init_globals_find_iff in H0.
+  apply init_globals_find_iff in H0.
   apply SRE.shift_find_e_1 in H0 as HI.
   destruct HI as [[r' Heq] [v' Heq']]; subst.
   exists v'; split; auto.
@@ -598,8 +974,8 @@ Proof.
    - unfold init_input_env in HfiV. 
      simpl in *. 
      replace (Init.Nat.max (R⁺) 0 - R ⁺)%sr with 0 in * by lia.
-     apply SRE.init_globals_find_iff in HfiV.
-     rewrite SREnvironment.shift_zero_refl in HfiV.
+     apply init_globals_find_iff in HfiV.
+     rewrite SRE.shift_zero_refl in HfiV.
      apply Hwt with (α := (ty,ty'))in HfiV; auto.
      now rewrite Term.shift_zero_refl in HfiV; simpl in *.
    - rewrite <- HeqW in *.
@@ -719,7 +1095,7 @@ Qed.
 (** ** Preservation - Temporal *)
 
 Definition tT_IO_halts n R W P :=
-  halts n P /\ SRE.halts (R⁺)%sr R /\ ST.halts (W⁺)%sk W.
+  halts n P /\ halts_sre (R⁺)%sr R /\ halts_sk (W⁺)%sk W.
 
 Lemma tT_inp_to_fT_inp Rc R W P :
   (Rc ⁺)%rc = Init.Nat.max (R ⁺)%sr (W ⁺)%sk ->
@@ -730,7 +1106,7 @@ Proof.
   intros Heq HnEmp [HltP [HltR HltW]]; split.
   - unfold init_input_env.
     rewrite Heq.
-    apply ST.halts_init_locals.
+    apply halts_sk_init_locals.
     -- destruct W eqn:HeqW'.
        + constructor.
        + rewrite <- HeqW'.
@@ -738,15 +1114,15 @@ Proof.
          apply HnEmp in H.
          rewrite <- HeqW' in *.
          now rewrite max_r by lia. 
-    -- apply SRE.halts_init_globals.
-       apply SRE.halts_weakening; auto; lia.
+    -- apply halts_sre_init_globals.
+       apply halts_sre_weakening; auto; lia.
   - split; auto.
     exists <[unit]>; split; auto.
     reflexivity.
 Qed.
 
 Definition tT_outputs_halts n W P :=
-  halts n P /\ ST.halts (W⁺)%sk W.
+  halts n P /\ halts_sk (W⁺)%sk W.
 
 
 Definition put_good_behavior (put : resource * (option Λ) -> Λ) Rc R := 
@@ -806,7 +1182,7 @@ Proof.
   - destruct HI as [HwfVout [_ [HwfP' [HwfWnew HleVout]]]].
 
     apply Functional_Transition.functional_preserves_typing 
-    with (Rc := Rc) (α := <[𝟙]>) (β := <[𝟙]>) (R := Rs)
+    with (Rc := Rc) (A := <[𝟙]>) (B := <[𝟙]>) (R := Rs)
     in HfT; auto.
     destruct HfT as [Hunsd [Hunsd' [Rc1 [Rs' [HsubRc [HsubRs 
                       [Hout [Harrlt' [Hwt [Hwt' [HWF'' [HwW [Hdisj Husd]]]]]]]]]]]]]. 
@@ -1040,7 +1416,7 @@ Proof.
       - destruct Hout as [_ [_ []]]; auto.
       - destruct W, Wnew.
         -- simpl in *; rewrite HeqW.
-          apply ST.halts_nil.
+          apply halts_sk_nil.
         -- remember (p :: Wnew) as Wnew'.
           rewrite HeqW in *; simpl in *.
           destruct HnEmp'.
@@ -1049,7 +1425,7 @@ Proof.
             rewrite <- H.
             rewrite <- (WF_ec_new Rc1 Vout); auto.
             destruct Hout as [HoutV [HoutW ]].
-            now apply ST.halts_update_locals.
+            now apply halts_sk_update_locals.
         -- remember (p :: W) as W1.
           clear HnEmp'.
           rewrite HeqW in *; simpl in *.
@@ -1068,7 +1444,7 @@ Proof.
           rewrite ST.shift_zero_refl.
           destruct Hout as [HoutV _].
           destruct Hinplt as [_ [HltR HltW1]].
-          apply ST.halts_update_locals; auto.
+          apply halts_sk_update_locals; auto.
           assert ((W1⁺)%sk = Vout⁺) by lia.
           rewrite H1.
           rewrite <- (WF_ec_new Rc1 Vout); auto.
@@ -1090,12 +1466,12 @@ Proof.
           rewrite max_r by lia.
           destruct Hout as [HoutV [HoutW]].
           destruct Hinplt as [_ [HltR HltW1]].
-          apply ST.halts_update_locals; auto.
+          apply halts_sk_update_locals; auto.
           + rewrite <- Heq.
             rewrite <- (WF_ec_new Rc1 Vout); auto.
-          + apply ST.halts_app; split.
+          + apply halts_sk_app; split.
             ++ rewrite Heq.
-                apply ST.halts_weakening; auto; lia.
+                apply halts_sk_weakening; auto; lia.
             ++ rewrite <- Heq.
                 rewrite <- (WF_ec_new Rc1 Vout); auto.
     }
@@ -1114,7 +1490,7 @@ Admitted.
 
 (* Theorem temporal_reactivity (n : nat) (Rc : ℜ) (R : resources) (W: 𝐖) (P : Λ) (Rs : resources) :
 
-          halts (Rc⁺)%rc P -> ST.halts (W⁺)%sk W ->
+          halts (Rc⁺)%rc P -> halts_sk (W⁺)%sk W ->
  
           (* inputs_restriction n R Rc W ->  WFₜₜ(R,Rc,W) ->  *)
 

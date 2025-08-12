@@ -1,5 +1,5 @@
 From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Resource .
+From Mecha Require Import Resource.
 From DeBrLevel Require Import LevelInterface Level Levels SetLevelInterface.
 Import ResourceNotations.
 

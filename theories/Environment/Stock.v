@@ -1,39 +1,31 @@
 From Coq Require Import Lia List Arith.
-From Mecha Require Import Resource Term Triplet Evaluation_Transition REnvironment
-                          Cell.
 From DeBrLevel Require Import LevelInterface ListLevel.
 From MMaps Require Import MMaps.
-Import ResourceNotations TermNotations ListNotations REnvironmentNotations
-       CellNotations.
+From Mecha Require Import Resource Term Triplet REnvironment Cell
+                          SyntaxNotation.
+Import ListNotations.
 
 (** * Environment - Stock
 
   In the functional transition, there is an environment that saves the local resources and their initial expression. We define it as a list of triplets where a triplet is already defined in [Triplet] module. 
 *)
 
-(** ** Module - Stock *)
 Module Stock <: IsLvlET.
 
-(** *** Definitions *)
+Module RE := REnvironment.
+
+(** ** Definitions *)
 
 Include IsLvlListETWL Triplet.
 
-(** **** Halts
-
-  A stock holds the halting property if all terms in it halt.
-*)
-Definition halts (m : lvl) (st : t) :=
- List.Forall (fun (tp: Triplet.t) =>  let (_,v) := tp 
-                                      in Evaluation_Transition.halts m v) st.
-
-(** **** Get all keys
+(** *** Get all keys
 
   It gets all keys in the triplet list and gathers them in a list.
 *)
 Definition keys (st : t) :=
  fold_right (fun '((rg,rs),_) acc => rg :: rs :: acc) [] st.
 
-(** **** Definition of [new_key]
+(** *** Definition of [new_key]
 
   Acts the same that the [new_key] function from maps.
 *)
@@ -46,34 +38,37 @@ Definition new_key (st : t) :=
     | _  => (max_key st) + 1
   end.
 
-(** **** Initialize locals 
+(** *** Initialize locals 
 
   At the beginning of the temporal transition, the local resources are initialized thanks to the stock. For each triplet [(r,r',v)], [r] is initialized as unused with [v] and [r'] is initialized as unused with [unit]
 *)
-Fixpoint init_locals (st : t) (V : 𝐕) : 𝐕 :=
+Fixpoint init_locals (st : t) (V : RE.t) : RE.t :=
   match st with
     | [] => V
-    | (r,r',v) :: st' => (⌈r ⤆ ⩽ v … ⩾⌉(⌈r' ⤆ ⩽ unit … ⩾⌉ (init_locals st' V)))%re
+    | (r,r',v) :: st' => RE.Raw.add r (Cell.inp v) 
+                        (RE.Raw.add r' (Cell.inp <[unit]>) 
+                        (init_locals st' V))
   end.
 
-(** **** Update locals
+(** *** Update locals
 
   At the end of the temporal transition, each expression bound to local resources is updated regards of the resource environment. If the writing resource is used then the expression is replaced by the new one, otherwise nothing changes.
 *)
-Fixpoint update_locals (st : t) (V : 𝐕) : t :=
+Fixpoint update_locals (st : t) (V : RE.t) : t :=
   match st with
     | [] => []
-    | (r,r',v) :: st' =>  match (V⌊r'⌋)%re with
+    | (r,r',v) :: st' =>  match (RE.Raw.find r' V) with
                             | Some (⩽ … v' ⩾) =>  (r,r',v') :: (update_locals st' V)
                             | _ => (r,r',v) :: (update_locals st' V)
                           end
   end.
 
-(** **** Domain equality between stock and resource environment *)
+(** *** Domain equality between stock and resource environment *)
 
-Definition eqDom' (V : 𝐕) (W: t) := forall (r : resource), (r ∈ V)%re <-> In r (keys W).
+Definition eqDom' (V : RE.t) (W: t) := 
+  forall (r : resource), (RE.Raw.In r V) <-> In r (keys W).
 
-(** *** Properties *)
+(** ** Properties *)
 
 Lemma app_not_nil A (t1 t2 : list A) :
   t1 ++ t2 <> [] -> t1 <> [] \/ t2 <> [].
@@ -98,78 +93,7 @@ Proof.
   - intros H c; inversion c.
 Qed.
 
-(** **** [halts] properties *)
-
-Lemma halts_nil (m : lvl) : halts m [].
-Proof. 
-  unfold halts.
-  constructor.
-Qed.
-
-Lemma halts_app (m : lvl) (st st' : t) :
-  halts m (st ++ st') <-> halts m st /\ halts m st'.
-Proof.
-  unfold halts.
-  apply Forall_app.
-Qed.
-
-Lemma halts_weakening (m n : lvl) (st : t) : 
-  m <= n -> halts m st -> halts n (shift m (n - m) st).
-Proof.
-  intro Hle.
-  induction st; intro Hlt.
-  - simpl.
-    constructor.
-  - simpl in *.
-    inversion Hlt; subst.
-    destruct a as [[rg rs] v].
-    constructor; simpl.
-    -- now apply Evaluation_Transition.halts_weakening.
-    -- now apply IHst.
-Qed.
-
-Lemma halts_init_locals (m : lvl) (st : t) (V : 𝐕) :
-  halts m st -> REnvironment.halts m V -> 
-  REnvironment.halts m (init_locals st V).
-Proof.
-  induction st.
-  - simpl; intros.
-    intros k v Hfi.
-    now apply H0 in Hfi.
-  - intros Hlt HltV.
-    destruct a as [[rg rs] v'].
-    simpl.
-    inversion Hlt; subst.
-    apply IHst in H2; auto.
-    apply REnvironment.halts_add; split.
-    -- now simpl.
-    -- apply REnvironment.halts_add; split; auto.
-       simpl.
-       exists <[unit]>; split; auto.
-       reflexivity.
-Qed.
-
-Lemma halts_update_locals (k : lvl) (W : t) (V : 𝐕) :
-  REnvironment.halts k V -> halts k W -> halts k (update_locals W V).
-Proof.
-  induction W; intros HltV HltW.
-  - now simpl.
-  - destruct a as [[rg rs] v].
-    inversion HltW; subst. 
-    simpl in *.
-    destruct (V⌊rs⌋)%re eqn:Hfi.
-    -- destruct r.
-       + constructor; auto.
-         apply IHW; auto.
-       + constructor.
-         ++ apply HltV in Hfi.
-            now simpl in *.
-         ++ apply IHW; auto.
-    -- constructor; auto.
-       apply IHW; auto.
-Qed.
-
-(** **** [keys] properties *)
+(** *** [keys] properties *)
 
 Lemma keys_in_app (r : resource) (st st' : t) :
   In r (keys (st ++ st')) <-> In r (keys st) \/ In r (keys st').
@@ -228,7 +152,7 @@ Proof.
     lia.
 Qed.
 
-(** **** [max_key] and [new_key] properties *)
+(** *** [max_key] and [new_key] properties *)
 
 Lemma max_key_app (st st' : t) :
   max_key (st ++ st') = max (max_key st) (max_key st').
@@ -314,7 +238,7 @@ Proof.
     now rewrite <- keys_in_shift.
 Qed.
 
-(** **** [NoDup] properties *)
+(** *** [NoDup] properties *)
 
 Lemma NoDup_keys_app (st st' : t) :
   NoDup (keys st) -> NoDup (keys st') ->
@@ -366,36 +290,37 @@ Proof.
        now rewrite <- keys_in_shift.
 Qed.
  
-(** **** [update_locals] properties *)
+(** *** [update_locals] properties *)
 
-Lemma update_locals_max_key (V : 𝐕) (t : t) :
+Lemma update_locals_max_key (V : RE.t) (t : t) :
   max_key (update_locals t V) = max_key t.
 Proof.
   induction t; simpl; auto.
   destruct a as [[rg rs] v]; subst.
-  destruct (V⌊rs⌋)%re as [ov|]; try (destruct ov); 
+  destruct (RE.Raw.find rs V) as [ov|]; try (destruct ov); 
   simpl; now rewrite IHt.
 Qed.
 
-Lemma update_locals_new_key (V : 𝐕) (t : t) :
+Lemma update_locals_new_key (V : RE.t) (t : t) :
   new_key (update_locals t V) = new_key t.
 Proof.
   unfold new_key.
   destruct t; simpl; auto.
   destruct p as [[rg rs] v].
-  destruct (V⌊rs⌋)%re as [ov|]; try (destruct ov); 
+  destruct (RE.Raw.find rs V) as [ov|]; try (destruct ov); 
   simpl; now rewrite update_locals_max_key.
 Qed.
 
-Lemma update_locals_In r r' v (V : 𝐕) (t : t) :
+Lemma update_locals_In r r' v (V : RE.t) (t : t) :
   In (r,r',v) (update_locals t V) -> 
-  (In (r,r',v) t /\ V⌊r'⌋ <> Some (Cell.out v))%re \/ 
-  (exists v', In (r,r',v') t /\ V⌊r'⌋ = Some (Cell.out v))%re.
+  (In (r,r',v) t /\ RE.Raw.find r' V <> Some (Cell.out v)) \/ 
+  (exists v', In (r,r',v') t /\ 
+              RE.Raw.find r' V = Some (Cell.out v)).
 Proof.
   revert r; induction t; simpl; intros.
   - inversion H.
   - destruct a as [[rr rw] p].
-    destruct (V⌊rw⌋)%re eqn:Hfi.
+    destruct (RE.Raw.find rw V) eqn:Hfi.
     -- destruct r0.
        + destruct H.
          ++ inversion H; subst.
@@ -423,13 +348,13 @@ Proof.
          exists v'; auto.
 Qed.
 
-Lemma update_locals_keys_In r (V : 𝐕) (t : t) :
+Lemma update_locals_keys_In r (V : RE.t) (t : t) :
   In r (keys (update_locals t V)) <-> In r (keys t).
 Proof.
   revert r; induction t; simpl; intro.
   - split; auto.
   - destruct a as [[rr rw] p].
-    destruct (V⌊rw⌋)%re;
+    destruct (RE.Raw.find rw V);
     try (destruct r0); simpl; 
     split; intros [|[|]]; auto;
     do 2 right;
@@ -444,7 +369,7 @@ Proof.
   destruct a as [[rr rw] p]; intro HND.
   inversion HND; subst.
   inversion H2; subst.
-  destruct (V⌊rw⌋)%re;
+  destruct (RE.Raw.find rw V);
   try (destruct r); simpl.
   - constructor.
     -- simpl; intros [|]; subst.
@@ -470,13 +395,13 @@ Proof.
 Qed.
 
 
-Lemma update_locals_Wf (k: lvl) (V : 𝐕) (W: t) :
-  Wf k W /\ (k ⊩ V)%re -> Wf k (update_locals W V).
+Lemma update_locals_Wf (k: lvl) (V : RE.t) (W: t) :
+  Wf k W /\ (RE.Wf k V) -> Wf k (update_locals W V).
 Proof.
   induction W; simpl; intros [Hwf Hwf']; auto.
   destruct a as [[rg rs] v].
   apply Wf_cons in Hwf as [Hwf Hwf''].
-  destruct (V⌊rs⌋)%re eqn:Hfi; try (destruct r); 
+  destruct (RE.Raw.find rs V) eqn:Hfi; try (destruct r); 
   intro r; simpl; intros [|HIn]; subst;
   try (apply IHW; auto; split; now auto);
   try (apply Hwf; simpl; now auto).
@@ -492,148 +417,163 @@ Lemma update_locals_not_nil t V :
 Proof.
   induction t; simpl; split; auto;
   destruct a as [[rr rw] p].
-  - destruct (V⌊rw⌋)%re; try destruct r; 
+  - destruct (RE.Raw.find rw V); try destruct r; 
     intros H c; inversion c.
   - intro H.
-    destruct (V⌊rw⌋)%re; try destruct r; 
+    destruct (RE.Raw.find rw V); try destruct r; 
     intros c; inversion c.
 Qed.
 
-(** **** [eqDom'] properties *)
+(** *** [eqDom'] properties *)
 
 #[export] Instance eqDom'_iff : Proper (REnvironment.eq ==> eq ==> iff) eqDom'.
 Proof.
   intros V V1 HeqV W W1 HeqW; unfold eqDom'; split; intros.
-  - rewrite <- HeqV; rewrite <- HeqW; auto.
-  - rewrite HeqV; rewrite HeqW; auto.
+  - eapply RE.renvironment_in_iff in HeqV; auto.
+    rewrite <- HeqV; rewrite <- HeqW; auto.
+  - eapply RE.renvironment_in_iff in HeqV; auto.
+    rewrite HeqV; rewrite HeqW; auto.
 Qed.
 
-Lemma eqDom'_In (r: resource) (V: 𝐕) (W: t) :
-  eqDom' V W -> (r ∈ V)%re <-> In r (keys W).
+Lemma eqDom'_In (r: resource) (V: RE.t) (W: t) :
+  eqDom' V W -> (RE.Raw.In r V) <-> In r (keys W).
 Proof. unfold eqDom'; intro HeqDom'; auto. Qed.
 
-Lemma eqDom'_Empty (V: 𝐕) (W: t):
- eqDom' V W -> (isEmpty(V))%re <-> W = [].
+Lemma eqDom'_Empty (V: RE.t) (W: t):
+ eqDom' V W -> (RE.Empty V) <-> W = [].
 Proof.
   intro HeqDom'; split; intro HEmp.
   - destruct W; auto.
     destruct p as [[rg rs] v].
-    assert (rg ∈ V)%re.
+    assert (RE.Raw.In rg V).
     { apply HeqDom'; simpl; auto. }
     destruct H as [v' HM].
     exfalso.
     now apply (HEmp rg v').
   - subst.
     intros x v HM.
-    assert (HIn : (x ∈ V)%re).
+    assert (HIn : (RE.Raw.In x V)).
     { now exists v. }
     rewrite (HeqDom' x) in HIn.
     simpl in *; auto. 
 Qed.
 
-Lemma eqDom'_new_key (V: 𝐕) (W: t):
+#[local] Instance re_in_iff : 
+  Proper (Logic.eq ==> RE.eq ==> iff) RE.Raw.In := RE.renvironment_in_iff.
+
+#[local] Instance re_new_eq : 
+  Proper (RE.eq ==> Logic.eq) (RE.Ext.new_key) := RE.Ext.new_key_eq. 
+
+
+Lemma eqDom'_new_key (V: RE.t) (W: t):
   NoDup (keys W) ->
-  eqDom' V W -> V⁺%re = new_key W.
+  eqDom' V W -> RE.Ext.new_key V = new_key W.
 Proof.
   revert V; induction W; intros V HNoD HeqDom'.
   - simpl.
-    rewrite REnvironment.Ext.new_key_Empty; auto.
+    rewrite RE.Ext.new_key_Empty; auto.
     rewrite eqDom'_Empty; auto.
-  - destruct a as [[rg rs] v].
+  - Import REnvironment.
+    destruct a as [[rg rs] v].
     rewrite new_key_cons.
-    assert (HIn: (rg ∈ V)%re).
+    assert (HIn: (RE.Raw.In rg V)).
     { rewrite (HeqDom' rg); simpl; auto. }
     destruct HIn as [v' HM].
-    apply REnvironment.find_1 in HM.
-    apply REnvironment.add_id in HM.
+    apply RE.find_1 in HM.
+    apply RE.add_id in HM.
     rewrite <- HM in *; clear HM.
-    rewrite <- REnvironment.add_remove_1 in *.
-    assert (HIn: (rs ∈ (⌈ rg ⤆ v' ⌉ REnvironment.Raw.remove rg V))%re).
+    rewrite <- RE.add_remove_1 in *.
+    assert (HIn: RE.Raw.In rs (RE.Raw.add rg v' (RE.Raw.remove rg V))).
     { rewrite (HeqDom' rs); simpl; auto. }
     destruct HIn as [v'' HM].
-    apply REnvironment.find_1 in HM.
-    apply REnvironment.add_id in HM.
+    apply RE.find_1 in HM.
+    apply RE.add_id in HM.
     rewrite <- HM in *; clear HM.
-    rewrite <- REnvironment.add_remove_1 in *.
+    rewrite <- RE.add_remove_1 in *.
     inversion HNoD; subst; simpl in *.
     inversion H2; subst; simpl in *.
     clear H2 HNoD; simpl in *.
     apply Classical_Prop.not_or_and in H1 as [Hneq HnIn].
-    rewrite REnvironment.remove_add_2 in * by lia.
-    do 2 rewrite REnvironment.Ext.new_key_add_max.
-    rewrite IHW; try lia; auto.
+    rewrite RE.remove_add_2 in * by lia.
+    do 2 rewrite RE.Ext.new_key_add_max.
+    rewrite IHW;try lia; auto.
     intros r; split; intro HIn.
-    + assert (HIn': (r ∈ (⌈ rs ⤆ v'' ⌉ (⌈ rg ⤆ v' ⌉ REnvironment.Raw.remove rs (REnvironment.Raw.remove rg V))))%re).
-      { do 2 rewrite REnvironment.add_in_iff; auto. }
+    + assert (HIn': RE.Raw.In r  
+                      (RE.Raw.add rs v'' 
+                      (RE.Raw.add rg v' 
+                      (RE.Raw.remove rs (RE.Raw.remove rg V))))).
+      { do 2 rewrite RE.add_in_iff; auto. }
       apply HeqDom' in HIn'.
-      apply REnvironment.remove_in_iff in HIn as [Hneq' HIn].
-      apply REnvironment.remove_in_iff in HIn as [Hneq'' HIn].
+      apply RE.remove_in_iff in HIn as [Hneq' HIn].
+      apply RE.remove_in_iff in HIn as [Hneq'' HIn].
       simpl in HIn'; destruct HIn' as [Hc|[Hc|]]; auto;
       subst; try contradiction.
     + assert (In r (keys ((rg,rs,v):: W))).
       { simpl; auto. }
       apply HeqDom' in H.
-      do 2 rewrite REnvironment.add_in_iff in H.
+      do 2 rewrite RE.add_in_iff in H.
       destruct H as [Hc|[Hc|HIn']]; subst; try contradiction; auto.
 Qed.
 
-(** **** [init_locals] properties *)
+(** *** [init_locals] properties *)
 
-Lemma init_locals_in_iff (r : resource) (W : t) (V : 𝐕) :
-  (r ∈ (init_locals W V))%re <-> In r (keys W) \/ (r ∈ V)%re.
+Lemma init_locals_in_iff (r : resource) (W : Stock.t) (V : RE.t) :
+  (RE.Raw.In r (init_locals W V)) <-> In r (keys W) \/ 
+                                      (RE.Raw.In r V).
 Proof.
   revert r; induction W; simpl; intros r.
   - split; intros; auto.
     destruct H; auto.
     contradiction.
   - destruct a as [[rg rs] v]; split; intro HIn.
-    -- do 2 rewrite REnvironment.add_in_iff in HIn.
+    -- do 2 rewrite RE.add_in_iff in HIn.
        simpl.
        destruct HIn as [|[| HIn]]; subst; auto.
        apply IHW in HIn as [|]; auto.
     -- simpl in *.
-       do 2 rewrite REnvironment.add_in_iff.
+       do 2 rewrite RE.add_in_iff.
        rewrite IHW.
        destruct HIn as [[|[|]]|]; auto; subst.
 Qed.
 
-Lemma init_locals_new_key (V : 𝐕) (t : t) : ((init_locals t V)⁺)%re = max (new_key t) (V⁺)%re.
+Lemma init_locals_new_key (V : RE.t) (t : Stock.t) : 
+  RE.Ext.new_key (init_locals t V) = max (new_key t) (RE.Ext.new_key V).
 Proof.
   induction t; auto.
   destruct a as [[rg rs] v].
   rewrite new_key_cons.
   simpl.
-  do 2 rewrite REnvironment.Ext.new_key_add_max.
+  do 2 rewrite RE.Ext.new_key_add_max.
   rewrite IHt; lia.
 Qed.
 
-Lemma init_locals_Wf (k : lvl) (V : 𝐕) (t : t) :
-  Wf k t /\ (k ⊩ V)%re -> (k ⊩ init_locals t V)%re.
+Lemma init_locals_Wf (k : lvl) (V : RE.t) (t : Stock.t) :
+  Stock.Wf k t /\ (RE.Wf k V) -> RE.Wf k (init_locals t V).
 Proof.
   induction t; simpl; intros [Hwf Hwf']; auto.
   destruct a as [[rg rs] v].
   apply Wf_cons in Hwf as [Hwf Hwf''].
   destruct Hwf as [Hwfrg [Hwfrs Hwfv]].
-  apply REnvironment.Wf_add; split; auto.
+  apply RE.Wf_add; split; auto.
   split.
   - now unfold Cell.Wf; simpl.
-  - apply REnvironment.Wf_add; repeat split; auto.
+  - apply RE.Wf_add; repeat split; auto.
     constructor.
 Qed.
 
-Lemma init_locals_find_e r c  (V : 𝐕) (W : t) :
-  (V⌊r⌋%re = Some c -> exists v, Logic.eq c (Cell.inp v)) ->
-  (init_locals W V)⌊r⌋%re = Some c -> exists v, Logic.eq c (Cell.inp v).
+Lemma init_locals_find_e r c  (V : RE.t) (W : Stock.t) :
+  (RE.Raw.find r V = Some c -> exists v, Logic.eq c (Cell.inp v)) ->
+  RE.Raw.find r (init_locals W V) = Some c -> exists v, Logic.eq c (Cell.inp v).
 Proof.
   revert r c; induction W; intros r c Hfi.
   - simpl; auto.
   - destruct a as [[rg rs] v].
     simpl.
     intro Hfi'.
-    rewrite REnvironment.add_o in Hfi'.
+    rewrite RE.add_o in Hfi'.
     destruct (Resource.eq_dec rg r); subst.
     -- now inversion Hfi'; exists v.
-    -- rewrite REnvironment.add_o in Hfi'.
+    -- rewrite RE.add_o in Hfi'.
        destruct (Resource.eq_dec rs r); subst.
        + inversion Hfi'; subst.
          now exists <[unit]>.
@@ -641,27 +581,27 @@ Proof.
 Qed.
 
 Lemma init_locals_find_W r v V W :
-  (r ∉ V)%re ->
-  (init_locals W V)⌊r⌋%re = Some (Cell.inp v) -> 
+  ~ RE.Raw.In r V ->
+  RE.Raw.find r (init_locals W V) = Some (Cell.inp v) -> 
   exists r', 
   (In (r,r',v) W \/ (exists v', In (r',r,v') W /\ v = Term.tm_unit)).
 Proof.
   revert r v.
   induction W; intros r v HnIn Hfi; simpl in *.
   - exfalso; apply HnIn.
-    exists (Cell.inp v); now apply REnvironment.find_2.
+    exists (Cell.inp v); now apply RE.find_2.
   - destruct a as [[rg rs] v'].
     destruct (Resource.eq_dec r rg); subst.
-    -- rewrite REnvironment.add_eq_o in Hfi; auto.
+    -- rewrite RE.add_eq_o in Hfi; auto.
        inversion Hfi; subst.
        exists rs; auto.
-    -- rewrite REnvironment.add_neq_o in Hfi; auto.
+    -- rewrite RE.add_neq_o in Hfi; auto.
        destruct (Resource.eq_dec r rs); subst.
-       + rewrite REnvironment.add_eq_o in Hfi; auto.
+       + rewrite RE.add_eq_o in Hfi; auto.
          exists rg; right.
          exists v'; split; auto.
          inversion Hfi; reflexivity.
-       + rewrite REnvironment.add_neq_o in Hfi; auto.
+       + rewrite RE.add_neq_o in Hfi; auto.
          apply IHW in Hfi; auto.
          destruct Hfi as [r' [HIn| [v'' [HIn Heq]]]].
          ++ exists r'; auto.
@@ -672,40 +612,17 @@ Qed.
 
 Lemma init_locals_find_V r c V W :
   ~(In r (keys W)) ->
-  (init_locals W V)⌊r⌋%re = Some c -> 
-  V⌊r⌋%re = Some c.
+  RE.Raw.find r (init_locals W V) = Some c -> 
+  RE.Raw.find r V = Some c.
 Proof.
   intros; induction W; simpl in *; auto.
   destruct a as [[rg rs] v'].
   apply IHW; auto.
   - intro; apply H; simpl; auto.
-  - rewrite REnvironment.add_neq_o in H0.
-    -- rewrite REnvironment.add_neq_o in H0; auto.
+  - rewrite RE.add_neq_o in H0.
+    -- rewrite RE.add_neq_o in H0; auto.
        intro; subst; apply H; simpl; auto.
     -- intro; subst; apply H; simpl; auto.
 Qed.
 
 End Stock.
-
-(** ---- *)
-
-(** ** Notation - Stock *)
-
-Module StockNotations.
-
-(** *** Scope *)
-Declare Scope stock_scope.
-Delimit Scope stock_scope with sk.
-
-(** *** Notations *)
-Definition 𝐖 := Stock.t.
-
-Infix "∈" := List.In (at level 60, no associativity) : stock_scope. 
-Notation "r '∉' t" := (~ (List.In r t)) (at level 75, no associativity) : stock_scope. 
-Notation "t '⁺'" := (Stock.new_key t) (at level 16) : stock_scope.
-Notation "'[⧐' lb '–' k ']' t" := (Stock.shift lb k t) 
-                                   (at level 65, right associativity) : stock_scope.
-
-Infix "=" := Stock.eq : stock_scope.
-Infix "⊩" := Stock.Wf (at level 20, no associativity) : stock_scope.
-End StockNotations.

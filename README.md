@@ -1,5 +1,15 @@
 # Wormholes formalization
 
+## Updates
+
+- 12/08/2025
+  - Change the `Stock` definition into a simple list of triplets
+  - Move all notations in two files `SyntaxNotation.v` and `EnvNotation.v`
+  - Move `halts` definition for a resource environment from `REnvironment` to `Evaluation_Transition`
+  - Move `halts` definition for a stock from `Stock` to `Evaluation_Transition`
+  - Move `halts` definition for a simple environment from `SREnvironment` to `Evaluation_Transition`
+  - Move `init_globals` properties from `SREnvironment` to `Temporal_Transition`
+
 This repository contains a formalization of the language _Wormholes_ proposed by D. Winograd-Cort and P. Hudak.
 
 ## Dependencies
