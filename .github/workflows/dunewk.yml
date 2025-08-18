@@ -13,6 +13,12 @@ jobs:
 
     runs-on: 'ubuntu-latest'
 
+    strategy:
+      matrix:
+        coq_version:
+          - '8.20.1'
+        ocaml_version: ['default']
+
     permissions: write-all
 
     steps:
