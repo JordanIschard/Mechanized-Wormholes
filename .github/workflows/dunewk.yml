@@ -24,18 +24,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup dune
-        uses: nmittu/setup-dune@v2
-        with:
-          compiler: "4.14.1"
-          package: coq@8.20.1
           
       - name: Add MMaps
         run: |
           opam repo add coq-released https://coq.inria.fr/opam/released --all-switches
           opam install coq-mmaps
 
+
+      - name: Setup dune
+        uses: nmittu/setup-dune@v2
+        with:
+          compiler: "4.14.1"
+          package: coq
+          
       - name: Build project via dune
         run: |
           eval $(opam config env)
