@@ -40,7 +40,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.opam
-          key: ${{ runner.os }}-${{ inputs.compiler }}-${{ inputs.packages }}-opam
+          key: ${{ runner.os }}-${{ matrix.ocaml_version }}-${{ coq }}-opam
+          
       - name: Install opam packages
         if: steps.cache-opam.outputs.cache-hit != 'true'
         run: |
