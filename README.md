@@ -1,10 +1,20 @@
 # Wormholes formalization
 
+## Updates
+
+- 12/08/2025
+  - Change the `Stock` definition into a simple list of triplets
+  - Move all notations in two files `SyntaxNotation.v` and `EnvNotation.v`
+  - Move `halts` definition for a resource environment from `REnvironment` to `Evaluation_Transition`
+  - Move `halts` definition for a stock from `Stock` to `Evaluation_Transition`
+  - Move `halts` definition for a simple environment from `SREnvironment` to `Evaluation_Transition`
+  - Move `init_globals` properties from `SREnvironment` to `Temporal_Transition`
+
 This repository contains a formalization of the language _Wormholes_ proposed by D. Winograd-Cort and P. Hudak.
 
 ## Dependencies
 
-The formalization depends on the library `MMaps` available on the coq community [git](https://github.com/coq-community/coq-mmaps) and the library `DeBrLevel`, version `1.0.1`, available at [https://github.com/JordanIschard/DeBrLevel](https://github.com/JordanIschard/DeBrLevel).
+The formalization depends on the library `MMaps` available on the coq community [git](https://github.com/coq-community/coq-mmaps) and the library `DeBrLevel`, version `1.0.1`, available at [https://github.com/JordanIschard/DeBrLevel](https://github.com/JordanIschard/DeBrLevel).
 
 ## Documentation
 

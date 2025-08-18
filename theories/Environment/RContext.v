@@ -1,14 +1,12 @@
-From Coq Require Import Lia Classes.Morphisms.
-From Mecha Require Import Typ Resource.
+From Coq Require Import Lia Classes.Morphisms FunctionalExtensionality.
+From Mecha Require Import Typ Resource SyntaxNotation.
 From DeBrLevel Require Import LevelInterface Level MapLevelInterface MapLevelLVLD.
-Import ResourceNotations TypNotations.
 
 (** * Context - Resource Context
 
   The type system, defined in [Type_System.v], requires two contexts: a variable context and a resource context. The former is defined in [VContext.v] and the latter is defined here. It is a map which binds resource names with pair types. We use the module [MapLvlD] defined by the library [DeBrLevel].
 *)
 
-(** ** Module - Resource Context *)
 Module RContext <: IsBdlLvlET.
 
 Include MakeBdlLvlMapLVLD PairTyp.
@@ -16,9 +14,9 @@ Import Raw Ext.
 
 Open Scope ptyp_scope.
 
-(** *** Properties *)
+(** ** Properties *)
 
-(** **** [diff] properties *)
+(** *** [diff] properties *)
 
 Lemma diff_Empty_l (m m': t) : Empty m -> Empty (diff m m').
 Proof.
@@ -55,13 +53,13 @@ Proof.
        rewrite add_in_iff; auto.
   - rewrite diff_mapsto_iff in *.
     destruct HM as [HM HnIn']; split.
-    -- destruct (Resource.eq_dec k x) as [| Hneq]; subst.
+    -- destruct (R.eq_dec k x) as [| Hneq]; subst.
        + exfalso.
          apply HnIn.
          now exists v'.
        + rewrite add_mapsto_new; auto.
     -- intro HIn. 
-       destruct (Resource.eq_dec k x) as [| Hneq]; subst.
+       destruct (R.eq_dec k x) as [| Hneq]; subst.
        + exfalso.
          apply HnIn.
          now exists v'.
@@ -80,7 +78,7 @@ Proof.
     -- now apply (Submap_in _ _ m') in H.
 Qed. 
 
-(** **** [new_key] properties *)
+(** *** [new_key] properties *)
 
 Lemma new_key_diff (m m': t) :
   Submap m m' -> new_key m' = max (new_key (diff m' m)) (new_key m).
@@ -102,7 +100,7 @@ Proof.
          unfold Submap; split.
          ++ intros y HIn1.
             rewrite remove_in_iff.
-            destruct (Resource.eq_dec x y) as [| Hneq]; subst.
+            destruct (R.eq_dec x y) as [| Hneq]; subst.
             * contradiction.
             * apply (Submap_in _ _ m') in HIn1; auto.
          ++ intros k v v' Hfi1 Hfi'.
@@ -115,7 +113,24 @@ Proof.
     -- unfold Add; reflexivity.
 Qed.
 
-(** **** specific Wormholes properties *)
+Lemma new_key_in_remove_1 (x: lvl) (t: t) :
+  In x t -> new_key t = max (S x) (new_key (remove x t)).
+Proof.
+  intros HIn.
+  apply new_key_in in HIn as Hlt.
+  assert (HIn': In x t) by assumption.
+  destruct HIn as [v Hfi].
+  apply find_1 in Hfi.
+  apply add_id in Hfi.
+  rewrite <- Hfi.
+  rewrite <- add_remove_1 at 1.
+  assert (HnIn: ~ In x (remove x t)).
+  - rewrite remove_in_iff; intros []; auto.
+  - rewrite new_key_add_max.
+    rewrite remove_add_1; lia.
+Qed.
+
+(** *** specific Wormholes properties *)
 
 Lemma Submap_wh (m : t) (v v' : πΤ) :
   Submap m (add (S (new_key m)) v (add (new_key m) v' m)).
@@ -154,15 +169,13 @@ Proof.
     destruct Ha as [Heq | HIn]; try lia.
     apply new_key_notin in HIn; auto.
   - repeat split. 
-    -- unfold Resource.Wf; lia.
-    -- apply PairTyp.Wf_weakening with (n := new_key m); auto.
-    -- apply PairTyp.Wf_weakening with (n := new_key m); auto.
+    -- unfold R.Wf; lia.
+    -- apply PairTyp.Wf_weakening with (k := new_key m); auto.
     -- apply Wf_add_notin.
        + apply new_key_notin; lia.
        + repeat split.
-         ++ unfold Resource.Wf; lia.
-         ++ apply PairTyp.Wf_weakening with (n := new_key m); auto.
-         ++ apply PairTyp.Wf_weakening with (n := new_key m); auto.
+         ++ unfold R.Wf; lia.
+         ++ apply PairTyp.Wf_weakening with (k := new_key m); auto.
          ++ apply Wf_weakening with (k := new_key m); auto.
 Qed.
 
@@ -175,7 +188,7 @@ Proof.
   rewrite new_key_wh; now apply Wf_wh.
 Qed.
 
-(** **** Morphisms *)
+(** *** Morphisms *)
 
 #[export] Instance rcontext_in_iff : Proper (Logic.eq ==> eq ==> iff) In.
 Proof. intros x y Heqx c c' Heqc; subst; now rewrite Heqc. Qed.
@@ -187,7 +200,7 @@ Proof. intros x y Heqx c c' Heqc; subst; now rewrite Heqc. Qed.
 Proof. intros c c' Heq; now rewrite Heq. Qed.
 
 #[export] Instance rcontext_Add_iff : 
-  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@Add PairTyp.t).
+  Proper (R.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@Add PairTyp.t).
 Proof. 
   intros x x' HeqV ty ty' HeqT c c' Heq c1 c1' Heq1.
   apply PairTyp.eq_leibniz in HeqT; subst.
@@ -195,7 +208,7 @@ Proof.
 Qed.
 
 #[export] Instance rcontext_add_eq : 
-  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@add PairTyp.t).
+  Proper (R.eq ==> PairTyp.eq ==> eq ==> eq) (@add PairTyp.t).
 Proof. 
   intros x x' HeqV ty ty' HeqT c c' Heq.
   apply PairTyp.eq_leibniz in HeqT; subst.
@@ -203,64 +216,3 @@ Proof.
 Qed. 
 
 End RContext.
-
-(** ---- *)
-
-(** ** Notation - Resource Context *)
-Module RContextNotations.
-
-(** *** Scope *)
-Declare Scope rcontext_scope.
-Delimit Scope rcontext_scope with rc.
-
-
-(** *** Notations *)
-Definition ℜ := RContext.t.
-
-Notation "∅" := RContext.Raw.empty (at level 0, no associativity) : rcontext_scope. 
-Notation "t '⁺'" := (RContext.Ext.new_key t) (at level 16) : rcontext_scope.
-Notation "r '∉' t" := (~ (RContext.Raw.In r t)) (at level 75, no associativity) : rcontext_scope. 
-Notation "'isEmpty(' t ')'" := (RContext.Empty t) (at level 20, no associativity) : rcontext_scope. 
-Notation "t '⌊' x '⌋'"  := (RContext.Raw.find x t) (at level 15, x constr) : rcontext_scope.
-Notation "'max(' t ')'" := (RContext.Ext.max_key t) (at level 15) : rcontext_scope.
-Notation "⌈ x ⤆ v '⌉' t" := (RContext.Raw.add x v t) 
-                             (at level 15, x constr, v constr) : rcontext_scope.
-Notation "'[⧐' lb '–' k ']' t" := (RContext.shift lb k t) 
-                                   (at level 65, right associativity) : rcontext_scope.
-
-Infix "⊆" := RContext.Submap (at level 60, no associativity) : rcontext_scope. 
-Infix "∈" := RContext.Raw.In (at level 60, no associativity) : rcontext_scope. 
-Infix "⊩" := RContext.Wf (at level 20, no associativity) : rcontext_scope.
-Infix "=" := RContext.eq : rcontext_scope.
-
-(** *** Morphisms *)
-
-Import RContext.
-
-#[export] Instance rcontext_eq_equiv : Equivalence RContext.eq := Equal_equiv.
-
-#[export] Instance rcontext_max_eq : Proper (eq ==> Logic.eq) (Ext.max_key) := Ext.max_key_eq.
-
-#[export] Instance rcontext_new_eq : Proper (eq ==> Logic.eq) (Ext.new_key) := Ext.new_key_eq.
-
-#[export] Instance rcontext_in_iff : Proper (Logic.eq ==> eq ==> iff) (Raw.In) := _.
-
-#[export] Instance rcontext_find_eq : Proper (Logic.eq ==> eq ==> Logic.eq) (Raw.find) := _.
-
-#[export] Instance rcontext_Empty_iff : Proper (eq ==> iff) (Empty) := _.
-
-#[export] Instance rcontext_Add_iff : 
-  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq ==> iff) (@RContext.Add PairTyp.t) := _.
-
-#[export] Instance rcontext_add_eq : 
-  Proper (Resource.eq ==> PairTyp.eq ==> eq ==> eq) (@Raw.add PairTyp.t) := _.
-
-#[export] Instance rcontext_Submap_iff : Proper (eq ==> eq ==> iff) Submap := _.
-
-#[export] Instance rcontext_Submap_po : PreOrder Submap := Submap_po.
-
-#[export] Instance rcontext_Wf_iff : Proper (Logic.eq ==> eq ==> iff) Wf := _.
-
-#[export] Instance rcontext_shift_eq : Proper (Logic.eq ==> Logic.eq ==> eq ==> eq) shift := _.
-
-End RContextNotations.
