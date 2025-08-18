@@ -28,7 +28,6 @@ jobs:
       - name: Setup dune
         uses: nmittu/setup-dune@v2
         with:
-          packages: "coq"
           compiler: "4.14.1"
           
       - name: Add MMaps
