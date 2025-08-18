@@ -1619,26 +1619,45 @@ Qed.
 
 (** ** Preservation - Temporal *)
 
+(** *** Preservation of the temporal transition
 
-
+  Suppose a [put] function that well behaves (4), a well typed expression [P] (5),
+  an expression [P'], a resource context [Rc], two simple environments [R] and [R'], two stocks [W], [W'] and a resource set [Rs].
+  If:
+  - Input components of the temporal transition halts (1);
+  - All inner [arr t] terms in [P] halts (2); 
+  - [Rc], [R] and [W] are well-formed (3);
+  - The relation [#put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧] holds (6);
+  Then there exists a resource context [Rc1] and a resource set [Rs'] such that:
+  - [Rc] is included in [Rc1] (8);
+  - [Rs] is included in [Rs'] (7);
+  - [Rc1], [R'] and [W'] are well-formed (9);
+  - P' is typed [(𝟙 ⟿ 𝟙 ∣ Rs')] regards of [Rc1] (10);
+  - Output components of the temporal transition halts (11) and 
+  - All inner [arr t] terms in [P'] halts (12).
+*)
 Theorem temporal_preserves_typing (put : resource * (option Λ) -> Λ)
                                   (Rc : ℜ) (R R': 𝐄) 
                                   (W W' : 𝐖) (P P' : Λ) (Rs : resources) :
 
-       tT_inputs_halts (Rc⁺)%rc R W P -> halts_arr Rc P ->
-                        WFₜₜ(Rc,R,W) -> 
-                    put_good_behavior put Rc R ->
+        (* (1) *) tT_inputs_halts (Rc⁺)%rc R W P -> 
+        (* (2) *) halts_arr Rc P ->
+        (* (3) *) WFₜₜ(Rc,R,W) -> 
+        (* (4) *) put_good_behavior put Rc R ->
           
-                    ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
+        (* (5) *) ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) -> 
                       
-                  # put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ ->
+        (* (6) *) # put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ ->
   (* ------------------------------------------------------------------------ *)
       exists (Rc1 : ℜ) (Rs' : resources),
-            (Rs ⊆ Rs')%s /\ (Rc ⊆ Rc1)%rc /\ WFₜₜ(Rc1,R',W') /\
+          (* (7) *) (Rs ⊆ Rs')%s /\ 
+          (* (8) *) (Rc ⊆ Rc1)%rc /\ 
+          (* (9) *) WFₜₜ(Rc1,R',W') /\
           
-                     ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ Rs') /\ 
+          (* (10) *) ∅%vc ⋅ Rc1 ⊢ P' ∈ (𝟙 ⟿ 𝟙 ∣ Rs') /\ 
      
-      tT_outputs_halts (Rc1⁺)%rc W' P' /\ halts_arr Rc1 P'.
+          (* (11) *) tT_outputs_halts (Rc1⁺)%rc W' P' /\ 
+          (* (12) *) halts_arr Rc1 P'.
 Proof.
   intros Hinplt Harrlt HWF Hpwb HwtP HTT.
   apply WF_tt_to_WF_ec in HWF as HWF'.
@@ -1688,23 +1707,37 @@ Qed.
 (** ---- *)
 
 
-(** ** Progress - Temporal *)
+(** ** Reactivity - Temporal *)
 
+(** *** Reactivity of the temporal transition 
+
+  Suppose a [put] function that well behaves (4), a well typed expression [P] (5),
+  a resource context [Rc], a simple environment [R], a stock [W] and a resource set [Rs].
+  If:
+  - Input components of the temporal transition halts (1);
+  - All inner [arr t] terms in [P] halts (2); 
+  - [Rc], [R] and [W] are well-formed (3);
+  Then there exists an expression [P'], a simple environment [R'], a stock [W'] and a resource context [Rc1] such that:
+  - The relation [#put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧] holds (6);
+  - [Rc1], [R'] and [W'] are well-formed (7);
+  - Output components of the temporal transition halts (8) and 
+  - All inner [arr t] terms in [P'] halts (9).
+*)
 Theorem temporal_reactivity (put : resource * (option Λ) -> Λ) 
                             (Rc : ℜ) (R : 𝐄) (W: 𝐖) (P : Λ) (Rs : resources) :
 
-        tT_inputs_halts (Rc⁺)%rc R W P -> 
-        halts_arr Rc P ->
-        WFₜₜ(Rc,R,W) -> 
-        put_good_behavior put Rc R ->
+        (* (1) *) tT_inputs_halts (Rc⁺)%rc R W P -> 
+        (* (2) *) halts_arr Rc P ->
+        (* (3) *) WFₜₜ(Rc,R,W) -> 
+        (* (4) *) put_good_behavior put Rc R ->
           
-        ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) ->
+        (* (5) *) ∅%vc ⋅ Rc ⊢ P ∈ (𝟙 ⟿ 𝟙 ∣ Rs) ->
   (* --------------------------------------------------- *)
-       exists (P': Λ) (R' : 𝐄) (W': 𝐖) (Rc1: ℜ), 
-       #put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ /\
-       WFₜₜ(Rc1,R',W') /\
-       tT_outputs_halts (Rc1⁺)%rc W' P' /\ 
-       halts_arr Rc1 P'.
+      exists (P': Λ) (R' : 𝐄) (W': 𝐖) (Rc1: ℜ), 
+         (* (6) *) #put ⟦ R ; W ; P ⟧ ⟾ ⟦ R' ; W' ; P' ⟧ /\
+         (* (7) *) WFₜₜ(Rc1,R',W') /\
+         (* (8) *) tT_outputs_halts (Rc1⁺)%rc W' P' /\ 
+         (* (9) *) halts_arr Rc1 P'.
 Proof.
   intros HIOlt Harrlt Hwf Hbh Hwt.
   apply WF_tt_to_WF_ec in Hwf as Hwf'.
