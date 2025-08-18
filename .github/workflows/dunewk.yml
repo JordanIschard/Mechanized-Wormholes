@@ -25,23 +25,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
-      - uses: coq-community/docker-coq-action@v1
+
+      - name: Setup dune
+        uses: nmittu/setup-dune@v2
         with:
-          opam_file: 'folder/coq-proj.opam'
-          coq_version: ${{ matrix.coq_version }}
-          ocaml_version: ${{ matrix.ocaml_version }}
+          compiler: ${{ matrix.ocaml_version }}
+          package: coq
       
       - name: Add MMaps
         run: |
           opam repo add coq-released https://coq.inria.fr/opam/released
           opam install coq-mmaps
-
-      - name: Setup dune
-        uses: nmittu/setup-dune@v2
-        with:
-          compiler: "4.14.1"
-          package: coq
           
       - name: Build project via dune
         run: |
