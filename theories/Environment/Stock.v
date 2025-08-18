@@ -625,4 +625,48 @@ Proof.
     -- intro; subst; apply H; simpl; auto.
 Qed.
 
+Lemma init_locals_unused r W V:
+  In r (keys W) ->
+  unused r (init_locals W V).
+Proof.
+  revert V r; induction W; simpl; intros V r HIn.
+  - contradiction.
+  - destruct a as [[rg rs] v].
+    simpl in *;
+    destruct HIn as [Heq | [Heq | HIn]]; subst.
+    -- unfold unused, Cell.opt_unused.
+       rewrite RE.add_eq_o; auto.
+       constructor.
+    -- destruct (Resource.eq_dec r rg); subst.
+       + unfold unused, Cell.opt_unused.
+         rewrite RE.add_eq_o; auto.
+         constructor.
+       + unfold unused, Cell.opt_unused.
+         rewrite RE.add_neq_o, RE.add_eq_o; auto.
+         constructor.
+    -- apply (IHW V) in HIn.
+       destruct (Resource.eq_dec r rg); 
+       destruct (Resource.eq_dec r rs); subst;
+       try (unfold unused, Cell.opt_unused;
+            rewrite RE.add_eq_o; auto; now constructor).
+       + unfold unused, Cell.opt_unused.
+         rewrite RE.add_neq_o, RE.add_eq_o; auto.
+         constructor.
+       + unfold unused, Cell.opt_unused.
+         do 2 (rewrite RE.add_neq_o; auto).
+Qed.
+
+Lemma init_locals_unused_not r W V:
+  ~ (In r (keys W)) ->
+  unused r V ->
+  unused r (init_locals W V).
+Proof.
+  revert r; induction W; simpl; intros r HnIn Hunsd; auto.
+  destruct a as [[rr rw] v]; simpl in *.
+  apply Classical_Prop.not_or_and in HnIn as [Hneq HnIn].
+  apply Classical_Prop.not_or_and in HnIn as [Hneq' HnIn].
+  apply unused_add_neq; auto.
+  apply unused_add_neq; auto.
+Qed. 
+
 End Stock.
