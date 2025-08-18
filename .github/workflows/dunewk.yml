@@ -17,6 +17,7 @@ jobs:
       matrix:
         coq_version:
           - '8.20.1'
+          - dev
         ocaml_version: 
           - '4.14.1'
 
@@ -30,7 +31,7 @@ jobs:
         uses: nmittu/setup-dune@v2
         with:
           compiler: ${{ matrix.ocaml_version }}
-          package: coq
+          packages: 'coq' 
       
       - name: Add MMaps
         run: |
