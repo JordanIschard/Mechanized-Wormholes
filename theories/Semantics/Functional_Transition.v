@@ -854,6 +854,7 @@ Lemma functional_W_props (V V1 : 𝐕) (W : 𝐖) (sv sv' sf sf' : Λ) :
   (* --------------------------------------------------------------- *)
        NoDup (ST.keys W) /\
        (forall (r: resource), r ∈ (RE.diff V1 V) <-> (In r (ST.keys W))) /\
+       (V1⁺ = max (V⁺) (W⁺)%sk) /\
        (~ (W = []) -> (V1⁺)%re = (ST.new_key W) /\ (ST.new_key W) > (V⁺)%re).
 Proof.
   intro fT; induction fT; auto.
@@ -862,7 +863,9 @@ Proof.
     -- intro r; split; intro HIn. 
        + apply RE.diff_in_iff in HIn as []; contradiction.
        + inversion HIn.
-    -- intro Hc; exfalso; now apply Hc.
+    -- split.
+       + simpl; lia.  
+       + intro Hc; exfalso; now apply Hc.
   (* fT_comp *)
   - destruct IHfT1 as [HNoD1 [HDom1 HnEmp1]];
     destruct IHfT2 as [HNoD2 [HDom2 HnEmp2]].
@@ -882,7 +885,7 @@ Proof.
         destruct W.
         -- simpl in *; contradiction.
         -- remember (p :: W) as W1.
-           destruct HnEmp1.
+           destruct HnEmp1 as [Heq []].
            + rewrite HeqW1; symmetry; apply nil_cons.
            + rewrite H in HIn'.
              rewrite ST.keys_in_shift_new_key in HIn'.
@@ -903,7 +906,7 @@ Proof.
            destruct W.
            + simpl in *; inversion Hdiff.
            + remember (p :: W) as W1.
-             destruct HnEmp1.
+             destruct HnEmp1 as [Heq []].
              ++ rewrite HeqW1; symmetry; apply nil_cons.
              ++ rewrite H.
                 rewrite ST.keys_in_shift_new_key; auto.
@@ -915,7 +918,7 @@ Proof.
         -- destruct W.
            + simpl in *; inversion HIn.
            + remember (p :: W) as W1.
-             destruct HnEmp1.
+             destruct HnEmp1 as [Heq' []].
              ++ rewrite HeqW1; symmetry; apply nil_cons.
              ++ rewrite H in HIn.
                 rewrite ST.keys_in_shift_new_key in HIn; auto.
@@ -937,32 +940,41 @@ Proof.
       destruct W.
       - simpl in *.
         destruct W'.
-        -- contradiction.
+        -- split; simpl; try contradiction.
+           destruct HnEmp2, HnEmp1.
+           rewrite H, H1; simpl; lia.
         -- intros. 
            remember (p :: W') as W1.
-           destruct HnEmp2; auto.
-           split; auto.
-           apply functional_preserves_keys in fT1 as [_ ]; lia.
+           destruct HnEmp2 as [Heq []]; auto.
+           + rewrite HeqW1; discriminate.
+           + split; auto.
+             ++ destruct HnEmp1. 
+                rewrite Heq, H1; lia.
+             ++ apply functional_preserves_keys in fT1 as [_ ]; lia.
       - remember (p :: W) as W1.
         intros.
-        destruct HnEmp1.
+        destruct HnEmp1 as [Heq []].
         -- rewrite HeqW1; symmetry; apply nil_cons.
-        -- rewrite H0.
+        -- rewrite H.
            rewrite ST.new_key_shift_refl; auto.
-           rewrite <- H0.
+           rewrite <- H.
            destruct W'.
-           + simpl.
-             rewrite max_l; try lia.
-             apply ST.eqDom'_new_key in HDom2; auto.
-             simpl in HDom2; split; try lia.
-             apply functional_preserves_keys in fT2 as IH.
-             destruct IH as [HIn ].
-             rewrite RE.new_key_diff with (m := V1); auto.
-             rewrite HDom2; lia.
+           + simpl; split.
+             ++ destruct HnEmp2.
+                rewrite H1,Heq; simpl; lia.
+             ++ rewrite max_l; try lia.
+                apply ST.eqDom'_new_key in HDom2; auto.
+                simpl in HDom2; split; try lia.
+                apply functional_preserves_keys in fT2 as IH.
+                destruct IH as [HIn ].
+                rewrite RE.new_key_diff with (m := V1); auto.
+                rewrite HDom2; lia.
            + remember (p0 :: W') as W2.
-             destruct HnEmp2.
+             destruct HnEmp2 as [Heq' []].
              ++ rewrite HeqW2; symmetry; apply nil_cons.
-             ++ rewrite <- H2 in *; lia.
+             ++ split.
+                * rewrite Heq', Heq; lia.
+                * rewrite <- H1 in *; lia.
     }  
   (* fT_rsf *)
   - simpl; split; intros; try constructor.
@@ -975,7 +987,10 @@ Proof.
             now apply RE.find_2.
          ++ contradiction.
        + inversion H0.
-    -- intro Hc; contradiction.
+    -- split.
+       + rewrite RE.Ext.new_key_add_in; try lia.
+         exists (Cell.inp v); now apply RE.find_2.
+       + intro Hc; contradiction.
   (* fT_wh *)
   - destruct IHfT as [HNoD [HDom HnEmp]].
     split.
@@ -1028,28 +1043,45 @@ Proof.
         now rewrite RE.shift_in_new_key.
     }
     {
-      intros; split; try (now simpl; lia).
-      destruct W.
-      - apply ST.eqDom'_new_key in HDom; auto.
-        simpl in HDom.
-        apply functional_preserves_keys in fT as IH.
-        destruct IH as [HIn ].
-        rewrite RE.new_key_diff
-        with (m := (⌈S (V⁺) ⤆ ⩽ unit … ⩾ ⌉ (⌈V⁺ ⤆ ⩽ [⧐{V⁺} – 2] i … ⩾ ⌉ ([⧐V⁺ – 2] V)))) 
-        at 1; auto.
-        do 2 rewrite RE.Ext.new_key_add_max.
-        rewrite ST.new_key_cons.
-        simpl ([] ⁺)%sk.
-        rewrite RE.shift_new_refl; auto.
-        replace (RE.diff V1 (⌈ S (V ⁺) ⤆ ⩽ unit … ⩾ ⌉ (⌈ V ⁺ ⤆ ⩽ [⧐{V ⁺} – 2] i … ⩾ ⌉ ([⧐V ⁺ – 2] V))) ⁺) with 0.
-        lia.
-      - remember (p :: W) as W1.
-        destruct HnEmp.
-        -- rewrite HeqW1; symmetry; apply nil_cons.
-        -- rewrite ST.new_key_cons.
-           rewrite <- H0.
-           do 2 rewrite RE.Ext.new_key_add_max in H1.
+      split.
+      - destruct HnEmp as [Heq ]; simpl.
+        rewrite Heq.
+        repeat rewrite RE.Ext.new_key_add_max.
+        rewrite RE.shift_new_refl by lia.
+        destruct W.
+        -- simpl ([] ⁺)%sk.
+           simpl (Stock.max_key []).
            lia.
+        -- remember (p::W) as W'.
+           assert ((W'⁺)%sk = Stock.max_key W' + 1).
+           { 
+            subst. destruct p as [[rr rw] v].
+            now simpl.
+           }
+           rewrite H0.
+           lia.
+      - intros; split; try (now simpl; lia).
+        destruct W.
+        -- apply ST.eqDom'_new_key in HDom; auto.
+           simpl in HDom.
+           apply functional_preserves_keys in fT as IH.
+           destruct IH as [HIn ].
+           rewrite RE.new_key_diff
+           with (m := (⌈S (V⁺) ⤆ ⩽ unit … ⩾ ⌉ (⌈V⁺ ⤆ ⩽ [⧐{V⁺} – 2] i … ⩾ ⌉ ([⧐V⁺ – 2] V)))) 
+           at 1; auto.
+           do 2 rewrite RE.Ext.new_key_add_max.
+           rewrite ST.new_key_cons.
+           simpl ([] ⁺)%sk.
+           rewrite RE.shift_new_refl; auto.
+           replace (RE.diff V1 (⌈ S (V ⁺) ⤆ ⩽ unit … ⩾ ⌉ (⌈ V ⁺ ⤆ ⩽ [⧐{V ⁺} – 2] i … ⩾ ⌉ ([⧐V ⁺ – 2] V))) ⁺) with 0.
+           lia.
+        -- remember (p :: W) as W1.
+           destruct HnEmp as [Heq []].
+           + rewrite HeqW1; symmetry; apply nil_cons.
+           + rewrite ST.new_key_cons.
+             rewrite <- H0.
+             do 2 rewrite RE.Ext.new_key_add_max in H1.
+             lia.
     }
 Qed. 
 
@@ -1417,7 +1449,7 @@ Proof.
       - destruct W.
         -- simpl in *; inversion HIn.
         -- remember (p :: W) as W1.
-           apply functional_W_props in fT1 as [_ [HeqDom HnEmp]].
+           apply functional_W_props in fT1 as [_ [HeqDom [_ HnEmp]]].
            destruct HnEmp.
            + rewrite HeqW1; symmetry; apply nil_cons.
            + apply ST.shift_in_e in HIn as [tp [Heq HIn]]; subst.

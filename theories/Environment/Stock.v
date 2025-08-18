@@ -93,7 +93,55 @@ Proof.
   - intros H c; inversion c.
 Qed.
 
+Lemma shift_in_1 (m n: lvl) r r1 v (t: t) :
+  In ((r,r1),v) t -> 
+  In ((Resource.shift m n r,Resource.shift m n r1),Term.shift m n v) 
+     (shift m n t).
+Proof.
+  induction t; simpl; intro HIn; auto.
+  destruct a as [[rr rw] v']; destruct HIn as [|HIn]; subst.
+  - left; simpl; inversion H; subst; auto.
+  - now right; apply IHt.
+Qed.
+
+Lemma shift_in_2 (m n: lvl) r r1 v (t: t) :
+  In ((Resource.shift m n r,Resource.shift m n r1),Term.shift m n v) 
+     (shift m n t) ->
+  In ((r,r1),v) t.
+Proof.
+  induction t; simpl; intro HIn; auto.
+  destruct a as [[rr rw] v']; destruct HIn; simpl in *.
+  - inversion H.
+    rewrite <- Resource.shift_eq_iff in *.
+    rewrite <- Term.shift_eq_iff in *.
+    subst; now left.
+  - right; auto.
+Qed.
+
+Lemma shift_in_iff (m n: lvl) r r1 v (t: t) :
+  In ((r,r1),v) t <-> 
+  In ((Resource.shift m n r,Resource.shift m n r1),Term.shift m n v) 
+     (shift m n t).
+Proof. 
+  split; intro HIn.
+  - apply (shift_in_1 _ _ _ _ _ _ HIn).
+  - apply (shift_in_2 m n _ _ _ _ HIn).
+Qed.
+
 (** *** [keys] properties *)
+
+Lemma keys_In (rr rw: resource) (v: Λ) (st: t) :
+  In ((rr,rw),v) st -> In rr (keys st) /\ In rw (keys st).
+Proof.
+  revert rr rw v; induction st; simpl; intros rr rw v.
+  - intro; contradiction.
+  - destruct a as [[r r'] v'].
+    intros [Heq|HIn].
+    -- inversion Heq; subst; clear Heq.
+         split; simpl; auto.
+    -- apply IHst in HIn as [HIn HIn'].
+         split; simpl; auto.
+Qed. 
 
 Lemma keys_in_app (r : resource) (st st' : t) :
   In r (keys (st ++ st')) <-> In r (keys st) \/ In r (keys st').
