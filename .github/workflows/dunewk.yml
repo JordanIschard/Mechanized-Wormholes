@@ -29,7 +29,8 @@ jobs:
         uses: nmittu/setup-dune@v2
         with:
           packages: "coq"
-
+          compiler: "4.14.1"
+          
       - name: Add MMaps
         run: |
           opam repo add coq-released https://coq.inria.fr/opam/released
