@@ -27,6 +27,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install dune
+        run: |
+          sudo apt-get update
+          sudo apt-get install opam
+          opam init
+          eval $(opam env --switch=default)
+        shell: bash
+    
+      - name: Cache OPAM packages
+        id: cache-opam
+        uses: actions/cache@v3
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-${{ inputs.compiler }}-${{ inputs.packages }}-opam
+      - name: Install opam packages
+        if: steps.cache-opam.outputs.cache-hit != 'true'
+        run: |
+          opam switch create $${{ matrix.ocaml_version }}
+          opam switch set ${{ matrix.ocaml_version }}
+          opam install coq ${{ matrix.coq_version }}
+          opam install dune 3.19.0
+        shell: bash
+        
+      - name: Eval opem env
+        run: echo "eval $(opam config env)" >> ~/.bash_profile
+        shell: bash
+
       - name: Setup dune
         uses: nmittu/setup-dune@v2
         with:
