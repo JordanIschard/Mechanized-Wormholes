@@ -32,7 +32,7 @@ jobs:
           
       - name: Add MMaps
         run: |
-          opam repo add coq-released https://coq.inria.fr/opam/released
+          opam repo add coq-released https://coq.inria.fr/opam/released --all-switches
           opam install coq-mmaps
 
       - name: Build project via dune
