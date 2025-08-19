@@ -17,9 +17,8 @@ jobs:
       matrix:
         coq_version:
           - '8.20.1'
-          - dev
         ocaml_version: 
-          - '4.14.1'
+          - '4.09.0'
 
     permissions: write-all
 
@@ -27,39 +26,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dune
-        run: |
-          sudo apt-get update
-          sudo apt-get install opam
-          opam init
-          eval $(opam env --switch=default)
-        shell: bash
-    
-      - name: Cache OPAM packages
-        id: cache-opam
-        uses: actions/cache@v3
+      - name: Install Coq
+        uses: coq-community/docker-coq-action@v1
         with:
-          path: ~/.opam
-          key: ${{ runner.os }}-${{ matrix.ocaml_version }}-opam
-          
-      - name: Install opam packages
-        if: steps.cache-opam.outputs.cache-hit != 'true'
-        run: |
-          opam switch create $${{ matrix.ocaml_version }}
-          opam switch set ${{ matrix.ocaml_version }}
-          opam install coq ${{ matrix.coq_version }}
-          opam install dune 3.19.0
-        shell: bash
-        
-      - name: Eval opem env
-        run: echo "eval $(opam config env)" >> ~/.bash_profile
-        shell: bash
+          opam_file: 'folder/coq-proj.opam'
+          coq_version: ${{ matrix.coq_version }}
+          ocaml_version: ${{ matrix.ocaml_version }}
 
-      - name: Setup dune
-        uses: nmittu/setup-dune@v2
-        with:
-          compiler: ${{ matrix.ocaml_version }}
-          packages: 'coq' 
+      - name: Setup Dune
+        run: |
+          opam install dune
       
       - name: Add MMaps
         run: |
