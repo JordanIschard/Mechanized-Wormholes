@@ -31,14 +31,9 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml_version }}
 
-      - name: Install Coq
-        uses: coq-community/docker-coq-action@v1
-        with:
-          coq_version: ${{ matrix.coq_version }}
-          ocaml_version: ${{ matrix.ocaml_version }}
-
       - name: Setup Dune
         run: |
+          opam install coq ${{ matrix.coq_version }}
           opam install dune
       
       - name: Add MMaps
