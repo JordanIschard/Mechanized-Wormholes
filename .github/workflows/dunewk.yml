@@ -17,7 +17,8 @@ jobs:
       matrix:
         coq_version:
           - '8.20.1'
-        ocaml_version: ['default']
+        ocaml_version:
+          - '4.14.1'
 
     permissions: write-all
 
