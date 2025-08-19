@@ -27,7 +27,9 @@ jobs:
 
       - name: Set-up OCaml
         uses: ocaml/setup-ocaml@v3
-        
+        with:
+          ocaml-compiler: ${{ matrix.ocaml_version }}
+
       - name: Install Coq
         uses: coq-community/docker-coq-action@v1
         with:
