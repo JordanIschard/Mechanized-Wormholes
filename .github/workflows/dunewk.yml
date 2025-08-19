@@ -33,7 +33,8 @@ jobs:
 
       - name: Setup Dune
         run: |
-          opam install coq ${{ matrix.coq_version }}
+          opam pin add coq ${{ matrix.coq_version }}
+          opam install coq 
           opam install dune
       
       - name: Add MMaps
