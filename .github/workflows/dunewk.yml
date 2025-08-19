@@ -17,8 +17,7 @@ jobs:
       matrix:
         coq_version:
           - '8.20.1'
-        ocaml_version: 
-          - '4.09.0'
+        ocaml_version: ['default']
 
     permissions: write-all
 
@@ -29,7 +28,6 @@ jobs:
       - name: Install Coq
         uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'folder/coq-proj.opam'
           coq_version: ${{ matrix.coq_version }}
           ocaml_version: ${{ matrix.ocaml_version }}
 
