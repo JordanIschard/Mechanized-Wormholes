@@ -25,6 +25,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set-up OCaml
+        uses: ocaml/setup-ocaml@v3
+        
       - name: Install Coq
         uses: coq-community/docker-coq-action@v1
         with:
